@@ -135,6 +135,7 @@ Clone the repository:
 git clone https://github.com/CMU-SAFARI/prim-benchmarks
 
 cd prim-benchmarks
+./set-root-dir.sh
 ```
 
 ## Running PrIM
@@ -146,7 +147,7 @@ The repository includes scripts to run weak scaling and strong scaling experimen
 * `run_strong_rank.py`: Strong scaling experiments for 16 PrIM benchmarks using 1 rank of UPMEM DPUs (1 to 64 DPUs).
 * `run_strong_full.py`: Strong scaling experiments for 16 PrIM benchmarks using 4 to 32 ranks of UPMEM DPUs (256 to 2048 DPUs).
 
-To use these scripts, update `rootdir` in the beginning of each script. To run weak scaling experiments for BFS or SpMV, update the paths to input files in `run_weak.py`. 
+To run weak scaling experiments for BFS or SpMV, update the paths to input files in `run_weak.py`. 
 The scripts save the results in a folder called `profile` inside each benchmark folder.
 
 ```sh
