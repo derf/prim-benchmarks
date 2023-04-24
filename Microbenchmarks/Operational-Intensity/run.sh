@@ -1,5 +1,8 @@
 #!/bin/bash
 
+mkdir -p profile
+set -e
+
 for i in ADD SUB MUL DIV
 do
 	for j in CHAR SHORT INT32 FLOAT INT64 DOUBLE

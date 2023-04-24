@@ -1,5 +1,8 @@
 #!/bin/bash
 
+mkdir -p profile
+set -e
+
 # WRAM
 for i in streaming random
 do

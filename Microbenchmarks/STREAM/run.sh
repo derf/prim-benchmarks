@@ -1,5 +1,8 @@
 #!/bin/bash
 
+mkdir -p profile
+set -e
+
 # MRAM
 for i in copy copyw add scale triad
 do
