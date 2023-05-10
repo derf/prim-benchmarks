@@ -10,9 +10,9 @@ set -e
 # 2097152 B -> 2M is maximum for 64bit types (due to 16M per DPU)
 
 for mem in MRAM WRAM; do
+	for op in copy copyw add scale triad; do
 		for nr_dpus in 1 2 4 8 16 32 64 128 256 512; do
 			for nr_tasklets in 1 2 3 4 6 8 10 12 16 20 24; do
-	for op in copy copyw add scale triad; do
 				for dt in uint8_t uint16_t uint32_t uint64_t float double; do
 					if make -B MEM=${mem} OP=${op} NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10 T=${dt} UNROLL=1 \
 						|| make -B MEM=${mem} OP=${op} NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10 T=${dt} UNROLL=0; then
