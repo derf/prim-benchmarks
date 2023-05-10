@@ -103,9 +103,9 @@ int main(int argc, char **argv) {
     const unsigned int input_size = p.input_size * nr_of_dpus;
 
 #if defined(add) || defined(triad)
-    const unsignd int n_arrays = 3;
+    const unsigned int n_arrays = 3;
 #else
-    const unsignd int n_arrays = 2;
+    const unsigned int n_arrays = 2;
 #endif
 
     // Input/output allocation
