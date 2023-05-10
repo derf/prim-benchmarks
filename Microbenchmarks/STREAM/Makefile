@@ -1,46 +1,31 @@
-DPU_DIR := dpu
-HOST_DIR := host
-BUILDDIR ?= bin
 NR_TASKLETS ?= 16
 BL ?= 10
 NR_DPUS ?= 1
+T ?= uint64_t
 OP ?= copy
 MEM ?= MRAM
+UNROLL ?= 1
 
-define conf_filename
-	${BUILDDIR}/.NR_DPUS_$(1)_NR_TASKLETS_$(2)_BL_$(3)_$(4)_$(5).conf
-endef
-CONF := $(call conf_filename,${NR_DPUS},${NR_TASKLETS},${BL},${OP},${MEM})
+DPU_SOURCES = dpu/${OP}.c
+HOST_SOURCES = $(wildcard host/*.c)
 
-HOST_TARGET := ${BUILDDIR}/host_code
-DPU_TARGET := ${BUILDDIR}/dpu_code
+COMMON_INCLUDES = support
+COMMON_FLAGS = -Wall -Wextra -O2 -I${COMMON_INCLUDES} -DNR_DPUS=${NR_DPUS} -DNR_TASKLETS=${NR_TASKLETS} -DBL=${BL} -DT=${T} -D${OP} -D${MEM} -DUNROLL=${UNROLL}
+HOST_FLAGS = ${COMMON_FLAGS} -std=c11 `dpu-pkg-config --cflags --libs dpu`
+DPU_FLAGS = ${COMMON_FLAGS} -flto
 
-COMMON_INCLUDES := support
-HOST_SOURCES := $(wildcard ${HOST_DIR}/*.c)
-DPU_SOURCES := $(wildcard ${DPU_DIR}/${OP}.c)
+all: bin/dpu_code bin/host_code
 
-.PHONY: all clean test
+bin:
+	mkdir -p bin
 
-__dirs := $(shell mkdir -p ${BUILDDIR})
+bin/dpu_code: ${DPU_SOURCES}
+	dpu-upmem-dpurte-clang ${DPU_FLAGS} ${DPU_SOURCES} -o $@
 
-COMMON_FLAGS := -Wall -Wextra -g -I${COMMON_INCLUDES}
-HOST_FLAGS := ${COMMON_FLAGS} -std=c11 -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DBL=${BL} -D${OP} -D${MEM}
-DPU_FLAGS := ${COMMON_FLAGS} -O2 -flto -DNR_TASKLETS=${NR_TASKLETS} -DBL=${BL} -D${OP} -D${MEM}
-
-all: ${HOST_TARGET} ${DPU_TARGET}
-
-${CONF}:
-	$(RM) $(call conf_filename,*,*)
-	touch ${CONF}
-
-${HOST_TARGET}: ${HOST_SOURCES} ${COMMON_INCLUDES} ${CONF}
-	$(CC) -o $@ ${HOST_SOURCES} ${HOST_FLAGS}
-
-${DPU_TARGET}: ${DPU_SOURCES} ${COMMON_INCLUDES} ${CONF}
-	dpu-upmem-dpurte-clang ${DPU_FLAGS} -o $@ ${DPU_SOURCES}
+bin/host_code: ${HOST_SOURCES}
+	${CC} ${HOST_FLAGS} ${HOST_SOURCES} -o $@
 
 clean:
-	$(RM) -r $(BUILDDIR)
+	${RM} -f bin/dpu_code bin/host_code
 
-test: all
-	./${HOST_TARGET}
+.PHONY: all clean

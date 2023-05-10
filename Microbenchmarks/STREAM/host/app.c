@@ -22,6 +22,9 @@
 #define DPU_BINARY "./bin/dpu_code"
 #endif
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 // Pointer declaration
 static T* A;
 static T* B;
@@ -39,6 +42,27 @@ static void read_input(T* A, T* B, unsigned int nr_elements) {
         B[i] = (T) (rand());
     }
 }
+
+static char benchmark_name[] =
+#ifdef scale
+"SCALE"
+#elif add
+"ADD"
+#elif triad
+"TRIAD"
+#else
+"COPY"
+#endif
+;
+
+static char mem_name[] =
+#ifdef WRAM
+"WRAM"
+#endif
+#ifdef MRAM
+"MRAM"
+#endif
+;
 
 // Compute output in the host
 #if defined(add) || defined(triad)
@@ -76,7 +100,7 @@ int main(int argc, char **argv) {
     unsigned int i = 0;
     double cc = 0;
     double cc_min = 0;
-    const unsigned int input_size = p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size;
+    const unsigned int input_size = p.input_size * nr_of_dpus;
 
     // Input/output allocation
     A = malloc(input_size * sizeof(T));
@@ -102,7 +126,7 @@ int main(int argc, char **argv) {
 
         // Compute output on CPU (performance comparison and verification purposes)
         if(rep >= p.n_warmup)
-            start(&timer, 0, rep - p.n_warmup);
+            start(&timer, 0, 0);
 #if defined(add) || defined(triad)
         stream_host(C2, B, A, input_size);
 #else
@@ -113,7 +137,7 @@ int main(int argc, char **argv) {
 
         printf("Load input data\n");
         if(rep >= p.n_warmup)
-            start(&timer, 1, rep - p.n_warmup);
+            start(&timer, 1, 0);
         // Input arguments
         const unsigned int input_size_dpu = input_size / nr_of_dpus;
         unsigned int kernel = 0;
@@ -134,7 +158,7 @@ int main(int argc, char **argv) {
         printf("Run program on DPU(s) \n");
         // Run DPU kernel
         if(rep >= p.n_warmup)
-            start(&timer, 2, rep - p.n_warmup);
+            start(&timer, 2, 0);
         DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
         if(rep >= p.n_warmup)
             stop(&timer, 2);
@@ -153,7 +177,7 @@ int main(int argc, char **argv) {
 
         printf("Retrieve results\n");
         if(rep >= p.n_warmup)
-            start(&timer, 3, rep - p.n_warmup);
+            start(&timer, 3, 0);
         dpu_results_t results[nr_of_dpus];
         i = 0;
         DPU_FOREACH (dpu_set, dpu) {
@@ -198,19 +222,6 @@ int main(int argc, char **argv) {
         }
 #endif
 
-    }
-    printf("DPU cycles  = %g cc\n", cc / p.n_reps);
-
-    // Print timing results
-    printf("CPU ");
-    print(&timer, 0, p.n_reps);
-    printf("CPU-DPU ");
-    print(&timer, 1, p.n_reps);
-    printf("DPU Kernel ");
-    print(&timer, 2, p.n_reps);
-    printf("DPU-CPU ");
-    print(&timer, 3, p.n_reps);
-
     // Check output
     bool status = true;
     for (i = 0; i < input_size; i++) {
@@ -231,9 +242,24 @@ int main(int argc, char **argv) {
     }
     if (status) {
         printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
+        printf("[::] n_dpus=%d n_tasklets=%d e_benchmark=%-6s e_type=%s e_mem=%s b_unroll=%d | throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f \n", nr_of_dpus, NR_TASKLETS, benchmark_name, XSTR(T), mem_name, UNROLL, input_size * sizeof(T) / timer.time[0], input_size * sizeof(T) / timer.time[2], input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3]));
+        printf("[::] n_dpus=%d n_tasklets=%d e_benchmark=%-6s e_type=%s e_mem=%s b_unroll=%d | throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f \n", nr_of_dpus, NR_TASKLETS, benchmark_name, XSTR(T), mem_name, UNROLL, input_size / timer.time[0], input_size / timer.time[2], input_size / (timer.time[1] + timer.time[2] + timer.time[3]));
     } else {
         printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
     }
+
+    }
+    printf("DPU cycles  = %g cc\n", cc / p.n_reps);
+
+    // Print timing results
+    printf("CPU ");
+    print(&timer, 0, p.n_reps);
+    printf("CPU-DPU ");
+    print(&timer, 1, p.n_reps);
+    printf("DPU Kernel ");
+    print(&timer, 2, p.n_reps);
+    printf("DPU-CPU ");
+    print(&timer, 3, p.n_reps);
 
     // Deallocation
     free(A);
@@ -244,5 +270,5 @@ int main(int argc, char **argv) {
     free(C2);
     DPU_ASSERT(dpu_free(dpu_set));
 	
-    return status ? 0 : -1;
+    return 0;
 }

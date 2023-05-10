@@ -18,12 +18,16 @@ __host dpu_results_t DPU_RESULTS[NR_TASKLETS];
 
 // Add
 static void add_dpu(T *bufferC, T *bufferA, T *bufferB) {
-
+#if UNROLL
     #pragma unroll
     for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(T); i++){
         bufferC[i] = bufferA[i] + bufferB[i];
     }
-
+#else
+    for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(T); i++){
+        bufferC[i] = bufferA[i] + bufferB[i];
+    }
+#endif
 }
 
 // Barrier

@@ -18,12 +18,16 @@ __host dpu_results_t DPU_RESULTS[NR_TASKLETS];
 
 // Copy
 static void copyw_dpu(T *bufferB, T *bufferA) {
-
+#if UNROLL
     #pragma unroll
     for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(T); i++){
         bufferB[i] = bufferA[i];
     }
-
+#else
+    for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(T); i++){
+        bufferB[i] = bufferA[i];
+    }
+#endif
 }
 
 // Barrier

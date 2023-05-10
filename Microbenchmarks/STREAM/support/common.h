@@ -25,7 +25,9 @@ typedef struct {
 #endif
 
 // Data type
+#ifndef T
 #define T uint64_t
+#endif
 
 #define PERF 1 // Use perfcounters?
 #define PRINT 0

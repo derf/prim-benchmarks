@@ -18,12 +18,16 @@ __host dpu_results_t DPU_RESULTS[NR_TASKLETS];
 
 // Scale
 static void scale_dpu(T *bufferB, T *bufferA, T scalar) {
-
+#if UNROLL
     #pragma unroll
     for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(T); i++){
         bufferB[i] = scalar * bufferA[i];
     }
-
+#else
+    for (unsigned int i = 0; i < BLOCK_SIZE / sizeof(T); i++){
+        bufferB[i] = scalar * bufferA[i];
+    }
+#endif
 }
 
 // Barrier
