@@ -260,17 +260,6 @@ int main(int argc, char **argv) {
     }
     printf("DPU cycles  = %g cc\n", cc / p.n_reps);
 
-    // Print timing results
-    printf("CPU ");
-    print(&timer, 0, p.n_reps);
-    printf("CPU-DPU ");
-    print(&timer, 1, p.n_reps);
-    printf("DPU Kernel ");
-    print(&timer, 2, p.n_reps);
-    printf("DPU-CPU ");
-    print(&timer, 3, p.n_reps);
-    printf("\n");
-
     // Deallocation
     free(A);
     free(B);
