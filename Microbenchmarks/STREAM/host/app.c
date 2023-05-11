@@ -50,8 +50,10 @@ static char benchmark_name[] =
 "ADD"
 #elif triad
 "TRIAD"
-#else
+#elif copy
 "COPY"
+#elif copyw
+"COPYW"
 #endif
 ;
 
@@ -251,8 +253,8 @@ int main(int argc, char **argv) {
     }
     if (status) {
         printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-        printf("[::] n_dpus=%d n_tasklets=%d e_benchmark=%-6s e_type=%s e_mem=%s b_unroll=%d | throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f \n", nr_of_dpus, NR_TASKLETS, benchmark_name, XSTR(T), mem_name, UNROLL, input_size * n_arrays * sizeof(T) / timer.time[0], input_size * n_arrays * sizeof(T) / timer.time[2], input_size * n_arrays * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3]));
-        printf("[::] n_dpus=%d n_tasklets=%d e_benchmark=%-6s e_type=%s e_mem=%s b_unroll=%d | throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f \n", nr_of_dpus, NR_TASKLETS, benchmark_name, XSTR(T), mem_name, UNROLL, input_size / timer.time[0], input_size / timer.time[2], input_size / (timer.time[1] + timer.time[2] + timer.time[3]));
+        printf("[::] n_dpus=%d n_tasklets=%d e_benchmark=%-6s e_type=%s e_mem=%s b_unroll=%d block_size_B=%d | throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f \n", nr_of_dpus, NR_TASKLETS, benchmark_name, XSTR(T), mem_name, UNROLL, BLOCK_SIZE, input_size * n_arrays * sizeof(T) / timer.time[0], input_size * n_arrays * sizeof(T) / timer.time[2], input_size * n_arrays * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3]));
+        printf("[::] n_dpus=%d n_tasklets=%d e_benchmark=%-6s e_type=%s e_mem=%s b_unroll=%d block_size_B=%d | throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f \n", nr_of_dpus, NR_TASKLETS, benchmark_name, XSTR(T), mem_name, UNROLL, BLOCK_SIZE, input_size / timer.time[0], input_size / timer.time[2], input_size / (timer.time[1] + timer.time[2] + timer.time[3]));
     } else {
         printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
     }
