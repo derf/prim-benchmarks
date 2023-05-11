@@ -193,8 +193,13 @@ int main(int argc, char **argv) {
 #else
             DPU_ASSERT(dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu * sizeof(T), bufferB + input_size_dpu * i, input_size_dpu * sizeof(T)));
 #endif
-			
+            i++;
+        }
+        if(rep >= p.n_warmup)
+            stop(&timer, 3);
 #if PERF
+        i = 0;
+        DPU_FOREACH (dpu_set, dpu) {
             results[i].cycles = 0;
             // Retrieve tasklet timings
             for (unsigned int each_tasklet = 0; each_tasklet < NR_TASKLETS; each_tasklet++) {
@@ -204,11 +209,9 @@ int main(int argc, char **argv) {
                 if (result.cycles > results[i].cycles)
                     results[i].cycles = result.cycles;
             }
-#endif
             i++;
         }
-        if(rep >= p.n_warmup)
-            stop(&timer, 3);
+#endif
 
 #if PERF
         uint64_t max_cycles = 0;
