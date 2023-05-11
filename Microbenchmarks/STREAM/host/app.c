@@ -141,7 +141,7 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             stop(&timer, 0);
 
-        printf("Load input data\n");
+        //printf("Load input data\n");
         if(rep >= p.n_warmup)
             start(&timer, 1, 0);
         // Input arguments
@@ -161,7 +161,7 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             stop(&timer, 1);
 
-        printf("Run program on DPU(s) \n");
+        //printf("Run program on DPU(s) \n");
         // Run DPU kernel
         if(rep >= p.n_warmup)
             start(&timer, 2, 0);
@@ -181,7 +181,7 @@ int main(int argc, char **argv) {
         }
 #endif
 
-        printf("Retrieve results\n");
+        //printf("Retrieve results\n");
         if(rep >= p.n_warmup)
             start(&timer, 3, 0);
         dpu_results_t results[nr_of_dpus];
@@ -266,6 +266,7 @@ int main(int argc, char **argv) {
     print(&timer, 2, p.n_reps);
     printf("DPU-CPU ");
     print(&timer, 3, p.n_reps);
+    printf("\n");
 
     // Deallocation
     free(A);
