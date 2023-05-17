@@ -158,8 +158,6 @@ int main(int argc, char **argv) {
         i = 0;
         accum = 0;
 
-        if(rep >= p.n_warmup)
-            start(&timer, 3, rep - p.n_warmup);
         // PARALLEL RETRIEVE TRANSFER
         dpu_results_t* results_retrieve[nr_of_dpus];
 
