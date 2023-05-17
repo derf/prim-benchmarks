@@ -5,7 +5,8 @@ TYPE ?= INT64
 ENERGY ?= 0
 UNROLL ?= 1
 
-HOST_SOURCES := $(wildcard host/*.c)
+HOST_SOURCES := $(wildcard host/app.c)
+OMP_SOURCES := $(wildcard host/omp.c)
 DPU_SOURCES := $(wildcard dpu/*.c)
 
 COMMON_INCLUDES := support
@@ -30,7 +31,10 @@ bin/dpu_code: ${DPU_SOURCES}
 bin/host_code: ${HOST_SOURCES}
 	${QUIET}${CC} ${HOST_FLAGS} ${HOST_SOURCES} -o $@
 
+bin/omp_code: ${OMP_SOURCES}
+	${QUIET}${CC} ${HOST_FLAGS} -fopenmp ${OMP_SOURCES} -o $@
+
 clean:
-	${QUIET}${RM} -f bin/dpu_code bin/host_code
+	${QUIET}${RM} -f bin/dpu_code bin/host_code bin/omp_code
 
 .PHONY: all clean

@@ -286,7 +286,7 @@ int main(int argc, char **argv) {
                 input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
             printf("[::] n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d b_unroll=%d n_elements=%d | ",
                 nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, UNROLL, input_size);
-            printall(&timer);
+            printall(&timer, 5);
         } else {
             printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
         }

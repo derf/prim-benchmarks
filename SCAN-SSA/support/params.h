@@ -17,7 +17,6 @@ static void usage() {
         "\n    -h        help"
         "\n    -w <W>    # of untimed warmup iterations (default=1)"
         "\n    -e <E>    # of timed repetition iterations (default=3)"
-        "\n    -x <X>    Weak (0) or strong (1) scaling (default=0)"
         "\n"
         "\nBenchmark-specific options:"
         "\n    -i <I>    input size (default=3932160 elements)"

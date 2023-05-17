@@ -56,8 +56,8 @@ void stop(Timer *timer, int i) {
                       (timer->stopTime[i].tv_usec - timer->startTime[i].tv_usec);
 }
 
-void printall(Timer *timer) {
-    for (int i = 0; i <= 5; i++) {
+void printall(Timer *timer, int maxt) {
+    for (int i = 0; i <= maxt; i++) {
         printf(" timer%d_us=%f", i, timer->time[i]);
     }
     printf("\n");

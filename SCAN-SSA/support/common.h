@@ -58,7 +58,7 @@ typedef struct {
 #ifndef ENERGY
 #define ENERGY 0
 #endif
-#define PRINT 0 
+#define PRINT 0
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
