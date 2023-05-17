@@ -23,10 +23,16 @@ T message_partial_count;
 // Scan in each tasklet
 static T scan(T *output, T *input){
     output[0] = input[0];
+#if UNROLL
     #pragma unroll
     for(unsigned int j = 1; j < REGS; j++) {
         output[j] = output[j - 1] + input[j];
     }
+#else
+    for(unsigned int j = 1; j < REGS; j++) {
+        output[j] = output[j - 1] + input[j];
+    }
+#endif
     return output[REGS - 1];
 }
 
@@ -53,10 +59,16 @@ BARRIER_INIT(my_barrier, NR_TASKLETS);
 
 // Add in each tasklet
 static void add(T *output, T p_count){
+#if UNROLL
     #pragma unroll
     for(unsigned int j = 0; j < REGS; j++) {
         output[j] += p_count;
     }
+#else
+    for(unsigned int j = 0; j < REGS; j++) {
+        output[j] += p_count;
+    }
+#endif
 }
 
 extern int main_kernel1(void);
