@@ -47,6 +47,8 @@ static void read_input(T* A, unsigned int nr_elements, unsigned int nr_elements_
 }
 
 // Compute output in the host
+// XXX for a proper comparison, this function would need to use OpenMP or similar
+// (i.e., a SCAN-SSA variant using multiple threads)
 static void scan_host(T* C, T* A, unsigned int nr_elements) {
     C[0] = A[0];
     for (unsigned int i = 1; i < nr_elements; i++) {
