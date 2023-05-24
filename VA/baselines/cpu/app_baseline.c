@@ -15,10 +15,17 @@
 #include <omp.h>
 #include "../../support/timer.h"
 
-static int32_t *A;
-static int32_t *B;
-static int32_t *C;
-static int32_t *C2; 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
+#ifndef T
+#define T int32_t
+#endif
+
+static T *A;
+static T *B;
+static T *C;
+static T *C2; 
 
 /**
 * @brief creates a "test file" by filling a buffer of 64MB with pseudo-random values
@@ -27,14 +34,13 @@ static int32_t *C2;
 */
 void  *create_test_file(unsigned int nr_elements) {
     srand(0);
-    printf("nr_elements\t%u\t", nr_elements);
-    A = (uint32_t*) malloc(nr_elements * sizeof(uint32_t));
-    B = (uint32_t*) malloc(nr_elements * sizeof(uint32_t));
-    C = (uint32_t*) malloc(nr_elements * sizeof(uint32_t));
+    A = (T*) malloc(nr_elements * sizeof(T));
+    B = (T*) malloc(nr_elements * sizeof(T));
+    C = (T*) malloc(nr_elements * sizeof(T));
     
     for (int i = 0; i < nr_elements; i++) {
-        A[i] = (int) (rand());
-        B[i] = (int) (rand());
+        A[i] = (T) (rand());
+        B[i] = (T) (rand());
     }
 
 }
@@ -115,14 +121,31 @@ int main(int argc, char **argv) {
     create_test_file(file_size);
 
     Timer timer;
-    start(&timer, 0, 0);
 
-    vector_addition_host(file_size, p.n_threads);
-	
-    stop(&timer, 0);
-    printf("Kernel ");
-    print(&timer, 0, 1);
-    printf("\n");
+    for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
+        start(&timer, 0, 0);
+        vector_addition_host(file_size, p.n_threads);
+        stop(&timer, 0);
+
+        unsigned int nr_threads = 0;
+#pragma omp parallel
+#pragma omp atomic
+        nr_threads++;
+
+        if (rep >= p.n_warmup) {
+            printf("[::] n_threads=%d e_type=%s n_elements=%d "
+                "| throughput_cpu_MBps=%f\n",
+                nr_threads, XSTR(T), file_size,
+                file_size * 3 * sizeof(T) / timer.time[0]);
+            printf("[::] n_threads=%d e_type=%s n_elements=%d "
+                "| throughput_cpu_MOpps=%f\n",
+                nr_threads, XSTR(T), file_size,
+                file_size / timer.time[0]);
+            printf("[::] n_threads=%d e_type=%s n_elements=%d |",
+                nr_threads, XSTR(T), file_size);
+            printall(&timer, 0);
+        }
+    }
 
     free(A);
     free(B);
