@@ -57,3 +57,10 @@ void stop(Timer *timer, int i) {
 }
 
 void print(Timer *timer, int i, int REP) { printf("Time (ms): %f\t", timer->time[i] / (1000 * REP)); }
+
+void printall(Timer *timer, int maxt) {
+    for (int i = 0; i <= maxt; i++) {
+        printf(" timer%d_us=%f", i, timer->time[i]);
+    }
+    printf("\n");
+}

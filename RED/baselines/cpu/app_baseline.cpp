@@ -34,6 +34,9 @@
 #include "../../support/common.h"
 #include "../../support/timer.h"
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
@@ -72,7 +75,6 @@ typedef struct Params {
     unsigned int   input_size;
     int   n_warmup;
     int   n_reps;
-    int   exp;
     int   n_threads;
 }Params;
 
@@ -84,7 +86,6 @@ void usage() {
         "\n    -h        help"
         "\n    -w <W>    # of untimed warmup iterations (default=1)"
         "\n    -e <E>    # of timed repetition iterations (default=3)"
-        "\n    -x <X>    Weak (0) or strong (1) scaling (default=0)"
         "\n    -t <T>    # of threads (default=8)"
         "\n"
         "\nBenchmark-specific options:"
@@ -97,11 +98,10 @@ struct Params input_params(int argc, char **argv) {
     p.input_size    = 2 << 20;
     p.n_warmup      = 1;
     p.n_reps        = 3;
-    p.exp           = 0;
     p.n_threads     = 1;
 
     int opt;
-    while((opt = getopt(argc, argv, "hi:w:e:x:t:")) >= 0) {
+    while((opt = getopt(argc, argv, "hi:w:e:t:")) >= 0) {
         switch(opt) {
         case 'h':
         usage();
@@ -110,7 +110,6 @@ struct Params input_params(int argc, char **argv) {
         case 'i': p.input_size    = atoi(optarg); break;
         case 'w': p.n_warmup      = atoi(optarg); break;
         case 'e': p.n_reps        = atoi(optarg); break;
-        case 'x': p.exp           = atoi(optarg); break;
         case 't': p.n_threads     = atoi(optarg); break;
         default:
             fprintf(stderr, "\nUnrecognized option!\n");
@@ -133,7 +132,7 @@ int main(int argc, char **argv) {
     unsigned int nr_of_dpus = 1;
     
     unsigned int i = 0;
-    const unsigned int input_size = p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size;
+    const unsigned int input_size = p.input_size;
     assert(input_size % (p.n_threads) == 0 && "Input size!");
 
     // Input/output allocation
@@ -160,7 +159,7 @@ int main(int argc, char **argv) {
 
         // Compute output on CPU (performance comparison and verification purposes)
         if(rep >= p.n_warmup)
-            start(&timer, 0, rep - p.n_warmup);
+            start(&timer, 0, 0);
         count_host = reduction_host(A, input_size);
         if(rep >= p.n_warmup)
             stop(&timer, 0);
@@ -170,32 +169,52 @@ int main(int argc, char **argv) {
 
         omp_set_num_threads(p.n_threads);
 
+        unsigned int nr_threads = 0;
+#pragma omp parallel
+#pragma omp atomic
+        nr_threads++;
+
         if(rep >= p.n_warmup)
-            start(&timer, 1, rep - p.n_warmup);
+            start(&timer, 1, 0);
         count = thrust::reduce(thrust::omp::par, d_input.begin(), d_input.end());
         if(rep >= p.n_warmup)
             stop(&timer, 1);
         h_output = d_input;
 
+        // Check output
+        bool status = true;
+        if(count_host != count){ 
+            status = false;
+            printf("%lu -- %lu\n", count, count_host);
+        }
+        if (status) {
+            printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
+            if(rep >= p.n_warmup) {
+                printf("[::] n_threads=%d e_type=%s n_elements=%d "
+                    "| throughput_cpu_ref_MBps=%f throughput_cpu_thrust_MBps=%f\n",
+                    nr_threads, XSTR(T), input_size,
+                    input_size * sizeof(T) / timer.time[0],
+                    input_size * sizeof(T) / timer.time[1]);
+                printf("[::] n_threads=%d e_type=%s n_elements=%d "
+                    "| throughput_cpu_ref_MOpps=%f throughput_cpu_thrust_MOpps=%f\n",
+                    nr_threads, XSTR(T), input_size,
+                    input_size / timer.time[0],
+                    input_size / timer.time[1]);
+                printf("[::] n_threads=%d e_type=%s n_elements=%d | ",
+                    nr_threads, XSTR(T), input_size);
+                printall(&timer, 1);
+            }
+        } else {
+            printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
+        }
     }
 
     // Print timing results
-    printf("CPU ");
-    print(&timer, 0, p.n_reps);
-    printf("Kernel ");
-    print(&timer, 1, p.n_reps);
+    //printf("CPU ");
+    //print(&timer, 0, p.n_reps);
+    //printf("Kernel ");
+    //print(&timer, 1, p.n_reps);
 
-    // Check output
-    bool status = true;
-    if(count_host != count){ 
-        status = false;
-        printf("%lu -- %lu\n", count, count_host);
-    }
-	if (status) {
-        printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-    } else {
-        printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
-    }
 
     // Deallocation
     free(A);
