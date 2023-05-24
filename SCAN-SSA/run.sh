@@ -19,7 +19,7 @@ for nr_dpus in 1 2 4 8 16 32 64 128 256 512; do
 				echo
 				if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10 TYPE=${dt} UNROLL=1 \
 					|| make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10 TYPE=${dt} UNROLL=0; then
-					bin/host_code -w 0 -e 100 -i ${i} || true
+					timeout -k 1m 30m bin/host_code -w 0 -e 100 -i ${i} || true
 				fi
 			done
 		done

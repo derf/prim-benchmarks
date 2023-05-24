@@ -21,7 +21,7 @@ for nr_dpus in 1 2 4 8 16 32 64 128 256 512; do
 					echo
 					if make -B MEM=${mem} OP=${op} NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10 T=${dt} UNROLL=1 \
 						|| make -B MEM=${mem} OP=${op} NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10 T=${dt} UNROLL=0; then
-						bin/host_code -w 0 -e 20 -i 2097152
+						timeout -k 1m 30m bin/host_code -w 0 -e 20 -i 2097152 || true
 					fi
 				done
 			done

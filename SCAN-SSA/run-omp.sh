@@ -16,7 +16,7 @@ for nr_threads in 1 2 4 6 8 12 16 20 24 32; do
 		for dt in UINT32 UINT64 INT32 INT64 FLOAT DOUBLE; do
 			echo
 			if make -B TYPE=${dt} bin/omp_code; then
-				OMP_NUM_THREADS=$nr_threads bin/omp_code -w 0 -e 100 -i ${i} || true
+				OMP_NUM_THREADS=$nr_threads timeout -k 1m 30m bin/omp_code -w 0 -e 100 -i ${i} || true
 			fi
 		done
 	done
