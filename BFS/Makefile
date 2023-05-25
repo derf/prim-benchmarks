@@ -1,60 +1,35 @@
-DPU_DIR := dpu
-HOST_DIR := host
-CPU_BASE_DIR := baselines/cpu
-GPU_BASE_DIR := baselines/gpu
-BUILDDIR ?= bin
-NR_TASKLETS ?= 16
 NR_DPUS ?= 1
-
-define conf_filename
-	${BUILDDIR}/.NR_DPUS_$(1)_NR_TASKLETS_$(2).conf
-endef
-CONF := $(call conf_filename,${NR_DPUS},${NR_TASKLETS})
-
-HOST_TARGET := ${BUILDDIR}/host_code
-DPU_TARGET := ${BUILDDIR}/dpu_code
-CPU_BASE_TARGET := ${BUILDDIR}/cpu_baseline
-GPU_BASE_TARGET := ${BUILDDIR}/gpu_baseline
+NR_TASKLETS ?= 16
 
 COMMON_INCLUDES := support
-HOST_SOURCES := $(wildcard ${HOST_DIR}/*.c)
-DPU_SOURCES := $(wildcard ${DPU_DIR}/*.c)
-CPU_BASE_SOURCES := $(wildcard ${CPU_BASE_DIR}/*.c)
-GPU_BASE_SOURCES := $(wildcard ${GPU_BASE_DIR}/*.cu)
+HOST_SOURCES := $(wildcard host/*.c)
+DPU_SOURCES := $(wildcard dpu/*.c)
 
 .PHONY: all clean test
 
-__dirs := $(shell mkdir -p ${BUILDDIR})
-
 COMMON_FLAGS := -Wall -Wextra -g -I${COMMON_INCLUDES}
-HOST_FLAGS := ${COMMON_FLAGS} -std=c11 -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} 
-DPU_FLAGS := ${COMMON_FLAGS} -O2 -DNR_TASKLETS=${NR_TASKLETS} 
-CPU_BASE_FLAGS := -O3 -fopenmp
-GPU_BASE_FLAGS := -O3
+HOST_FLAGS := ${COMMON_FLAGS} -std=c11 -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS}
+DPU_FLAGS := ${COMMON_FLAGS} -O2 -DNR_TASKLETS=${NR_TASKLETS}
 
-all: ${HOST_TARGET} ${DPU_TARGET} ${CPU_BASE_TARGET}
+QUIET = @
 
-gpu: ${GPU_BASE_TARGET}
+ifdef verbose
+	QUIET =
+endif
 
-${CONF}:
-	$(RM) $(call conf_filename,*,*)
-	touch ${CONF}
+all: bin/host_code bin/dpu_code
 
-${HOST_TARGET}: ${HOST_SOURCES} ${COMMON_INCLUDES} ${CONF}
-	$(CC) -o $@ ${HOST_SOURCES} ${HOST_FLAGS}
+bin:
+	${QUIET}mkdir -p bin
 
-${DPU_TARGET}: ${DPU_SOURCES} ${COMMON_INCLUDES} ${CONF}
-	dpu-upmem-dpurte-clang ${DPU_FLAGS} -o $@ ${DPU_SOURCES}
+bin/dpu_code: ${DPU_SOURCES} ${COMMON_INCLUDES}
+	${QUIET}dpu-upmem-dpurte-clang ${DPU_FLAGS} -o $@ ${DPU_SOURCES}
 
-${CPU_BASE_TARGET}: ${CPU_BASE_SOURCES}
-	$(CC) -o $@ ${CPU_BASE_SOURCES} ${CPU_BASE_FLAGS}
-
-${GPU_BASE_TARGET}: ${GPU_BASE_SOURCES}
-	nvcc -o $@ ${GPU_BASE_SOURCES} ${GPU_BASE_FLAGS}
+bin/host_code: ${HOST_SOURCES} ${COMMON_INCLUDES}
+	${QUIET}${CC} -o $@ ${HOST_SOURCES} ${HOST_FLAGS}
 
 clean:
-	$(RM) -r $(BUILDDIR)
+	rm -rf bin
 
 test: all
-	./${HOST_TARGET}
-
+	bin/host_code

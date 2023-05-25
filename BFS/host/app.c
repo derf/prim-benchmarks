@@ -37,7 +37,6 @@ int main(int argc, char** argv) {
 
     // Timer and profiling
     Timer timer;
-    float loadTime = 0.0f, dpuTime = 0.0f, hostTime = 0.0f, retrieveTime = 0.0f;
     #if ENERGY
     struct dpu_probe_t probe;
     DPU_ASSERT(dpu_probe_init("energy_probe", &probe));
@@ -73,6 +72,10 @@ int main(int argc, char** argv) {
     struct DPUParams dpuParams[numDPUs];
     uint32_t dpuParams_m[numDPUs];
     unsigned int dpuIdx = 0;
+    unsigned int t0ini = 0;
+    unsigned int t1ini = 0;
+    unsigned int t2ini = 0;
+    unsigned int t3ini = 0;
     DPU_FOREACH (dpu_set, dpu) {
 
         // Allocate parameters
@@ -127,29 +130,28 @@ int main(int argc, char** argv) {
 
             // Send data to DPU
             PRINT_INFO(p.verbosity >= 2, "        Copying data to DPU");
-            startTimer(&timer);
+            startTimer(&timer, 0, t0ini++);
             copyToDPU(dpu, (uint8_t*)dpuNodePtrs_h, dpuNodePtrs_m, (dpuNumNodes + 1)*sizeof(uint32_t));
             copyToDPU(dpu, (uint8_t*)dpuNeighborIdxs_h, dpuNeighborIdxs_m, dpuNumNeighbors*sizeof(uint32_t));
             copyToDPU(dpu, (uint8_t*)dpuNodeLevel_h, dpuNodeLevel_m, dpuNumNodes*sizeof(uint32_t));
             copyToDPU(dpu, (uint8_t*)visited, dpuVisited_m, numNodes/64*sizeof(uint64_t));
             copyToDPU(dpu, (uint8_t*)nextFrontier, dpuNextFrontier_m, numNodes/64*sizeof(uint64_t));
             // NOTE: No need to copy current frontier because it is written before being read
-            stopTimer(&timer);
-            loadTime += getElapsedTime(timer);
+            stopTimer(&timer, 0);
+            //loadTime += getElapsedTime(timer);
 
         }
 
         // Send parameters to DPU
         PRINT_INFO(p.verbosity >= 2, "        Copying parameters to DPU");
-        startTimer(&timer);
+        startTimer(&timer, 1, t1ini++);
         copyToDPU(dpu, (uint8_t*)&dpuParams[dpuIdx], dpuParams_m[dpuIdx], sizeof(struct DPUParams));
-        stopTimer(&timer);
-        loadTime += getElapsedTime(timer);
+        stopTimer(&timer, 1);
+        //loadTime += getElapsedTime(timer);
 
         ++dpuIdx;
 
     }
-    PRINT_INFO(p.verbosity >= 1, "    CPU-DPU Time: %f ms", loadTime*1e3);
 
     // Iterate until next frontier is empty
     uint32_t nextFrontierEmpty = 0;
@@ -162,11 +164,10 @@ int main(int argc, char** argv) {
 	#endif
         // Run all DPUs
         PRINT_INFO(p.verbosity >= 1, "    Booting DPUs");
-        startTimer(&timer);
+        startTimer(&timer, 2, t2ini++);
         DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
-        stopTimer(&timer);
-        dpuTime += getElapsedTime(timer);
-        PRINT_INFO(p.verbosity >= 2, "    Level DPU Time: %f ms", getElapsedTime(timer)*1e3);
+        stopTimer(&timer, 2);
+        //dpuTime += getElapsedTime(timer);
 	#if ENERGY
     	DPU_ASSERT(dpu_probe_stop(&probe));
     	double energy;
@@ -177,7 +178,7 @@ int main(int argc, char** argv) {
 
 
         // Copy back next frontier from all DPUs and compute their union as the current frontier
-        startTimer(&timer);
+        startTimer(&timer, 3, t3ini++);
         dpuIdx = 0;
         DPU_FOREACH (dpu_set, dpu) {
             uint32_t dpuNumNodes = dpuParams[dpuIdx].dpuNumNodes;
@@ -217,20 +218,14 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        stopTimer(&timer);
-        hostTime += getElapsedTime(timer);
-        PRINT_INFO(p.verbosity >= 2, "    Level Inter-DPU Time: %f ms", getElapsedTime(timer)*1e3);
+        stopTimer(&timer, 3);
+        //hostTime += getElapsedTime(timer);
 
     }
-    PRINT_INFO(p.verbosity >= 1, "DPU Kernel Time: %f ms", dpuTime*1e3);
-    PRINT_INFO(p.verbosity >= 1, "Inter-DPU Time: %f ms", hostTime*1e3);
-    #if ENERGY
-    PRINT_INFO(p.verbosity >= 1, "    DPU Energy: %f J", tenergy);
-    #endif
 
     // Copy back node levels
     PRINT_INFO(p.verbosity >= 1, "Copying back the result");
-    startTimer(&timer);
+    startTimer(&timer, 4, 0);
     dpuIdx = 0;
     DPU_FOREACH (dpu_set, dpu) {
         uint32_t dpuNumNodes = dpuParams[dpuIdx].dpuNumNodes;
@@ -240,10 +235,9 @@ int main(int argc, char** argv) {
         }
         ++dpuIdx;
     }
-    stopTimer(&timer);
-    retrieveTime += getElapsedTime(timer);
-    PRINT_INFO(p.verbosity >= 1, "    DPU-CPU Time: %f ms", retrieveTime*1e3);
-    if(p.verbosity == 0) PRINT("CPU-DPU Time(ms): %f    DPU Kernel Time (ms): %f    Inter-DPU Time (ms): %f    DPU-CPU Time (ms): %f", loadTime*1e3, dpuTime*1e3, hostTime*1e3, retrieveTime*1e3);
+    stopTimer(&timer, 4);
+    //retrieveTime += getElapsedTime(timer);
+    //if(p.verbosity == 0) PRINT("CPU-DPU Time(ms): %f    DPU Kernel Time (ms): %f    Inter-DPU Time (ms): %f    DPU-CPU Time (ms): %f", loadTime*1e3, dpuTime*1e3, hostTime*1e3, retrieveTime*1e3);
 
     // Calculating result on CPU
     PRINT_INFO(p.verbosity >= 1, "Calculating result on CPU");
@@ -294,10 +288,28 @@ int main(int argc, char** argv) {
 
     // Verify the result
     PRINT_INFO(p.verbosity >= 1, "Verifying the result");
+    int status = 1;
     for(uint32_t nodeIdx = 0; nodeIdx < numNodes; ++nodeIdx) {
         if(nodeLevel[nodeIdx] != nodeLevelReference[nodeIdx]) {
             PRINT_ERROR("Mismatch at node %u (CPU result = level %u, DPU result = level %u)", nodeIdx, nodeLevelReference[nodeIdx], nodeLevel[nodeIdx]);
+            status = 0;
         }
+    }
+
+    if (status) {
+        printf("[::] n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d "
+            "| throughput_pim_MBps=%f throughput_MBps=%f\n",
+            numDPUs, NR_TASKLETS, "uint32_t", numNodes,
+            numNodes * sizeof(uint32_t) / (timer.time[2]),
+            numNodes * sizeof(uint32_t) / (timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
+        printf("[::] n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d "
+            "| throughput_pim_MOpps=%f throughput_MOpps=%f\n",
+            numDPUs, NR_TASKLETS, "uint32_t", numNodes,
+            numNodes / (timer.time[2]),
+            numNodes / (timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
+        printf("[::] n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d | ",
+            numDPUs, NR_TASKLETS, "uint32_t", numNodes);
+        printAll(&timer, 4);
     }
 
     // Display DPU Logs

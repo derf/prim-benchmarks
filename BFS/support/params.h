@@ -25,7 +25,7 @@ typedef struct Params {
 static struct Params input_params(int argc, char **argv) {
     struct Params p;
     p.fileName      = "data/roadNet-CA.txt";
-    p.verbosity     = 1;
+    p.verbosity     = 0;
     int opt;
     while((opt = getopt(argc, argv, "f:v:h")) >= 0) {
         switch(opt) {
