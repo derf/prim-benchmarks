@@ -22,14 +22,14 @@ all: bin/host_code bin/dpu_code
 bin:
 	${QUIET}mkdir -p bin
 
-bin/dpu_code: ${DPU_SOURCES} ${COMMON_INCLUDES}
+bin/dpu_code: ${DPU_SOURCES} ${COMMON_INCLUDES} bin
 	${QUIET}dpu-upmem-dpurte-clang ${DPU_FLAGS} -o $@ ${DPU_SOURCES}
 
-bin/host_code: ${HOST_SOURCES} ${COMMON_INCLUDES}
+bin/host_code: ${HOST_SOURCES} ${COMMON_INCLUDES} bin
 	${QUIET}${CC} -o $@ ${HOST_SOURCES} ${HOST_FLAGS}
 
 clean:
-	rm -rf bin
+	${QUIET}rm -rf bin
 
 test: all
 	bin/host_code

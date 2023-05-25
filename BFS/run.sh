@@ -15,7 +15,7 @@ for nr_dpus in 1 2 4 8 16 32 64 128 256 512; do
 			echo
 			if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets}; then
 				for i in `seq 1 20`; do
-					bin/host_code -f data/${f}.txt || true
+					timeout --foreground -k 1m 30m bin/host_code -f data/${f}.txt || true
 				done
 			fi
 		done
