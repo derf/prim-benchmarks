@@ -14,13 +14,20 @@
 #include <omp.h>
 #include "../../support/timer.h"
 
-static uint64_t *A;
-static uint64_t *B;
-static uint64_t *C;
-static uint64_t *C2;
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
+#ifndef T
+#define T uint64_t
+#endif
+
+static T *A;
+static T *B;
+static T *C;
+static T *C2;
 static int pos;
 
-bool pred(const uint64_t x){
+bool pred(const T x){
   return (x % 2) == 0;
 }
 
@@ -28,11 +35,10 @@ bool pred(const uint64_t x){
 void  *create_test_file(unsigned int nr_elements) {
     //srand(0);
 
-    A = (uint64_t*) malloc(nr_elements * sizeof(uint64_t));
-    B = (uint64_t*) malloc(nr_elements * sizeof(uint64_t));
-    C = (uint64_t*) malloc(nr_elements * sizeof(uint64_t));
+    A = (T*) malloc(nr_elements * sizeof(T));
+    B = (T*) malloc(nr_elements * sizeof(T));
+    C = (T*) malloc(nr_elements * sizeof(T));
 
-    printf("nr_elements\t%u\t", nr_elements);
     for (int i = 0; i < nr_elements; i++) {
         //A[i] = (unsigned int) (rand());
         A[i] = i+1;
@@ -123,25 +129,38 @@ int main(int argc, char **argv) {
     struct Params p = input_params(argc, argv);
 
     const unsigned int file_size = p.input_size;
-    uint32_t accum = 0;
     int total_count;
 
     // Create an input file with arbitrary data.
     create_test_file(file_size);
 
     Timer timer;
-    start(&timer, 0, 0);
 
-    total_count = select_host(file_size, p.n_threads);
+    for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
+        start(&timer, 0, 0);
+        total_count = select_host(file_size, p.n_threads);
+        stop(&timer, 0);
 
-    stop(&timer, 0);
+        unsigned int nr_threads = 0;
+#pragma omp parallel
+#pragma omp atomic
+        nr_threads++;
 
-    printf("Total count = %d\t", total_count);
+        if (rep >= p.n_warmup) {
+            printf("[::] n_threads=%d e_type=%s n_elements=%d "
+                "| throughput_cpu_MBps=%f\n",
+                nr_threads, XSTR(T), file_size,
+                file_size * 2 * sizeof(T) / timer.time[0]);
+            printf("[::] n_threads=%d e_type=%s n_elements=%d "
+                "| throughput_cpu_MOpps=%f\n",
+                nr_threads, XSTR(T), file_size,
+                file_size / timer.time[0]);
+            printf("[::] n_threads=%d e_type=%s n_elements=%d |",
+                nr_threads, XSTR(T), file_size);
+            printall(&timer, 0);
+        }
+    }
 
-    printf("Kernel ");
-    print(&timer, 0, 1);
-    printf("\n");
-    
     free(A);
     free(B);
     free(C);
