@@ -5,6 +5,8 @@ set -e
 # -f: input file (i.e., input size)
 # bin/host_code -f data/loc-gowalla_edges.txt
 
+# input size depends on file -> strong scaling only
+
 echo "prim-benchmarks BFS (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"

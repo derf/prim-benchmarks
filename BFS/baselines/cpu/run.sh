@@ -8,6 +8,8 @@ echo "Revision $(git describe --always)"
 
 # default threads: 4
 
+# input size depends on file -> strong scaling only
+
 make
 for nr_threads in 1 2 4 6 8 12 16 20 24 32; do
 	for f in loc-gowalla_edges roadNet-CA; do
