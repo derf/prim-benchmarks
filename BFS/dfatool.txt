@@ -1,0 +1,18 @@
+throughput_cpu_ref: sequential reference implementation
+throughput_cpu_omp: OpenMP implementation provided by Gomez et al.
+throughput_pim: PIM implementation provided by Gomez et al., excluding data transfer and host CPU calculations
+throughput: PIM implementation provided by Gomez et al, entire calculation
+
+n_elements=196608 → data/loc-gowalla_edges.txt
+n_elements=2760448 → data/roadNet-CA.txt
+
+baseline/cpu:
+timer0 → sequential reference implementation
+timer1 → OpenMP implementation
+
+PIM:
+timer0 → transfer graph CPU → DPU
+timer1 → transfer config CPU → DPU
+timer2 → frontier calculations on DPU
+timer3 → retrieve frontier from DPUs, calculate the next one, and send it back
+timer4 → retrieve results from DPUs
