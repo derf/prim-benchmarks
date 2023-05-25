@@ -93,12 +93,24 @@ uint64_t binarySearch(DTYPE * input, uint64_t input_size, DTYPE* querys, unsigne
     result_host = binarySearch(input, input_size - 1, querys, n_querys);   
     stop(&timer, 0);
 
+    unsigned int nr_threads = 0;
+#pragma omp parallel
+#pragma omp atomic
+    nr_threads++;
 
     int status = (result_host);
     if (status) {
-        printf("[OK] Execution time: ");
-	print(&timer, 0, 1);
-	printf("ms.\n");
+        printf("[::] n_threads=%d e_type=%s n_elements=%d "
+            "| throughput_cpu_omp_MBps=%f\n",
+            nr_threads, "uint64_t", input_size,
+            n_querys * sizeof(DTYPE) / timer.time[0]);
+        printf("[::] n_threads=%d e_type=%s n_elements=%d "
+            "| throughput_cpu_omp_MOpps=%f\n",
+            nr_threads, "uint64_t", input_size,
+            n_querys / timer.time[0]);
+        printf("[::] n_threads=%d e_type=%s n_elements=%d |",
+            nr_threads, "uint64_t", input_size);
+        printall(&timer, 0);
     } else {
         printf("[ERROR]\n");
     }
