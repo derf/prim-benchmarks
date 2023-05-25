@@ -10,7 +10,12 @@
 #include <omp.h>
 #include "../../support/timer.h"
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
+#ifndef T
 #define T int64_t
+#endif
 
 static int pos;
 
@@ -124,17 +129,31 @@ int main(int argc, char **argv) {
     create_test_file(file_size);
 
     Timer timer;
-    start(&timer, 0, 0);
 
-    total_count = unique_host(file_size, p.n_threads);
+    for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
+        start(&timer, 0, 0);
+        total_count = unique_host(file_size, p.n_threads);
+        stop(&timer, 0);
 
-    stop(&timer, 0);
+        unsigned int nr_threads = 0;
+#pragma omp parallel
+#pragma omp atomic
+        nr_threads++;
 
-    printf("Total count = %d\t", total_count);
-
-    printf("Kernel ");
-    print(&timer, 0, 1);
-    printf("\n");
+        if (rep >= p.n_warmup) {
+            printf("[::] n_threads=%d e_type=%s n_elements=%d "
+                "| throughput_cpu_MBps=%f\n",
+                nr_threads, XSTR(T), file_size,
+                file_size * 2 * sizeof(T) / timer.time[0]);
+            printf("[::] n_threads=%d e_type=%s n_elements=%d "
+                "| throughput_cpu_MOpps=%f\n",
+                nr_threads, XSTR(T), file_size,
+                file_size / timer.time[0]);
+            printf("[::] n_threads=%d e_type=%s n_elements=%d | ",
+                nr_threads, XSTR(T), file_size);
+            printall(&timer, 0);
+        }
+    }
 
     free(A);
     free(B);
