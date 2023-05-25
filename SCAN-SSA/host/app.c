@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
     unsigned int i = 0;
     T accum = 0;
 
-    const unsigned int input_size = p.input_size * nr_of_dpus; // Total input size (weak or strong scaling)
+    const unsigned int input_size = p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size; // Total input size (weak or strong scaling)
     const unsigned int input_size_dpu_ = divceil(input_size, nr_of_dpus); // Input size per DPU (max.)
     const unsigned int input_size_dpu_round = 
         (input_size_dpu_ % (NR_TASKLETS * REGS) != 0) ? roundup(input_size_dpu_, (NR_TASKLETS * REGS)) : input_size_dpu_; // Input size per DPU (max.), 8-byte aligned

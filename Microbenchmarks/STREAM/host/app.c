@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
     unsigned int i = 0;
     double cc = 0;
     double cc_min = 0;
-    const unsigned int input_size = p.input_size * nr_of_dpus;
+    const unsigned int input_size = p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size;
 
 #if defined(add) || defined(triad)
     const unsigned int n_arrays = 3;

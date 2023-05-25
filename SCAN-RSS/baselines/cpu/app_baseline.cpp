@@ -75,6 +75,7 @@ typedef struct Params {
     int   n_warmup;
     int   n_reps;
     int   n_threads;
+    int   exp;
 }Params;
 
 void usage() {
@@ -85,6 +86,7 @@ void usage() {
         "\n    -h        help"
         "\n    -w <W>    # of untimed warmup iterations (default=1)"
         "\n    -e <E>    # of timed repetition iterations (default=3)"
+        "\n    -x <X>    Weak (0) or strong (1) scaling (default=0)"
         "\n    -t <T>    # of threads (default=8)"
         "\n"
         "\nBenchmark-specific options:"
@@ -97,10 +99,11 @@ struct Params input_params(int argc, char **argv) {
     p.input_size    = 2 << 20;
     p.n_warmup      = 1;
     p.n_reps        = 3;
+    p.exp           = 0;
     p.n_threads     = 8;
 
     int opt;
-    while((opt = getopt(argc, argv, "hi:w:e:t:")) >= 0) {
+    while((opt = getopt(argc, argv, "hi:w:e:x:t:")) >= 0) {
         switch(opt) {
         case 'h':
         usage();
@@ -109,6 +112,7 @@ struct Params input_params(int argc, char **argv) {
         case 'i': p.input_size    = atoi(optarg); break;
         case 'w': p.n_warmup      = atoi(optarg); break;
         case 'e': p.n_reps        = atoi(optarg); break;
+        case 'x': p.exp           = atoi(optarg); break;
         case 't': p.n_threads     = atoi(optarg); break;
         default:
             fprintf(stderr, "\nUnrecognized option!\n");
@@ -131,7 +135,7 @@ int main(int argc, char **argv) {
     unsigned int nr_of_dpus = 1;
     
     unsigned int i = 0;
-    const unsigned int input_size = p.input_size;
+    const unsigned int input_size = p.exp == 0 ? p.input_size * p.n_threads : p.input_size;
     assert(input_size % (p.n_threads) == 0 && "Input size!");
 
     // Input/output allocation

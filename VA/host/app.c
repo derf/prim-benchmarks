@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     printf("Allocated %d DPU(s)\n", nr_of_dpus);
     unsigned int i = 0;
 
-    const unsigned int input_size = p.input_size;
+    const unsigned int input_size = p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size;
     const unsigned int input_size_8bytes = 
         ((input_size * sizeof(T)) % 8) != 0 ? roundup(input_size, 8) : input_size; // Input size per DPU (max.), 8-byte aligned
     const unsigned int input_size_dpu = divceil(input_size, nr_of_dpus); // Input size per DPU (max.)
