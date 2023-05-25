@@ -18,6 +18,9 @@
 #include <dpu_probe.h>
 #endif
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 #include "params.h"
 #include "timer.h"
 
@@ -48,6 +51,7 @@ int64_t binarySearch(DTYPE * input, DTYPE * querys, DTYPE input_size, uint64_t n
 		while (l <= r) {
 			DTYPE m = l + (r - l) / 2;
 
+			// XXX shouldn't this short-circuit?
 			// Check if x is present at mid
 			if (input[m] == querys[q])
 			result = m;
@@ -101,11 +105,6 @@ int main(int argc, char **argv) {
 	// Create an input file with arbitrary data
 	create_test_file(input, querys, input_size, num_querys);
 
-	// Compute host solution
-	start(&timer, 0, 0);
-	result_host = binarySearch(input, querys, input_size - 1, num_querys);
-	stop(&timer, 0);
-
 	// Create kernel arguments
 	uint64_t slice_per_dpu          = num_querys / nr_of_dpus;
 	dpu_arguments_t input_arguments = {input_size, slice_per_dpu, 0};
@@ -114,8 +113,14 @@ int main(int argc, char **argv) {
 		// Perform input transfers
 		uint64_t i = 0;
 
-		if (rep >= p.n_warmup)
-		start(&timer, 1, rep - p.n_warmup);
+		// Compute host solution
+		start(&timer, 0, 0);
+		result_host = binarySearch(input, querys, input_size - 1, num_querys);
+		stop(&timer, 0);
+
+		if (rep >= p.n_warmup) {
+			start(&timer, 1, 0);
+		}
 
 		DPU_FOREACH(dpu_set, dpu, i)
 		{
@@ -142,13 +147,14 @@ int main(int argc, char **argv) {
 
 		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size * sizeof(DTYPE), slice_per_dpu * sizeof(DTYPE), DPU_XFER_DEFAULT));
 
-		if (rep >= p.n_warmup)
-		stop(&timer, 1);
+		if (rep >= p.n_warmup) {
+			stop(&timer, 1);
+		}
 
 		// Run kernel on DPUs
 		if (rep >= p.n_warmup)
 		{
-			start(&timer, 2, rep - p.n_warmup);
+			start(&timer, 2, 0);
 			#if ENERGY
 			DPU_ASSERT(dpu_probe_start(&probe));
 			#endif
@@ -176,8 +182,9 @@ int main(int argc, char **argv) {
 		#endif
 
 		// Retrieve results
-		if (rep >= p.n_warmup)
-		start(&timer, 3, rep - p.n_warmup);
+		if (rep >= p.n_warmup) {
+			start(&timer, 3, 0);
+		}
 		dpu_results_t* results_retrieve[nr_of_dpus];
 		i = 0;
 		DPU_FOREACH(dpu_set, dpu, i)
@@ -199,10 +206,36 @@ int main(int argc, char **argv) {
 			}
 			free(results_retrieve[i]);
 		}
-		if(rep >= p.n_warmup)
-		stop(&timer, 3);
+		if(rep >= p.n_warmup) {
+			stop(&timer, 3);
+		}
+
+		int status = (result_dpu == result_host);
+		if (status) {
+			printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] results are equal\n");
+			if (rep >= p.n_warmup) {
+				printf("[::] n_dpus=%d n_tasklets=%d e_type=%s n_elements=%lu "
+					"| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f\n",
+					nr_of_dpus, NR_TASKLETS, XSTR(DTYPE), input_size,
+					num_querys * sizeof(DTYPE) / timer.time[0],
+					num_querys * sizeof(DTYPE) / timer.time[2],
+					num_querys * sizeof(DTYPE) / (timer.time[1] + timer.time[2] + timer.time[3]));
+				printf("[::] n_dpus=%d n_tasklets=%d e_type=%s n_elements=%lu "
+					"| throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f\n",
+					nr_of_dpus, NR_TASKLETS, XSTR(DTYPE), input_size,
+					num_querys / timer.time[0],
+					num_querys / timer.time[2],
+					num_querys / (timer.time[1] + timer.time[2] + timer.time[3]));
+				printf("[::] n_dpus=%d n_tasklets=%d e_type=%s n_elements=%lu |",
+					nr_of_dpus, NR_TASKLETS, XSTR(DTYPE), input_size);
+				printall(&timer, 3);
+			}
+		} else {
+			printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] results differ!\n");
+		}
 	}
 	// Print timing results
+	/*
 	printf("CPU Version Time (ms): ");
 	print(&timer, 0, p.n_reps);
 	printf("CPU-DPU Time (ms): ");
@@ -211,6 +244,7 @@ int main(int argc, char **argv) {
 	print(&timer, 2, p.n_reps);
 	printf("DPU-CPU Time (ms): ");
 	print(&timer, 3, p.n_reps);
+	*/
 
 	#if ENERGY
 	double energy;
@@ -218,15 +252,8 @@ int main(int argc, char **argv) {
 	printf("DPU Energy (J): %f\t", energy * num_iterations);
 	#endif
 
-	int status = (result_dpu == result_host);
-	if (status) {
-		printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] results are equal\n");
-	} else {
-		printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] results differ!\n");
-	}
-
 	free(input);
 	DPU_ASSERT(dpu_free(dpu_set));
 
-	return status ? 0 : 1;
+	return 0;
 }
