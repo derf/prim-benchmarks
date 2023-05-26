@@ -18,6 +18,9 @@
 #include <dpu_probe.h>
 #endif
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 #include "../support/common.h"
 #include "../support/timer.h"
 #include "../support/params.h"
@@ -140,15 +143,12 @@ int main(int argc, char **argv) {
 	Timer timer;
 
 	// Compute output on CPU (performance comparison and verification purposes)
-	start(&timer, 0, 0);
-	gemv_host(C, A, B, m_size, n_size);
-	stop(&timer, 0);
 	for (unsigned int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
-
-
-
+		start(&timer, 0, 0);
+		gemv_host(C, A, B, m_size, n_size);
+		stop(&timer, 0);
 		if (rep >= p.n_warmup)
-			start(&timer, 1, rep - p.n_warmup);
+			start(&timer, 1, 0);
 		// Input arguments
 		i = 0;
 		DPU_FOREACH(dpu_set, dpu, i) {
@@ -177,7 +177,7 @@ int main(int argc, char **argv) {
 		// Run kernel on DPUs
 		if (rep >= p.n_warmup)
 		{
-			start(&timer, 2, rep - p.n_warmup);
+			start(&timer, 2, 0);
 #if ENERGY
 			DPU_ASSERT(dpu_probe_start(&probe));
 #endif
@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
 		// Retrieve results
 		C_dpu = malloc(max_rows_per_dpu * nr_of_dpus * sizeof(T));
 		if (rep >= p.n_warmup)
-			start(&timer, 3, rep - p.n_warmup);
+			start(&timer, 3, 0);
 		i = 0;
 		DPU_FOREACH(dpu_set, dpu, i) {
 			DPU_ASSERT(dpu_prepare_xfer(dpu, C_dpu + i * max_rows_per_dpu));
@@ -210,6 +210,46 @@ int main(int argc, char **argv) {
 		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, max_rows_per_dpu * n_size_pad * sizeof(T) + n_size_pad * sizeof(T), max_rows_per_dpu * sizeof(T), DPU_XFER_DEFAULT));
 		if(rep >= p.n_warmup)
 			stop(&timer, 3);
+
+
+		// Check output
+		bool status = true;
+		unsigned int n,j;
+		i = 0;
+		for (n = 0; n < nr_of_dpus; n++) {
+			for (j = 0; j < dpu_info[n].rows_per_dpu; j++) {
+				if(C[i] != C_dpu[n * max_rows_per_dpu + j]) {
+					status = false;
+#if PRINT
+		//			printf("%d: %d -- %d\n", i, C[i], C_dpu[n * max_rows_per_dpu + j]);
+#endif
+				}
+				i++;
+			}
+		}
+		if (status) {
+			printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
+			if (rep >= p.n_warmup) {
+				printf("[::] n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d "
+					"| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f\n",
+					nr_of_dpus, NR_TASKLETS, XSTR(T), n_size * m_size,
+					n_size * m_size * sizeof(T) / timer.time[0],
+					n_size * m_size * sizeof(T) / timer.time[2],
+					n_size * m_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3]));
+				printf("[::] n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d "
+					"| throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f\n",
+					nr_of_dpus, NR_TASKLETS, XSTR(T), n_size * m_size,
+					n_size * m_size / timer.time[0],
+					n_size * m_size / timer.time[2],
+					n_size * m_size / (timer.time[1] + timer.time[2] + timer.time[3]));
+				printf("[::] n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d |",
+					nr_of_dpus, NR_TASKLETS, XSTR(T), n_size * m_size);
+				printall(&timer, 3);
+			}
+		} else {
+			printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
+		}
+
 	}
 #if ENERGY
 	double acc_energy, avg_energy, acc_time, avg_time;
@@ -233,27 +273,6 @@ int main(int argc, char **argv) {
 	printf("Energy (J): %f J\t", avg_energy);
 #endif
 
-	// Check output
-	bool status = true;
-	unsigned int n,j;
-	i = 0;
-	for (n = 0; n < nr_of_dpus; n++) {
-		for (j = 0; j < dpu_info[n].rows_per_dpu; j++) {
-			if(C[i] != C_dpu[n * max_rows_per_dpu + j]) {
-				status = false;
-#if PRINT
-	//			printf("%d: %d -- %d\n", i, C[i], C_dpu[n * max_rows_per_dpu + j]);
-#endif
-			}
-			i++;
-		}
-	}
-	if (status) {
-		printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-	} else {
-		printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
-	}
-
 	// Deallocation
 	free(A);
 	free(B);
@@ -265,5 +284,5 @@ int main(int argc, char **argv) {
 	DPU_ASSERT(dpu_probe_deinit(&probe));
 #endif
 
-	return status ? 0 : -1;
+	return 0;
 }
