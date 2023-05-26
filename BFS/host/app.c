@@ -307,7 +307,7 @@ int main(int argc, char** argv) {
             numDPUs, NR_TASKLETS, "uint32_t", numNodes,
             numNodes / (timer.time[2]),
             numNodes / (timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
-        printf("[::] n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d | ",
+        printf("[::] n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d |",
             numDPUs, NR_TASKLETS, "uint32_t", numNodes);
         printAll(&timer, 4);
     }
