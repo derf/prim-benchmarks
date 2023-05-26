@@ -14,6 +14,9 @@
 #include "../../support/timer.h"
 #include "../../support/common.h"
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 T** A;
 T* B;
 T* C;
@@ -136,12 +139,31 @@ void usage() {
     B = malloc(m_size*sizeof(unsigned int));
     C = malloc(m_size*sizeof(unsigned int));
 
-    // Create an input file with arbitrary data.
-    init_data(A, B, m_size, n_size);
+    for (int i = 0; i < 100; i++) {
+        // Create an input file with arbitrary data.
+        init_data(A, B, m_size, n_size);
 
-    start(&timer, 0, 1);
-    mlp_host(C, A, B, n_size, m_size);
-    stop(&timer, 0);
+        start(&timer, 0, 0);
+        mlp_host(C, A, B, n_size, m_size);
+        stop(&timer, 0);
+
+        unsigned int nr_threads = 0;
+#pragma omp parallel
+#pragma omp atomic
+        nr_threads++;
+
+        printf("[::] n_threads=%d e_type=%s n_elements=%lu "
+            "| throughput_cpu_omp_MBps=%f\n",
+            nr_threads, XSTR(T), n_size * m_size,
+            n_size * m_size * sizeof(T) / timer.time[0]);
+        printf("[::] n_threads=%d e_type=%s n_elements=%lu "
+            "| throughput_cpu_omp_MOpps=%f\n",
+            nr_threads, XSTR(T), n_size * m_size,
+            n_size * m_size / timer.time[0]);
+        printf("[::] n_threads=%d e_type=%s n_elements=%lu |",
+            nr_threads, XSTR(T), n_size * m_size);
+        printall(&timer, 0);
+    }
 
     uint32_t sum = mlp_host_sum(n_size, m_size);
    
