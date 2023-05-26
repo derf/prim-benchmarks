@@ -39,6 +39,9 @@ The second column of the output file is the matrix profile index.
 #include <chrono>
 #include <omp.h>
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 #include "mprofile.h"
 
 bool interrupt = false;
@@ -335,6 +338,7 @@ int main(int argc, char* argv[])
   tend = std::chrono::high_resolution_clock::now();
   time_elapsed = tend - tstart;
   std::cout << "[OK] Preprocess Time:         " << std::setprecision(std::numeric_limits<double>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
+  printf("[::] n_threads=%d e_type=%s n_elements=%d | throughput_preproc_MBps=%f throughput_preproc_MOpps=%f\n", numThreads, XSTR(DTYPE), timeSeriesLength, timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
 
   //Initialize Matrix Profile and Matrix Profile Index
   std::cout << "[>>] Initializing Profile..." << std::endl;
@@ -351,6 +355,7 @@ int main(int argc, char* argv[])
   tend = std::chrono::high_resolution_clock::now();
   time_elapsed = tend - tstart;
   std::cout << "[OK] Initialize Profile Time: " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
+  printf("[::] n_threads=%d e_type=%s n_elements=%d | throughput_init_MBps=%f throughput_init_MOpps=%f\n", numThreads, XSTR(DTYPE), timeSeriesLength, timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
 
   // Random shuffle the diagonals
   idx.clear();
@@ -369,6 +374,7 @@ int main(int argc, char* argv[])
   tend = std::chrono::high_resolution_clock::now();
   time_elapsed = tend - tstart;
   std::cout << "[OK] STREAMP Time:            " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
+  printf("[::] n_threads=%d e_type=%s n_elements=%d | throughput_streamp_MBps=%f throughput_streamp_MOpps=%f\n", numThreads, XSTR(DTYPE), timeSeriesLength, timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
 
   // Save profile to file
   //std::cout << "[>>] Saving Profile..." << std::endl;
@@ -383,6 +389,7 @@ int main(int argc, char* argv[])
   // Calculate total time
   time_elapsed = tend - tprogstart;
   std::cout << "[OK] Total Time:              " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
+  printf("[::] n_threads=%d e_type=%s n_elements=%d | throughput_total_MBps=%f throughput_total_MOpps=%f\n", numThreads, XSTR(DTYPE), timeSeriesLength, timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
   std::cout << std::endl;
 
   delete profile;
