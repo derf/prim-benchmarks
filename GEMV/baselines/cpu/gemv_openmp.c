@@ -5,43 +5,55 @@
 
 int main(int argc, char *argv[])
 {
-  const size_t rows = 20480;
-  const size_t cols = 8192;
+    const size_t rows = 20480;
+    const size_t cols = 8192;
 
-  double **A, *b, *x;
+    double **A, *b, *x;
 
-  b = (double*) malloc(sizeof(double)*rows);
-  x = (double*) malloc(sizeof(double)*cols);
+    b = (double*) malloc(sizeof(double)*rows);
+    x = (double*) malloc(sizeof(double)*cols);
 
-  allocate_dense(rows, cols, &A);
+    allocate_dense(rows, cols, &A);
 
-  make_hilbert_mat(rows,cols, &A);
+    make_hilbert_mat(rows,cols, &A);
+
+    Timer timer;
+    for (int i = 0; i < 100; i++) {
 
 #pragma omp parallel
-    {
+        {
 #pragma omp for
-    for (size_t i = 0; i < cols; i++) {
-      x[i] = (double) i+1 ;
-    }
+        for (size_t i = 0; i < cols; i++) {
+          x[i] = (double) i+1 ;
+        }
 
 #pragma omp for
-    for (size_t i = 0; i < rows; i++) {
-      b[i] = (double) 0.0;
+        for (size_t i = 0; i < rows; i++) {
+          b[i] = (double) 0.0;
+        }
+        }
+
+        unsigned int nr_threads = 0;
+#pragma omp parallel
+#pragma omp atomic
+        nr_threads++;
+
+        start(&timer, 0, 0);
+        gemv(A, x, rows, cols, &b);
+        stop(&timer, 0);
+        printf("[::] n_threads=%d e_type=%s n_elements=%d "
+            "| throughput_cpu_omp_MBps=%f\n",
+            nr_threads, "double", rows * cols,
+            rows * cols * sizeof(double) / timer.time[0]);
+        printf("[::] n_threads=%d e_type=%s n_elements=%d "
+            "| throughput_cpu_omp_MOpps=%f\n",
+            nr_threads, "double", rows * cols,
+            rows * cols / timer.time[0]);
+        printf("[::] n_threads=%d e_type=%s n_elements=%d |",
+            nr_threads, "double", rows * cols);
+        printall(&timer, 0);
     }
-    }
 
-  Timer timer;
-  start(&timer, 0, 0);
-
-
-   gemv(A, x, rows, cols, &b);
-   
-   stop(&timer, 0);
-
-
-    printf("Kernel ");
-    print(&timer, 0, 1);
-    printf("\n");
 
 #if 0
   print_vec(x, rows);
