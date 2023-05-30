@@ -12,7 +12,8 @@ echo "prim-benchmarks VA weak (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
 
-for nr_dpus in 1 4 16 64; do
+# upstream does not include 256 and 512 in config space
+for nr_dpus in 1 4 16 64 256 512; do
 	for nr_tasklets in 1 2 4 8 16; do
 		echo
 		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10; then
