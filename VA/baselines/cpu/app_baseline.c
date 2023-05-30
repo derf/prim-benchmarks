@@ -137,16 +137,13 @@ int main(int argc, char **argv) {
         nr_threads++;
 
         if (rep >= p.n_warmup) {
-            printf("[::] n_threads=%d e_type=%s n_elements=%d "
-                "| throughput_cpu_MBps=%f\n",
+            printf("[::] VA CPU | n_threads=%d e_type=%s n_elements=%d "
+                "| throughput_MBps=%f",
                 nr_threads, XSTR(T), file_size,
                 file_size * 3 * sizeof(T) / timer.time[0]);
-            printf("[::] n_threads=%d e_type=%s n_elements=%d "
-                "| throughput_cpu_MOpps=%f\n",
+            printf(" throughput_MOpps=%f",
                 nr_threads, XSTR(T), file_size,
                 file_size / timer.time[0]);
-            printf("[::] n_threads=%d e_type=%s n_elements=%d |",
-                nr_threads, XSTR(T), file_size);
             printall(&timer, 0);
         }
     }

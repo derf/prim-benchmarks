@@ -187,20 +187,16 @@ int main(int argc, char **argv) {
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             if (rep >= p.n_warmup) {
-                printf("[::] n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d "
-                    "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f\n",
+                printf("[::] VA NMC | n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d "
+                    "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f",
                     nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size,
                     input_size * 3 * sizeof(T) / timer.time[0],
                     input_size * 3 * sizeof(T) / (timer.time[1]),
                     input_size * 3 * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3]));
-                printf("[::] n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d "
-                    "| throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f\n",
-                    nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size,
+                printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f\n",
                     input_size / timer.time[0],
                     input_size / (timer.time[1]),
                     input_size / (timer.time[1] + timer.time[2] + timer.time[3]));
-                printf("[::] n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d | ",
-                    nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size);
                 printall(&timer, 3);
             }
         } else {

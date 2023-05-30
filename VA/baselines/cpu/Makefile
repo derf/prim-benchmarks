@@ -16,13 +16,15 @@ va_O2: app_baseline.c
 run: va
 	./va -t 4
 
+# -w/-e are not part of upstream config
+
 .PHONY: run_O0
 run_O0: va_O0
-	./va_O0 -t 4
+	./va_O0 -t 4 -w 1 -e 100
 
 .PHONY: run_O2
 run_O2: va_O2
-	./va_O2 -t 4
+	./va_O2 -t 4 -w 1 -e 100
 
 .PHONY: clean
 clean:
