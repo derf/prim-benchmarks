@@ -100,16 +100,13 @@ uint64_t binarySearch(DTYPE * input, uint64_t input_size, DTYPE* querys, unsigne
 
     int status = (result_host);
     if (status) {
-        printf("[::] n_threads=%d e_type=%s n_elements=%d "
-            "| throughput_cpu_omp_MBps=%f\n",
+        printf("[::] BS CPU | n_threads=%d e_type=%s n_elements=%d "
+            "| throughput_MBps=%f",
             nr_threads, "uint64_t", input_size,
             n_querys * sizeof(DTYPE) / timer.time[0]);
-        printf("[::] n_threads=%d e_type=%s n_elements=%d "
-            "| throughput_cpu_omp_MOpps=%f\n",
+        printf(" throughput_MOpps=%f",
             nr_threads, "uint64_t", input_size,
             n_querys / timer.time[0]);
-        printf("[::] n_threads=%d e_type=%s n_elements=%d |",
-            nr_threads, "uint64_t", input_size);
         printall(&timer, 0);
     } else {
         printf("[ERROR]\n");

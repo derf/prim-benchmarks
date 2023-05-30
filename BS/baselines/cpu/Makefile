@@ -10,6 +10,8 @@ bs_omp_O0: bs_omp.c
 bs_omp_O2: bs_omp.c
 	gcc -O2 bs_omp.c -o bs_omp_O2 -fopenmp
 
+# bs_omp performs a single iteration and must be run in a loop for proper benchmarks
+
 .PHONY: run run_O0 run_O2
 run: bs_omp
 	./bs_omp 262144 16777216

@@ -1,0 +1,23 @@
+#!/bin/bash
+
+set -e
+
+# BL: use 2^(BL) B blocks for MRAM <-> WRAM transfers on PIM module
+# T: data type
+# -w: number of un-timed warmup iterations
+# -e: number of timed iterations
+# -i; ignored, always uses 262144 elements
+
+echo "prim-benchmarks BS weak (dfatool edition)"
+echo "Started at $(date)"
+echo "Revision $(git describe --always)"
+
+for nr_dpus in 1 4 16 64; do
+	for nr_tasklets in 1 2 4 8 16; do
+		echo
+		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10; then
+			i=$(( nr_dpus * 262144 ))
+			timeout --foreground -k 1m 30m bin/bs_host -w 0 -e 100 -i $i || true
+		fi
+	done
+done | tee log-paper-weak.txt
