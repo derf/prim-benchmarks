@@ -25,6 +25,9 @@
 // Define the DPU Binary path as DPU_BINARY here
 #define DPU_BINARY "./bin/ts_dpu"
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 #define MAX_DATA_VAL 127
 
 static DTYPE tSeries[1 << 26];
@@ -185,7 +188,7 @@ int main(int argc, char **argv) {
 	for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
 		if (rep >= p.n_warmup)
-			start(&timer, 1, rep - p.n_warmup);
+			start(&timer, 1, 0);
 		uint32_t i = 0;
 
 		DPU_FOREACH(dpu_set, dpu) {
@@ -238,7 +241,7 @@ int main(int argc, char **argv) {
 		// Run kernel on DPUs
 		if (rep >= p.n_warmup)
 		{
-			start(&timer, 2, rep - p.n_warmup);
+			start(&timer, 2, 0);
 #if ENERGY
 			DPU_ASSERT(dpu_probe_start(&probe));
 #endif
@@ -257,7 +260,7 @@ int main(int argc, char **argv) {
 		dpu_result_t* results_retrieve[nr_of_dpus];
 
 		if (rep >= p.n_warmup)
-			start(&timer, 3, rep - p.n_warmup);
+			start(&timer, 3, 0);
 
 		DPU_FOREACH(dpu_set, dpu, i) {
 			results_retrieve[i] = (dpu_result_t*)malloc(NR_TASKLETS * sizeof(dpu_result_t));
@@ -295,10 +298,30 @@ int main(int argc, char **argv) {
 #endif
 
 		if (rep >= p.n_warmup)
-			start(&timer, 4, rep - p.n_warmup);
+			start(&timer, 0, 0);
 		streamp(tSeries, AMean, ASigma, ts_size - query_length - 1, query, query_length, query_mean, query_std);
 		if(rep >= p.n_warmup)
-			stop(&timer, 4);
+			stop(&timer, 0);
+
+		int status = (minHost == result.minValue);
+		if (status) {
+			printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] results are equal\n");
+			if (rep >= p.n_warmup) {
+				printf("[::] TS NMC | n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%lu "
+					"| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f",
+					nr_of_dpus, NR_TASKLETS, XSTR(DTYPE), BLOCK_SIZE, ts_size,
+					ts_size * sizeof(DTYPE) / timer.time[0],
+					ts_size * sizeof(DTYPE) / (timer.time[2]),
+					ts_size * sizeof(DTYPE) / (timer.time[1] + timer.time[2] + timer.time[3]));
+				printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f",
+					ts_size / timer.time[0],
+					ts_size / (timer.time[2]),
+					ts_size / (timer.time[1] + timer.time[2] + timer.time[3]));
+				printall(&timer, 3);
+			}
+		} else {
+			printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] results differ!\n");
+		}
 	}
 
 #if ENERGY
@@ -309,28 +332,10 @@ int main(int argc, char **argv) {
 	DPU_ASSERT(dpu_probe_get(&probe, DPU_TIME, DPU_AVERAGE, &avg_time));
 #endif
 
-	// Print timing results
-	printf("CPU Version Time (ms): ");
-	print(&timer, 4, p.n_reps);
-	printf("Inter-DPU Time (ms): ");
-	print(&timer, 0, p.n_reps);
-	printf("CPU-DPU Time (ms): ");
-	print(&timer, 1, p.n_reps);
-	printf("DPU Kernel Time (ms): ");
-	print(&timer, 2, p.n_reps);
-	printf("DPU-CPU Time (ms): ");
-	print(&timer, 3, p.n_reps);
-
 #if ENERGY
 	printf("Energy (J): %f J\t", avg_energy);
 #endif
 
-	int status = (minHost == result.minValue);
-	if (status) {
-		printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] results are equal\n");
-	} else {
-		printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] results differ!\n");
-	}
 
 	DPU_ASSERT(dpu_free(dpu_set));
 

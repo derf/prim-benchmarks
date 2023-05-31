@@ -290,7 +290,7 @@ int main(int argc, char* argv[])
   std::cout << "///////////////////////// STREAMP //////////////////////////" << std::endl;
   std::cout << "############################################################" << std::endl;
   std::cout << std::endl;
-  std::cout << "[>>] Reading File..." << std::endl;
+  //std::cout << "[>>] Reading File..." << std::endl;
 
   /* Read time series file */
   tstart = std::chrono::high_resolution_clock::now();
@@ -329,7 +329,7 @@ int main(int argc, char* argv[])
   std::cout << std::endl;
 
   // Preprocess, statistics, get the mean and standard deviation of every subsequence in the time series
-  std::cout << "[>>] Preprocessing..." << std::endl;
+  //std::cout << "[>>] Preprocessing..." << std::endl;
   tstart = std::chrono::high_resolution_clock::now();
 
   tprogstart = tstart;
@@ -337,11 +337,11 @@ int main(int argc, char* argv[])
 
   tend = std::chrono::high_resolution_clock::now();
   time_elapsed = tend - tstart;
-  std::cout << "[OK] Preprocess Time:         " << std::setprecision(std::numeric_limits<double>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
-  printf("[::] n_threads=%d e_type=%s n_elements=%d | throughput_preproc_MBps=%f throughput_preproc_MOpps=%f\n", numThreads, XSTR(DTYPE), timeSeriesLength, timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
+  //std::cout << "[OK] Preprocess Time:         " << std::setprecision(std::numeric_limits<double>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
+  printf("[::] TS CPU | n_threads=%d e_type=%s n_elements=%d | throughput_preproc_MBps=%f throughput_preproc_MOpps=%f", numThreads, XSTR(DTYPE), timeSeriesLength, timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
 
   //Initialize Matrix Profile and Matrix Profile Index
-  std::cout << "[>>] Initializing Profile..." << std::endl;
+  //std::cout << "[>>] Initializing Profile..." << std::endl;
   tstart = std::chrono::high_resolution_clock::now();
 
   profile          = new DTYPE[ProfileLength];
@@ -354,8 +354,8 @@ int main(int argc, char* argv[])
 
   tend = std::chrono::high_resolution_clock::now();
   time_elapsed = tend - tstart;
-  std::cout << "[OK] Initialize Profile Time: " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
-  printf("[::] n_threads=%d e_type=%s n_elements=%d | throughput_init_MBps=%f throughput_init_MOpps=%f\n", numThreads, XSTR(DTYPE), timeSeriesLength, timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
+  //std::cout << "[OK] Initialize Profile Time: " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
+  printf(" throughput_init_MBps=%f throughput_init_MOpps=%f", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
 
   // Random shuffle the diagonals
   idx.clear();
@@ -366,15 +366,15 @@ int main(int argc, char* argv[])
     std::random_shuffle(idx.begin(), idx.end());
 
   /******************** SCRIMP ********************/
-  std::cout << "[>>] Performing STREAMP..." << std::endl;
+  //std::cout << "[>>] Performing STREAMP..." << std::endl;
   tstart = std::chrono::high_resolution_clock::now();
 
   streamp();
 
   tend = std::chrono::high_resolution_clock::now();
   time_elapsed = tend - tstart;
-  std::cout << "[OK] STREAMP Time:            " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
-  printf("[::] n_threads=%d e_type=%s n_elements=%d | throughput_streamp_MBps=%f throughput_streamp_MOpps=%f\n", numThreads, XSTR(DTYPE), timeSeriesLength, timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
+  //std::cout << "[OK] STREAMP Time:            " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
+  printf(" throughput_streamp_MBps=%f throughput_streamp_MOpps=%f", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
 
   // Save profile to file
   //std::cout << "[>>] Saving Profile..." << std::endl;
@@ -388,9 +388,9 @@ int main(int argc, char* argv[])
 
   // Calculate total time
   time_elapsed = tend - tprogstart;
-  std::cout << "[OK] Total Time:              " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
-  printf("[::] n_threads=%d e_type=%s n_elements=%d | throughput_total_MBps=%f throughput_total_MOpps=%f\n", numThreads, XSTR(DTYPE), timeSeriesLength, timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
-  std::cout << std::endl;
+  //std::cout << "[OK] Total Time:              " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
+  printf(" throughput_MBps=%f throughput_MOpps=%f\n", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
+  //std::cout << std::endl;
 
   delete profile;
   delete profileIndex;
