@@ -32,7 +32,7 @@ static T *create_test_file(unsigned int nr_elements) {
     B = (T*) malloc(nr_elements * sizeof(T));
     C = (T*) malloc(nr_elements * sizeof(T));
 
-    printf("nr_elements\t%u\t", nr_elements);
+    //printf("nr_elements\t%u\t", nr_elements);
     for (int i = 0; i < nr_elements; i++) {
         //A[i] = (unsigned int) (rand());
         //A[i] = i+1;
@@ -141,16 +141,12 @@ int main(int argc, char **argv) {
         nr_threads++;
 
         if (rep >= p.n_warmup) {
-            printf("[::] n_threads=%d e_type=%s n_elements=%d "
-                "| throughput_cpu_MBps=%f\n",
+            printf("[::] UNI CPU | n_threads=%d e_type=%s n_elements=%d "
+                "| throughput_MBps=%f",
                 nr_threads, XSTR(T), file_size,
-                file_size * 2 * sizeof(T) / timer.time[0]);
-            printf("[::] n_threads=%d e_type=%s n_elements=%d "
-                "| throughput_cpu_MOpps=%f\n",
-                nr_threads, XSTR(T), file_size,
+                file_size * sizeof(T) / timer.time[0]);
+            printf(" throughput_MOpps=%f",
                 file_size / timer.time[0]);
-            printf("[::] n_threads=%d e_type=%s n_elements=%d | ",
-                nr_threads, XSTR(T), file_size);
             printall(&timer, 0);
         }
     }

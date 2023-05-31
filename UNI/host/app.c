@@ -22,6 +22,9 @@
 #define DPU_BINARY "./bin/dpu_code"
 #endif
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 #if ENERGY
 #include <dpu_probe.h>
 #endif
@@ -106,14 +109,14 @@ int main(int argc, char **argv) {
 
         // Compute output on CPU (performance comparison and verification purposes)
         if(rep >= p.n_warmup)
-            start(&timer, 0, rep - p.n_warmup);
+            start(&timer, 0, 0);
         total_count = unique_host(C, A, input_size);
         if(rep >= p.n_warmup)
             stop(&timer, 0);
 
         printf("Load input data\n");
         if(rep >= p.n_warmup)
-            start(&timer, 1, rep - p.n_warmup);
+            start(&timer, 1, 0);
         // Input arguments
         const unsigned int input_size_dpu = input_size_dpu_round;
         unsigned int kernel = 0;
@@ -134,7 +137,7 @@ int main(int argc, char **argv) {
         printf("Run program on DPU(s) \n");
         // Run DPU kernel
         if(rep >= p.n_warmup) {
-            start(&timer, 2, rep - p.n_warmup);
+            start(&timer, 2, 0);
             #if ENERGY
             DPU_ASSERT(dpu_probe_start(&probe));
             #endif
@@ -168,7 +171,7 @@ int main(int argc, char **argv) {
         accum = 0;
 
         if(rep >= p.n_warmup)
-            start(&timer, 3, rep - p.n_warmup);
+            start(&timer, 3, 0);
         // PARALLEL RETRIEVE TRANSFER
         dpu_results_t* results_retrieve[nr_of_dpus];
 
@@ -212,7 +215,7 @@ int main(int argc, char **argv) {
 
         i = 0;
         if(rep >= p.n_warmup)
-            start(&timer, 4, rep - p.n_warmup);
+            start(&timer, 4, 0);
         DPU_FOREACH (dpu_set, dpu) {
             // Copy output array
             DPU_ASSERT(dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu * sizeof(T), bufferC + results_scan[i] - offset_scan[i], results[i].t_count * sizeof(T)));
@@ -226,6 +229,39 @@ int main(int argc, char **argv) {
         free(results_scan);
         free(offset);
         free(offset_scan);
+
+        // Check output
+        bool status = true;
+        if(accum != total_count) status = false;
+#if PRINT
+        printf("accum %u, total_count %u\n", accum, total_count);
+#endif
+        for (i = 0; i < accum; i++) {
+            if(C[i] != bufferC[i]){ 
+                status = false;
+#if PRINT
+                printf("%d: %lu -- %lu\n", i, C[i], bufferC[i]);
+#endif
+            }
+        }
+        if (status) {
+            printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
+            if (rep >= p.n_warmup) {
+                printf("[::] UNI NMC | n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d "
+                    "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f",
+                    nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size,
+                    input_size * sizeof(T) / timer.time[0],
+                    input_size * sizeof(T) / timer.time[2],
+                    input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
+                printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f",
+                    input_size / timer.time[0],
+                    input_size / timer.time[2],
+                    input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
+                printall(&timer, 4);
+            }
+        } else {
+            printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
+        }
 
     }
 
@@ -247,25 +283,6 @@ int main(int argc, char **argv) {
     printf("DPU Energy (J): %f\t", energy);
 #endif	
 
-    // Check output
-    bool status = true;
-    if(accum != total_count) status = false;
-#if PRINT
-    printf("accum %u, total_count %u\n", accum, total_count);
-#endif
-    for (i = 0; i < accum; i++) {
-        if(C[i] != bufferC[i]){ 
-            status = false;
-#if PRINT
-            printf("%d: %lu -- %lu\n", i, C[i], bufferC[i]);
-#endif
-        }
-    }
-    if (status) {
-        printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-    } else {
-        printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
-    }
 
     // Deallocation
     free(A);
@@ -273,5 +290,5 @@ int main(int argc, char **argv) {
     free(C2);
     DPU_ASSERT(dpu_free(dpu_set));
 	
-    return status ? 0 : -1;
+    return 0;
 }

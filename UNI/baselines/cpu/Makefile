@@ -16,13 +16,15 @@ uni_O2: app_baseline.c
 run: uni
 	./uni -i 1258291200 -t 4
 
+# -e 20 was not part of the upstream instructions
+
 .PHONY: run_O0
 run_O0: uni_O0
-	./uni_O0 -i 1258291200 -t 4
+	./uni_O0 -i 1258291200 -t 4 -e 20
 
 .PHONY: run_O2
 run_O2: uni_O2
-	./uni_O2 -i 1258291200 -t 4
+	./uni_O2 -i 1258291200 -t 4 -e 20
 
 .PHONY: clean
 clean:
