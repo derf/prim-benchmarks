@@ -41,9 +41,29 @@ DEP=kernel.cpp kernel.h main.cpp support/common.h support/setup.h support/timer.
 SRC=main.cpp kernel.cpp
 EXE=trns
 
-all:
-	$(CXX) $(CXX_FLAGS) $(SRC) $(LIB) -o $(EXE)
+all: trns
+
+trns: ${SRC}
+	$(CXX) -O2 $(CXX_FLAGS) $(SRC) $(LIB) -o $(EXE)
+
+trns_O0: ${SRC}
+	$(CXX) $(CXX_FLAGS) $(SRC) $(LIB) -o $(EXE)_O0
+
+trns_O2: ${SRC}
+	$(CXX) -O2 $(CXX_FLAGS) $(SRC) $(LIB) -o $(EXE)_O2
+
+run: trns
+	./trns -w 0 -r 1 -m 16 -n 8 -o 4096 -p 2556
+
+# upstream uses -r 1
+
+run_O0: trns_O0
+	./trns_O0 -w 0 -r 50 -m 16 -n 8 -o 4096 -p 2556
+
+run_O2: trns_O2
+	./trns_O2 -w 0 -r 50 -m 16 -n 8 -o 4096 -p 2556
 
 clean:
-	rm -f $(EXE)
+	rm -f $(EXE) ${EXE}_O0 ${EXE}_O2
 
+.PHONY: all run run_O0 run_O2 clean

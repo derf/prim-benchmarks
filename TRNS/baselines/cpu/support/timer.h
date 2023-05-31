@@ -47,9 +47,7 @@ struct Timer {
     map<string, double>         time;
 
     void start(string name) {
-        if(!time.count(name)) {
-            time[name] = 0.0;
-        }
+        time[name] = 0.0;
         gettimeofday(&startTime[name], NULL);
     }
 
@@ -59,5 +57,6 @@ struct Timer {
                       (stopTime[name].tv_usec - startTime[name].tv_usec);
     }
 
-		void print(string name, int REP) { printf("%s Time (ms): %f\n", name.c_str(), time[name] / (1000 * REP)); }
+    void print(string name, int REP) { printf("%s Time (ms): %f\n", name.c_str(), time[name] / (1000 * REP)); }
+    double get(string name) { return time[name]; }
 };

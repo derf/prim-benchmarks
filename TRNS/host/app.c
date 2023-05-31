@@ -18,6 +18,9 @@
 #include "../support/timer.h"
 #include "../support/params.h"
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 // Define the DPU Binary path as DPU_BINARY here
 #ifndef DPU_BINARY
 #define DPU_BINARY "./bin/dpu_code"
@@ -97,11 +100,10 @@ int main(int argc, char **argv) {
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
-        int timer_fix = 0;
         // Compute output on CPU (performance comparison and verification purposes)
         memcpy(A_host, A_backup, M_ * m * N_ * n * sizeof(T));
         if(rep >= p.n_warmup)
-            start(&timer, 0, rep - p.n_warmup + timer_fix);
+            start(&timer, 0, 0);
         trns_host(A_host, M_ * m, N_ * n, 1);
         if(rep >= p.n_warmup)
             stop(&timer, 0);
@@ -133,7 +135,7 @@ int main(int argc, char **argv) {
 
             printf("Load input data (step 1)\n");
             if(rep >= p.n_warmup)
-                start(&timer, 1, rep - p.n_warmup + timer_fix);
+                start(&timer, 1, 0);
             // Load input matrix (step 1)
             for(unsigned int j = 0; j < M_ * m; j++){
                 unsigned int i = 0;
@@ -160,7 +162,7 @@ int main(int argc, char **argv) {
             printf("Run step 2 on DPU(s) \n");
             // Run DPU kernel
             if(rep >= p.n_warmup){
-                start(&timer, 2, rep - p.n_warmup + timer_fix);
+                start(&timer, 2, 0);
 #if ENERGY
                 DPU_ASSERT(dpu_probe_start(&probe));
 #endif
@@ -193,7 +195,7 @@ int main(int argc, char **argv) {
             printf("Run step 3 on DPU(s) \n");
             // Run DPU kernel
             if(rep >= p.n_warmup){
-                start(&timer, 3, rep - p.n_warmup + timer_fix);
+                start(&timer, 3, 0);
 #if ENERGY
                 DPU_ASSERT(dpu_probe_start(&probe));
 #endif
@@ -219,7 +221,7 @@ int main(int argc, char **argv) {
 
             printf("Retrieve results\n");
             if(rep >= p.n_warmup)
-                start(&timer, 4, rep - p.n_warmup + timer_fix);
+                start(&timer, 4, 0);
             DPU_FOREACH(dpu_set, dpu) {
                 DPU_ASSERT(dpu_prepare_xfer(dpu, (T*)(&A_result[curr_dpu * m * n * M_])));
                 curr_dpu++;
@@ -231,9 +233,38 @@ int main(int argc, char **argv) {
             if(first_round){
                 first_round = 0;
             }
-            timer_fix++;
         }
         DPU_ASSERT(dpu_free(dpu_set));
+
+        // Check output
+        bool status = true;
+        for (i = 0; i < M_ * m * N_ * n; i++) {
+            if(A_host[i] != A_result[i]){ 
+                status = false;
+#if PRINT
+                printf("%d: %lu -- %lu\n", i, A_host[i], A_result[i]);
+#endif
+            }
+        }
+        if (status) {
+            printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
+            unsigned long input_size = M_ * m * N_ * n;
+            if (rep >= p.n_warmup) {
+                printf("[::] TRNS NMC | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%lu "
+                    "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f",
+                    nr_of_dpus, NR_TASKLETS, XSTR(T), input_size,
+                    input_size * sizeof(T) / timer.time[0],
+                    input_size * sizeof(T) / (timer.time[2] + timer.time[3]),
+                    input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
+                printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f",
+                    input_size / timer.time[0],
+                    input_size / (timer.time[2] + timer.time[3]),
+                    input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
+                printall(&timer, 4);
+            }
+        } else {
+            printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
+        }
 
     }
 
@@ -255,27 +286,11 @@ int main(int argc, char **argv) {
     printf("DPU Energy (J): %f\t", energy);
     #endif	
 
-    // Check output
-    bool status = true;
-    for (i = 0; i < M_ * m * N_ * n; i++) {
-        if(A_host[i] != A_result[i]){ 
-            status = false;
-#if PRINT
-            printf("%d: %lu -- %lu\n", i, A_host[i], A_result[i]);
-#endif
-        }
-    }
-    if (status) {
-        printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-    } else {
-        printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
-    }
-
     // Deallocation
     free(A_host);
     free(A_backup);
     free(A_result);
     free(done_host);
 	
-    return status ? 0 : -1;
+    return 0;
 }

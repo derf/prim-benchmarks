@@ -44,6 +44,9 @@
 #include <string.h>
 #include <assert.h>
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 // Params ---------------------------------------------------------------------
 struct Params {
 
@@ -138,7 +141,7 @@ int main(int argc, char **argv) {
     T *h_in_backup = (T *)malloc(in_size * sizeof(T));
     ALLOC_ERR(h_in_backup);
     timer.stop("Allocation");
-    timer.print("Allocation", 1);
+    //timer.print("Allocation", 1);
 
     // Initialize
     timer.start("Initialization");
@@ -147,7 +150,7 @@ int main(int argc, char **argv) {
     for(int i = 0; i < N_; i++)
         h_head[i].store(0);
     timer.stop("Initialization");
-    timer.print("Initialization", 1);
+    //timer.print("Initialization", 1);
     memcpy(h_in_backup, h_in_out, in_size * sizeof(T)); // Backup for reuse across iterations
 
     // Loop over main kernel
@@ -197,10 +200,21 @@ int main(int argc, char **argv) {
         // end timer
         if(rep >= p.n_warmup)
             timer.stop("Step 3");
+
+        if (rep >= p.n_warmup) {
+            printf("[::] TRNS CPU | n_threads=%d e_type=%s n_elements=%d "
+                "| throughput_MBps=%f",
+                p.n_threads, XSTR(T), in_size,
+                in_size * sizeof(T) / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));
+            printf(" throughput_MOpps=%f",
+                in_size / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));
+            printf(" timer1_us=%f timer2_us=%f timer3_us=%f\n",
+                timer.get("Step 1"), timer.get("Step 2"), timer.get("Step 3"));
+        }
     }
-    timer.print("Step 1", p.n_reps);
-    timer.print("Step 2", p.n_reps);
-    timer.print("Step 3", p.n_reps);
+    //timer.print("Step 1", p.n_reps);
+    //timer.print("Step 2", p.n_reps);
+    //timer.print("Step 3", p.n_reps);
 
     // Verify answer
     //verify(h_in_out, h_in_backup, M_ * m, N_ * n, 1);
@@ -212,7 +226,7 @@ int main(int argc, char **argv) {
     free(h_head);
     free(h_in_backup);
     timer.stop("Deallocation");
-    timer.print("Deallocation", 1);
+    //timer.print("Deallocation", 1);
 
     printf("Test Passed\n");
     return 0;
