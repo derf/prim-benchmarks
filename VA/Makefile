@@ -8,8 +8,6 @@ COMMON_INCLUDES := support
 HOST_SOURCES := $(wildcard host/*.c)
 DPU_SOURCES := $(wildcard dpu/*.c)
 
-.PHONY: all clean test
-
 COMMON_FLAGS := -Wall -Wextra -g -I${COMMON_INCLUDES}
 HOST_FLAGS := ${COMMON_FLAGS} -std=c11 -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DBL=${BL} -D${TYPE} -DENERGY=${ENERGY}
 DPU_FLAGS := ${COMMON_FLAGS} -O2 -DNR_TASKLETS=${NR_TASKLETS} -DBL=${BL} -D${TYPE}
@@ -23,7 +21,7 @@ endif
 all: bin/host_code bin/dpu_code
 
 bin:
-	${QUIET} mkdir -p bin
+	${QUIET}mkdir -p bin
 
 bin/host_code: ${HOST_SOURCES} ${COMMON_INCLUDES} bin
 	${QUIET}${CC} -o $@ ${HOST_SOURCES} ${HOST_FLAGS}
@@ -35,4 +33,6 @@ clean:
 	${QUIET}rm -rf bin
 
 test: all
-	bin/host_code
+	${QUIET}bin/host_code
+
+.PHONY: all clean test
