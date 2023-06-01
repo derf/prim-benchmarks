@@ -22,6 +22,9 @@
 #define DPU_BINARY "./bin/dpu_code"
 #endif
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 #if ENERGY
 #include <dpu_probe.h>
 #endif
@@ -208,6 +211,35 @@ int main(int argc, char **argv) {
 
         // Free memory
         free(results_scan);
+
+        // Check output
+        bool status = true;
+        if(accum != total_count) status = false;
+        for (i = 0; i < accum; i++) {
+            if(C[i] != bufferC[i]){ 
+                status = false;
+#if PRINT
+                printf("%d: %lu -- %lu\n", i, C[i], bufferC[i]);
+#endif
+            }
+        }
+        if (status) {
+            printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
+            if (rep >= p.n_warmup) {
+                printf("[::] SEL NMC | n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d "
+                    "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f",
+                    nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size,
+                    input_size * sizeof(T) / timer.time[0],
+                    input_size * sizeof(T) / timer.time[2],
+                    input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
+                printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f",
+                    input_size / timer.time[0],
+                    input_size / timer.time[2],
+                    input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
+                printall(&timer, 4);
+        } else {
+            printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
+        }
     }
 
     // Print timing results
@@ -228,28 +260,11 @@ int main(int argc, char **argv) {
     printf("DPU Energy (J): %f\t", energy);
     #endif	
 
-    // Check output
-    bool status = true;
-    if(accum != total_count) status = false;
-    for (i = 0; i < accum; i++) {
-        if(C[i] != bufferC[i]){ 
-            status = false;
-#if PRINT
-            printf("%d: %lu -- %lu\n", i, C[i], bufferC[i]);
-#endif
-        }
-    }
-    if (status) {
-        printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-    } else {
-        printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
-    }
-
     // Deallocation
     free(A);
     free(C);
     free(C2);
     DPU_ASSERT(dpu_free(dpu_set));
 	
-    return status ? 0 : -1;
+    return 0;
 }
