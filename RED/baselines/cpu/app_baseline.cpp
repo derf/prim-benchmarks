@@ -194,18 +194,14 @@ int main(int argc, char **argv) {
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             if(rep >= p.n_warmup) {
-                printf("[::] n_threads=%d e_type=%s n_elements=%d "
-                    "| throughput_cpu_ref_MBps=%f throughput_cpu_thrust_MBps=%f\n",
+                printf("[::] RED CPU | n_threads=%d e_type=%s n_elements=%u "
+                    "| throughput_seq_MBps=%f throughput_MBps=%f",
                     nr_threads, XSTR(T), input_size,
                     input_size * sizeof(T) / timer.time[0],
                     input_size * sizeof(T) / timer.time[1]);
-                printf("[::] n_threads=%d e_type=%s n_elements=%d "
-                    "| throughput_cpu_ref_MOpps=%f throughput_cpu_thrust_MOpps=%f\n",
-                    nr_threads, XSTR(T), input_size,
+                printf(" throughput_seq_MOpps=%f throughput_MOpps=%f",
                     input_size / timer.time[0],
                     input_size / timer.time[1]);
-                printf("[::] n_threads=%d e_type=%s n_elements=%d | ",
-                    nr_threads, XSTR(T), input_size);
                 printall(&timer, 1);
             }
         } else {
