@@ -150,18 +150,14 @@ int main(int argc, char** argv) {
         }
 
         if (isOK) {
-            printf("[::] n_threads=%d e_type=%s n_elements=%d "
-                "| throughput_cpu_ref_MBps=%f throughput_cpu_omp_MBps=%f\n",
+            printf("[::] BFS CPU | n_threads=%d e_type=%s n_elements=%d "
+                "| throughput_seq_MBps=%f throughput_MBps=%f",
                 nr_threads, "uint32_t", csrGraph.numNodes,
                 csrGraph.numNodes * sizeof(uint32_t) / timer.time[1],
                 csrGraph.numNodes * sizeof(uint32_t) / timer.time[0]);
-            printf("[::] n_threads=%d e_type=%s n_elements=%d "
-                "| throughput_cpu_ref_MOpps=%f throughput_cpu_omp_MOpps=%f\n",
-                nr_threads, "uint32_t", csrGraph.numNodes,
+            printf(" throughput_seq_MOpps=%f throughput_MOpps=%f",
                 csrGraph.numNodes / timer.time[1],
                 csrGraph.numNodes / timer.time[0]);
-            printf("[::] n_threads=%d e_type=%s n_elements=%d |",
-                nr_threads, "uint32_t", csrGraph.numNodes);
             printAll(&timer, 1);
         }
 

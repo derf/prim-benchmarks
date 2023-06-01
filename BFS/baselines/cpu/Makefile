@@ -10,6 +10,8 @@ bfs_O0: app.c
 bfs_O2: app.c
 	gcc -O2 -o bfs_O2 -fopenmp app.c
 
+# each bfs invocation performs 100 iterations
+
 .PHONY: run
 run: bfs
 	./bfs -f ../../data/loc-gowalla_edges.txt
