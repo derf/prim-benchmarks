@@ -41,16 +41,12 @@ int main(int argc, char *argv[])
         start(&timer, 0, 0);
         gemv(A, x, rows, cols, &b);
         stop(&timer, 0);
-        printf("[::] n_threads=%d e_type=%s n_elements=%d "
-            "| throughput_cpu_omp_MBps=%f\n",
+        printf("[::] GEMV CPU | n_threads=%d e_type=%s n_elements=%d "
+            "| throughput_MBps=%f",
             nr_threads, "double", rows * cols,
             rows * cols * sizeof(double) / timer.time[0]);
-        printf("[::] n_threads=%d e_type=%s n_elements=%d "
-            "| throughput_cpu_omp_MOpps=%f\n",
-            nr_threads, "double", rows * cols,
+        printf(" throughput_MOpps=%f",
             rows * cols / timer.time[0]);
-        printf("[::] n_threads=%d e_type=%s n_elements=%d |",
-            nr_threads, "double", rows * cols);
         printall(&timer, 0);
     }
 
