@@ -22,6 +22,9 @@
 
 #define DPU_BINARY "./bin/dpu_code"
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 #ifndef ENERGY
 #define ENERGY 0
 #endif
@@ -187,12 +190,31 @@ int main(int argc, char** argv) {
 
     // Verify the result
     PRINT_INFO(p.verbosity >= 1, "Verifying the result");
+    int status = 1;
     for(uint32_t rowIdx = 0; rowIdx < numRows; ++rowIdx) {
         float diff = (outVectorReference[rowIdx] - outVector[rowIdx])/outVectorReference[rowIdx];
         const float tolerance = 0.00001;
         if(diff > tolerance || diff < -tolerance) {
+            status = 0;
             PRINT_ERROR("Mismatch at index %u (CPU result = %f, DPU result = %f)", rowIdx, outVectorReference[rowIdx], outVector[rowIdx]);
         }
+    }
+
+    if (status) {
+        printf("[::] SpMV NMC | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d "
+            "| throughput_pim_MBps=%f throughput_MBps=%f",
+            // coomatrix / csrmatrix use uint32_t indexes and float values
+            numDPUs, NR_TASKLETS, "float", csrMatrix.numNonzeros,
+            csrMatrix.numNonzeros * sizeof(float) / (dpuTime * 1e6),
+            csrMatrix.numNonzeros * sizeof(uint32_t) / ((loadTime + dpuTime + retrieveTime) * 1e6)
+        );
+        printf(" throughput_pim_MOpps=%f throughput_MOpps=%f",
+            csrMatrix.numNonzeros / (dpuTime * 1e6),
+            csrMatrix.numNonzeros / ((loadTime + dpuTime + retrieveTime) * 1e6)
+        );
+        printf(" timer_load_us=%f timer_dpu_us=%f timer_retrieve_us=%f\n",
+            loadTime * 1e6, dpuTime * 1e6, retrieveTime * 1e6
+        );
     }
 
     // Display DPU Logs

@@ -29,7 +29,7 @@ int main(int argc, char** argv) {
 
     // Calculating result on CPU
     PRINT_INFO(p.verbosity >= 1, "Calculating result on CPU");
-    omp_set_num_threads(4);
+    //omp_set_num_threads(4);
     Timer timer;
     startTimer(&timer);
     #pragma omp parallel for
@@ -43,7 +43,22 @@ int main(int argc, char** argv) {
         outVector[rowIdx] = sum;
     }
     stopTimer(&timer);
-    if(p.verbosity == 0) PRINT("%f", getElapsedTime(timer)*1e3);
+
+
+    unsigned int nr_threads = 0;
+#pragma omp parallel
+#pragma omp atomic
+    nr_threads++;
+
+
+    // coomatrix / csrmatrix use uint32_t indexes and float values
+    printf("[::] SpMV CPU | n_threads=%u e_type=float n_elements=%u |"
+        " throughput_MBps=%f throughput_MOpps=%f timer0_us=%f\n",
+        nr_threads, csrMatrix.numNonzeros,
+        csrMatrix.numNonzeros * sizeof(float) / (getElapsedTime(timer)*1e6),
+        csrMatrix.numNonzeros / (getElapsedTime(timer)*1e6),
+        getElapsedTime(timer)*1e6);
+    //if(p.verbosity == 0) PRINT("%f", getElapsedTime(timer)*1e3);
     PRINT_INFO(p.verbosity >= 1, "    Elapsed time: %f ms", getElapsedTime(timer)*1e3);
 
     // Deallocate data structures
