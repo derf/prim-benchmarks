@@ -189,18 +189,14 @@ int main(int argc, char **argv) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
 
             if(rep >= p.n_warmup) {
-                printf("[::] n_threads=%d e_type=%s n_elements=%d "
-                    "| throughput_cpu_ref_MBps=%f throughput_cpu_thrust_MBps=%f\n",
+                printf("[::] SCAN-RSS CPU | n_threads=%d e_type=%s n_elements=%d "
+                    "| throughput_cpu_ref_MBps=%f throughput_cpu_thrust_MBps=%f",
                     nr_threads, XSTR(T), input_size,
                     input_size * sizeof(T) / timer.time[0],
                     input_size * sizeof(T) / timer.time[1]);
-                printf("[::] n_threads=%d e_type=%s n_elements=%d "
-                    "| throughput_cpu_ref_MOpps=%f throughput_cpu_thrust_MOpps=%f\n",
-                    nr_threads, XSTR(T), input_size,
+                printf(" throughput_cpu_ref_MOpps=%f throughput_cpu_thrust_MOpps=%f",
                     input_size / timer.time[0],
                     input_size / timer.time[1]);
-                printf("[::] n_threads=%d e_type=%s n_elements=%d | ",
-                    nr_threads, XSTR(T), input_size);
                 printall(&timer, 1);
             }
         } else {

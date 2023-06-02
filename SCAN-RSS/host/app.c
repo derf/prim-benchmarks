@@ -22,6 +22,9 @@
 #define DPU_BINARY "./bin/dpu_code"
 #endif
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 #if ENERGY
 #include <dpu_probe.h>
 #endif
@@ -34,7 +37,7 @@ static T* C2;
 // Create input arrays
 static void read_input(T* A, unsigned int nr_elements, unsigned int nr_elements_round) {
     srand(0);
-    printf("nr_elements\t%u\t", nr_elements);
+    //printf("nr_elements\t%u\t", nr_elements);
     for (unsigned int i = 0; i < nr_elements; i++) {
         A[i] = (T) (rand());
     }
@@ -68,7 +71,7 @@ int main(int argc, char **argv) {
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
-    printf("Allocated %d DPU(s)\n", nr_of_dpus);
+    //printf("Allocated %d DPU(s)\n", nr_of_dpus);
 
     unsigned int i = 0;
     T accum = 0;
@@ -91,21 +94,21 @@ int main(int argc, char **argv) {
     // Timer declaration
     Timer timer;
 
-    printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
+    //printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
         // Compute output on CPU (performance comparison and verification purposes)
         if(rep >= p.n_warmup)
-            start(&timer, 0, rep - p.n_warmup);
+            start(&timer, 0, 0);
         scan_host(C, A, input_size);
         if(rep >= p.n_warmup)
             stop(&timer, 0);
 
-        printf("Load input data\n");
+        //printf("Load input data\n");
         if(rep >= p.n_warmup)
-            start(&timer, 1, rep - p.n_warmup);
+            start(&timer, 1, 0);
         // Input arguments
         const unsigned int input_size_dpu = input_size_dpu_round;
         unsigned int kernel = 0;
@@ -123,10 +126,10 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             stop(&timer, 1);
 
-        printf("Run program on DPU(s) \n");
+        //printf("Run program on DPU(s) \n");
         // Run DPU kernel
         if(rep >= p.n_warmup) {
-            start(&timer, 2, rep - p.n_warmup);
+            start(&timer, 2, 0);
             #if ENERGY
             DPU_ASSERT(dpu_probe_start(&probe));
             #endif
@@ -152,14 +155,14 @@ int main(int argc, char **argv) {
         }
 #endif
 
-        printf("Retrieve results\n");
+        //printf("Retrieve results\n");
         dpu_results_t results[nr_of_dpus];
         T* results_scan = malloc(nr_of_dpus * sizeof(T));
         i = 0;
         accum = 0;
 		
         if(rep >= p.n_warmup)
-            start(&timer, 3, rep - p.n_warmup);
+            start(&timer, 3, 0);
         // PARALLEL RETRIEVE TRANSFER
         dpu_results_t* results_retrieve[nr_of_dpus];
 
@@ -200,10 +203,10 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             stop(&timer, 3);
 
-        printf("Run program on DPU(s) \n");
+        //printf("Run program on DPU(s) \n");
         // Run DPU kernel
         if(rep >= p.n_warmup) {
-            start(&timer, 4, rep - p.n_warmup);
+            start(&timer, 4, 0);
             #if ENERGY
             DPU_ASSERT(dpu_probe_start(&probe));
             #endif
@@ -227,9 +230,9 @@ int main(int argc, char **argv) {
         }
 #endif
 
-        printf("Retrieve results\n");
+        //printf("Retrieve results\n");
         if(rep >= p.n_warmup)
-            start(&timer, 5, rep - p.n_warmup);
+            start(&timer, 5, 0);
         i = 0;
         // PARALLEL RETRIEVE TRANSFER
         DPU_FOREACH(dpu_set, dpu, i) {
@@ -241,9 +244,37 @@ int main(int argc, char **argv) {
 
         // Free memory
         free(results_scan);
+
+        // Check output
+        bool status = true;
+        for (i = 0; i < input_size; i++) {
+            if(C[i] != bufferC[i]){ 
+                status = false;
+#if PRINT
+                printf("%d: %lu -- %lu\n", i, C[i], bufferC[i]);
+#endif
+            }
+        }
+        if (status) {
+            printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
+            printf("[::] SCAN-RSS NMC | n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d b_unroll=%d n_elements=%u "
+                "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f\n",
+                nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, UNROLL, input_size,
+                input_size * sizeof(T) / timer.time[0],
+                input_size * sizeof(T) / (timer.time[2] + timer.time[4]),
+                input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5]));
+            printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f\n",
+                input_size / timer.time[0],
+                input_size / (timer.time[2] + timer.time[4]),
+                input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5]));
+            printall(&timer, 5);
+        } else {
+            printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
+        }
     }
 
     // Print timing results
+    /*
     printf("CPU ");
     print(&timer, 0, p.n_reps);
     printf("CPU-DPU ");
@@ -256,6 +287,7 @@ int main(int argc, char **argv) {
     print(&timer, 4, p.n_reps);
     printf("DPU-CPU ");
     print(&timer, 5, p.n_reps);
+    */
 
     #if ENERGY
     double energy;
@@ -264,21 +296,6 @@ int main(int argc, char **argv) {
     #endif	
 
 
-    // Check output
-    bool status = true;
-    for (i = 0; i < input_size; i++) {
-        if(C[i] != bufferC[i]){ 
-            status = false;
-#if PRINT
-            printf("%d: %lu -- %lu\n", i, C[i], bufferC[i]);
-#endif
-        }
-    }
-    if (status) {
-        printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-    } else {
-        printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
-    }
 
     // Deallocation
     free(A);
@@ -286,5 +303,5 @@ int main(int argc, char **argv) {
     free(C2);
     DPU_ASSERT(dpu_free(dpu_set));
 	
-    return status ? 0 : -1;
+    return 0;
 }
