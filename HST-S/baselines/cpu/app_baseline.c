@@ -23,6 +23,9 @@
 #include "../../support/common.h"
 #include "../../support/timer.h"
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 // Pointer declaration
 static T* A;
 static unsigned int* histo_host;
@@ -180,9 +183,19 @@ int main(int argc, char **argv) {
     histogram_host(histo_host, A, p.bins, input_size, p.exp, nr_of_dpus, p.n_threads);
 
     stop(&timer, 0);
-    printf("Kernel ");
-    print(&timer, 0, 1);
-    printf("\n");
-	
+
+    unsigned int nr_threads = 0;
+#pragma omp parallel
+#pragma omp atomic
+    nr_threads++;
+
+    printf("[::] HST-S CPU | n_threads=%d e_type=%s n_elements=%d n_bins=%d "
+        "| throughput_MBps=%f",
+        nr_threads, XSTR(T), input_size, p.exp ? p.bins : p.bins * nr_of_dpus,
+        input_size * sizeof(T) / timer.time[0]);
+    printf(" throughput_MOpps=%f",
+        input_size / timer.time[0]);
+    printall(&timer, 0);
+
     return 0;
 }

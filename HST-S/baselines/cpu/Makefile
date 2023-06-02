@@ -1,6 +1,24 @@
-all:
-	gcc -o hist -fopenmp app_baseline.c 
+all: hist
+
+hist: app_baseline.c
+	gcc -O2 -o hist -fopenmp app_baseline.c
+
+hist_O0: app_baseline.c
+	gcc -o hist_O0 -fopenmp app_baseline.c
+
+hist_O2: app_baseline.c
+	gcc -O2 -o hist_O2 -fopenmp app_baseline.c
+
+run: hist
+	./hist -i 1006632960 -t 4
+
+run_O0: hist_O0
+	./hist_O0 -i 1006632960 -t 4
+
+run_O2: hist_O2
+	./hist_O2 -i 1006632960 -t 4
 
 clean:
-	rm hist
+	rm -f hist hist_O0 hist_O2
 
+.PHONY: all run run_O0 run_O2 clean
