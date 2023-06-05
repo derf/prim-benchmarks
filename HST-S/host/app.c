@@ -226,7 +226,7 @@ int main(int argc, char **argv) {
             stop(&timer, 3);
 
         if (rep >= p.n_warmup) {
-            printf("[::] HST-S NMC | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d n_bins=%d "
+            printf("[::] HST-S NMC | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%u n_bins=%d "
                 "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f",
                 nr_of_dpus, NR_TASKLETS, XSTR(T), input_size, p.bins,
                 input_size * sizeof(T) / timer.time[0],
