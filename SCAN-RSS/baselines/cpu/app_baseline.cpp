@@ -190,11 +190,11 @@ int main(int argc, char **argv) {
 
             if(rep >= p.n_warmup) {
                 printf("[::] SCAN-RSS CPU | n_threads=%d e_type=%s n_elements=%d "
-                    "| throughput_cpu_ref_MBps=%f throughput_cpu_thrust_MBps=%f",
+                    "| throughput_cpu_ref_MBps=%f throughput_MBps=%f",
                     nr_threads, XSTR(T), input_size,
                     input_size * sizeof(T) / timer.time[0],
                     input_size * sizeof(T) / timer.time[1]);
-                printf(" throughput_cpu_ref_MOpps=%f throughput_cpu_thrust_MOpps=%f",
+                printf(" throughput_cpu_ref_MOpps=%f throughput_MOpps=%f",
                     input_size / timer.time[0],
                     input_size / timer.time[1]);
                 printall(&timer, 1);
