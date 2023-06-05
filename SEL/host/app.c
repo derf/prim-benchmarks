@@ -237,6 +237,7 @@ int main(int argc, char **argv) {
                     input_size / timer.time[2],
                     input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
                 printall(&timer, 4);
+            }
         } else {
             printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
         }
