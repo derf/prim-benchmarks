@@ -258,7 +258,7 @@ int main(int argc, char **argv) {
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             printf("[::] SCAN-RSS NMC | n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d b_unroll=%d n_elements=%u "
-                "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f\n",
+                "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f",
                 nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, UNROLL, input_size,
                 input_size * sizeof(T) / timer.time[0],
                 input_size * sizeof(T) / (timer.time[2] + timer.time[4]),
