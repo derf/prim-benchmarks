@@ -21,7 +21,7 @@ for nr_dpus in 512 256 1 4 16 64; do
 		# upstream code did not respect $BL in the makefile and used 256B (BL=8) instead.
 		# BL=10 appears to be slightly faster.
 		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10; then
-			timeout --foreground -k 1m 30m bin/ts_host -w 0 -e 100 -n 524288 || true
+			timeout --foreground -k 1m 60m bin/ts_host -w 0 -e 50 -n 524288 || true
 		fi
 	done
 done
