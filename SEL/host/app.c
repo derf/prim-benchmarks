@@ -107,14 +107,14 @@ int main(int argc, char **argv) {
 
         // Compute output on CPU (performance comparison and verification purposes)
         if(rep >= p.n_warmup)
-            start(&timer, 0, rep - p.n_warmup);
+            start(&timer, 0, 0);
         total_count = select_host(C, A, input_size);
         if(rep >= p.n_warmup)
             stop(&timer, 0);
 
         printf("Load input data\n");
         if(rep >= p.n_warmup)
-            start(&timer, 1, rep - p.n_warmup);
+            start(&timer, 1, 0);
         // Input arguments
         const unsigned int input_size_dpu = input_size_dpu_round;
         unsigned int kernel = 0;
@@ -135,7 +135,7 @@ int main(int argc, char **argv) {
         printf("Run program on DPU(s) \n");
         // Run DPU kernel
         if(rep >= p.n_warmup) {
-            start(&timer, 2, rep - p.n_warmup);
+            start(&timer, 2, 0);
             #if ENERGY
             DPU_ASSERT(dpu_probe_start(&probe));
             #endif
@@ -167,7 +167,7 @@ int main(int argc, char **argv) {
         accum = 0;
 
         if(rep >= p.n_warmup)
-		    start(&timer, 3, rep - p.n_warmup);
+		    start(&timer, 3, 0);
         // PARALLEL RETRIEVE TRANSFER
         dpu_results_t* results_retrieve[nr_of_dpus];
 
@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
 
         i = 0;
         if(rep >= p.n_warmup)
-            start(&timer, 4, rep - p.n_warmup);
+            start(&timer, 4, 0);
         DPU_FOREACH (dpu_set, dpu) {
             // Copy output array
             DPU_ASSERT(dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu * sizeof(T), bufferC + results_scan[i], results[i].t_count * sizeof(T)));
