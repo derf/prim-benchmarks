@@ -22,16 +22,29 @@
 #define DPU_BINARY "./bin/dpu_code"
 #endif
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 // Pointer declaration
 static T* A;
 static T* B;
 static T* C;
 static T* C2;
 
+static const char transfer_mode[] =
+#if SERIAL
+"SERIAL"
+#elif BROADCAST
+"BROADCAST"
+#else
+"PUSH"
+#endif
+;
+
 // Create input arrays
 static void read_input(T* A, T* B, unsigned int nr_elements) {
     srand(0);
-    printf("nr_elements\t%u\t", nr_elements);
+    //printf("nr_elements\t%u\t", nr_elements);
     for (unsigned int i = 0; i < nr_elements; i++) {
         A[i] = (T) (rand());
         B[i] = A[i];
@@ -50,7 +63,7 @@ int main(int argc, char **argv) {
     DPU_ASSERT(dpu_alloc(NR_DPUS, "nrThreadPerPool=8", &dpu_set));
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
-    printf("Allocated %d DPU(s)\n", nr_of_dpus);
+    //printf("Allocated %d DPU(s)\n", nr_of_dpus);
 
     unsigned int i = 0;
     unsigned int input_size = p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size;
@@ -69,17 +82,22 @@ int main(int argc, char **argv) {
     // Timer declaration
     Timer timer;
 
-    printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
+    //printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
-        printf("Load input data\n");
+        //printf("Load input data\n");
         // Input arguments
         const unsigned int input_size_dpu = input_size / nr_of_dpus;
+#ifdef BROADCAST
+        const unsigned int transfer_size = input_size_dpu;
+#else
+        const unsigned int transfer_size = input_size;
+#endif
         // Copy input arrays
         if(rep >= p.n_warmup)
-            start(&timer, 1, rep - p.n_warmup);
+            start(&timer, 1, 0);
         i = 0;
 #ifdef SERIAL
         DPU_FOREACH (dpu_set, dpu) {
@@ -97,10 +115,10 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             stop(&timer, 1);
 
-        printf("Run program on DPU(s) \n");
+        //printf("Run program on DPU(s) \n");
         // Run DPU kernel
         if(rep >= p.n_warmup)
-            start(&timer, 2, rep - p.n_warmup);
+            start(&timer, 2, 0);
         //DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
         if(rep >= p.n_warmup)
             stop(&timer, 2);
@@ -117,9 +135,9 @@ int main(int argc, char **argv) {
         }
 #endif
 
-        printf("Retrieve results\n");
+        //printf("Retrieve results\n");
         if(rep >= p.n_warmup)
-            start(&timer, 3, rep - p.n_warmup);
+            start(&timer, 3, 0);
         i = 0;
 #ifdef SERIAL
         DPU_FOREACH (dpu_set, dpu) {
@@ -135,19 +153,29 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             stop(&timer, 3);
 
+        if (rep >= p.n_warmup) {
+            printf("[::] NMC transfer | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%u e_mode=%s"
+                " | throughput_dram_mram_MBps=%f throughput_mram_dram_MBps=%f",
+                nr_of_dpus, NR_TASKLETS, XSTR(T), transfer_size, transfer_mode,
+                transfer_size * sizeof(T) / timer.time[1],
+                transfer_size * sizeof(T) / timer.time[3]);
+            printf(" throughput_dram_mram_MOpps=%f throughput_mram_dram_MOpps=%f\n",
+                transfer_size / timer.time[1],
+                transfer_size / timer.time[3]);
+        }
     }
 
     // Print timing results
     printf("CPU-DPU ");
     print(&timer, 1, p.n_reps);
-    double time_load = timer.time[1] / (1000 * p.n_reps);
+    double time_load = timer.time[1] / (1000 * 1);
     printf("CPU-DPU Bandwidth (GB/s): %f\n", (input_size * 8)/(time_load*1e6));
     printf("DPU Kernel ");
     print(&timer, 2, p.n_reps);
     printf("\n");
     printf("DPU-CPU ");
     print(&timer, 3, p.n_reps);
-    double time_retrieve = timer.time[3] / (1000 * p.n_reps);
+    double time_retrieve = timer.time[3] / (1000 * 1);
     printf("DPU-CPU Bandwidth (GB/s): %f\n", (input_size * 8)/(time_retrieve*1e6));
 
     // Check output
