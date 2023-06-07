@@ -251,11 +251,11 @@ int main(int argc, char **argv) {
                     "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f",
                     nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size,
                     input_size * sizeof(T) / timer.time[0],
-                    input_size * sizeof(T) / timer.time[2],
+                    input_size * sizeof(T) / (timer.time[2] + timer.time[3]),
                     input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
                 printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f",
                     input_size / timer.time[0],
-                    input_size / timer.time[2],
+                    input_size / (timer.time[2] + timer.time[3]),
                     input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
                 printall(&timer, 4);
             }
