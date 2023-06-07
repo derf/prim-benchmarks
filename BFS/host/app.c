@@ -300,10 +300,10 @@ int main(int argc, char** argv) {
         printf("[::] BFS NMC | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d "
             "| throughput_pim_MBps=%f throughput_MBps=%f",
             numDPUs, NR_TASKLETS, "uint32_t", numNodes,
-            numNodes * sizeof(uint32_t) / (timer.time[2]),
+            numNodes * sizeof(uint32_t) / (timer.time[2] + timer.time[3]),
             numNodes * sizeof(uint32_t) / (timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
         printf(" throughput_pim_MOpps=%f throughput_MOpps=%f",
-            numNodes / (timer.time[2]),
+            numNodes / (timer.time[2] + timer.time[3]),
             numNodes / (timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
         printAll(&timer, 4);
     }
