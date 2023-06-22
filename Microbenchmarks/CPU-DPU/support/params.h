@@ -5,6 +5,8 @@
 
 typedef struct Params {
     unsigned int   input_size;
+    unsigned int   n_threads;
+    unsigned int   n_nops;
     int   n_warmup;
     int   n_reps;
     int  exp;
@@ -22,24 +24,30 @@ static void usage() {
         "\n"
         "\nBenchmark-specific options:"
         "\n    -i <I>    input size (default=8K elements)"
+        "\n    -n <N>    number of threads per pool (default=8)"
+        "\n    -N <N>    number of nops in dpu task (default=0)"
         "\n");
 }
 
 struct Params input_params(int argc, char **argv) {
     struct Params p;
     p.input_size    = 8 << 10;
+    p.n_threads     = 8;
+    p.n_nops        = 0;
     p.n_warmup      = 1;
     p.n_reps        = 3;
     p.exp           = 0;
 
     int opt;
-    while((opt = getopt(argc, argv, "hi:w:e:x:")) >= 0) {
+    while((opt = getopt(argc, argv, "hi:n:w:e:x:N:")) >= 0) {
         switch(opt) {
         case 'h':
         usage();
         exit(0);
         break;
         case 'i': p.input_size    = atoi(optarg); break;
+        case 'n': p.n_threads     = atoi(optarg); break;
+        case 'N': p.n_nops        = atoi(optarg); break;
         case 'w': p.n_warmup      = atoi(optarg); break;
         case 'e': p.n_reps        = atoi(optarg); break;
         case 'x': p.exp           = atoi(optarg); break;

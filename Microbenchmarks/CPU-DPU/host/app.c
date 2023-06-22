@@ -58,15 +58,36 @@ int main(int argc, char **argv) {
 
     struct dpu_set_t dpu_set, dpu;
     uint32_t nr_of_dpus;
-    
+
+    char ntpp[24];
+
+    // Timer declaration
+    Timer timer;
+
+    snprintf(ntpp, 24, "nrThreadPerPool=%d", p.n_threads);
     // Allocate DPUs and load binary
-    DPU_ASSERT(dpu_alloc(NR_DPUS, "nrThreadPerPool=8", &dpu_set));
+    start(&timer, 4, 0);
+    DPU_ASSERT(dpu_alloc(NR_DPUS, ntpp, &dpu_set));
+    stop(&timer, 4);
+    start(&timer, 5, 0);
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
+    stop(&timer, 5);
+    start(&timer, 6, 0);
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+    stop(&timer, 6);
     //printf("Allocated %d DPU(s)\n", nr_of_dpus);
 
     unsigned int i = 0;
     unsigned int input_size = p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size;
+
+    //printf("Load input data\n");
+    // Input arguments
+    const unsigned int input_size_dpu = input_size / nr_of_dpus;
+#ifdef BROADCAST
+    const unsigned int transfer_size = input_size_dpu;
+#else
+    const unsigned int transfer_size = input_size;
+#endif
 
     // Input/output allocation
     A = malloc(input_size * sizeof(T));
@@ -79,22 +100,14 @@ int main(int argc, char **argv) {
     // Create an input file with arbitrary data
     read_input(A, B, input_size);
 
-    // Timer declaration
-    Timer timer;
-
     //printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
+    printf("[::] NMC reconfiguration | n_dpus=%d n_tasklets=%d n_nops=%d e_type=%s n_elements=%u e_mode=%s"
+        " | latency_dpu_alloc_us=%f latency_dpu_load_us=%f latency_dpu_get_us=%f\n",
+        nr_of_dpus, NR_TASKLETS, p.n_nops, XSTR(T), transfer_size, transfer_mode,
+        timer.time[4], timer.time[5], timer.time[6]);
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
-
-        //printf("Load input data\n");
-        // Input arguments
-        const unsigned int input_size_dpu = input_size / nr_of_dpus;
-#ifdef BROADCAST
-        const unsigned int transfer_size = input_size_dpu;
-#else
-        const unsigned int transfer_size = input_size;
-#endif
         // Copy input arrays
         if(rep >= p.n_warmup)
             start(&timer, 1, 0);
@@ -119,7 +132,8 @@ int main(int argc, char **argv) {
         // Run DPU kernel
         if(rep >= p.n_warmup)
             start(&timer, 2, 0);
-        //DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
+        // empty kernel -> measure communication overhead
+        DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
         if(rep >= p.n_warmup)
             stop(&timer, 2);
 
@@ -154,18 +168,21 @@ int main(int argc, char **argv) {
             stop(&timer, 3);
 
         if (rep >= p.n_warmup) {
-            printf("[::] NMC transfer | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%u e_mode=%s"
+            printf("[::] NMC transfer | n_dpus=%d n_tasklets=%d n_nops=%d e_type=%s n_elements=%u e_mode=%s"
                 " | throughput_dram_mram_MBps=%f throughput_mram_dram_MBps=%f",
-                nr_of_dpus, NR_TASKLETS, XSTR(T), transfer_size, transfer_mode,
+                nr_of_dpus, NR_TASKLETS, p.n_nops, XSTR(T), transfer_size, transfer_mode,
                 transfer_size * sizeof(T) / timer.time[1],
                 transfer_size * sizeof(T) / timer.time[3]);
-            printf(" throughput_dram_mram_MOpps=%f throughput_mram_dram_MOpps=%f\n",
+            printf(" throughput_dram_mram_MOpps=%f throughput_mram_dram_MOpps=%f",
                 transfer_size / timer.time[1],
                 transfer_size / timer.time[3]);
+            printf(" latency_dpu_launch_us=%f\n",
+                timer.time[2]);
         }
     }
 
     // Print timing results
+    /*
     printf("CPU-DPU ");
     print(&timer, 1, p.n_reps);
     double time_load = timer.time[1] / (1000 * 1);
@@ -177,7 +194,7 @@ int main(int argc, char **argv) {
     print(&timer, 3, p.n_reps);
     double time_retrieve = timer.time[3] / (1000 * 1);
     printf("DPU-CPU Bandwidth (GB/s): %f\n", (input_size * 8)/(time_retrieve*1e6));
-
+    */
     // Check output
     bool status = true;
 #ifdef BROADCAST
@@ -200,7 +217,7 @@ int main(int argc, char **argv) {
     }
 #endif
     if (status) {
-        printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
+        //printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
     } else {
         printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
     }
