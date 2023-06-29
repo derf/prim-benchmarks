@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
     // Input arguments
     const unsigned int input_size_dpu = input_size / nr_of_dpus;
 #ifdef BROADCAST
-    const unsigned int transfer_size = input_size_dpu;
+    const unsigned int transfer_size = input_size;
 #else
     const unsigned int transfer_size = input_size;
 #endif
@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
             i++;
         }
 #elif BROADCAST
-        DPU_ASSERT(dpu_broadcast_to(dpu_set, DPU_MRAM_HEAP_POINTER_NAME, 0, bufferA, input_size_dpu * sizeof(T), DPU_XFER_DEFAULT));
+        DPU_ASSERT(dpu_broadcast_to(dpu_set, DPU_MRAM_HEAP_POINTER_NAME, 0, bufferA, input_size * sizeof(T), DPU_XFER_DEFAULT));
 #else
         DPU_FOREACH(dpu_set, dpu, i) {
             DPU_ASSERT(dpu_prepare_xfer(dpu, bufferA + input_size_dpu * i));
@@ -197,7 +197,7 @@ int main(int argc, char **argv) {
     */
     // Check output
     bool status = true;
-#ifdef BROADCAST
+#ifdef BROADCASTX
     for (i = 0; i < input_size/nr_of_dpus; i++) {
         if(B[i] != bufferC[i]){ 
             status = false;
