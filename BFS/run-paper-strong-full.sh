@@ -8,7 +8,8 @@ echo "prim-benchmarks BFS strong-full (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
 
-for nr_dpus in 256 512 1024 2048; do
+# 2544 are not part of upstream
+for nr_dpus in 2544 256 512 1024 2048; do
 	for nr_tasklets in 1 2 4 8 16; do
 		echo
 		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} verbose=1; then

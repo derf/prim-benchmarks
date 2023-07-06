@@ -8,7 +8,7 @@ echo "prim-benchmarks BFS strong-rank (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
 
-# 256 and 512 are not part of upstream
+# >= 256 are not part of upstream
 for nr_dpus in 256 512 1 4 16 64; do
 	for nr_tasklets in 1 2 4 8 16; do
 		echo
