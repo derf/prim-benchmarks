@@ -22,6 +22,11 @@
 #define DPU_BINARY "./bin/dpu_code"
 #endif
 
+#if PRINT
+#include <dpu_management.h>
+#include <dpu_target_macros.h>
+#endif
+
 // Pointer declaration
 static T* A;
 static T* B;
@@ -200,11 +205,26 @@ int main(int argc, char **argv) {
 
     // Check output
     bool status = true;
-    for (i = 0; i < input_size; i++) {
-        if(C2[i] != bufferB[i]){ 
+    for (unsigned int j = 0; j < input_size; j++) {
+        if(C2[j] != bufferB[j]){
             status = false;
+
 #if PRINT
-            printf("%d: %u -- %u\n", i, C2[i], bufferB[i]);
+            const unsigned int input_size_dpu = input_size / nr_of_dpus;
+            int rank = -1;
+            int slice = -1;
+            int member = -1;
+            i = 0;
+            unsigned int dpu_id = j / input_size_dpu;
+            DPU_FOREACH (dpu_set, dpu) {
+                if (i == dpu_id) {
+                    rank = dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) & DPU_TARGET_MASK;
+                    slice = dpu_get_slice_id(dpu_from_set(dpu));
+                    member = dpu_get_member_id(dpu_from_set(dpu));
+                }
+                i++;
+            }
+            printf("DPU %d (rank %d slice.member %d.%d) at offset %d: %u -- %u\n", j / input_size_dpu, rank, slice, member, j % input_size_dpu, C2[j], bufferB[j]);
 #endif
         }
     }
