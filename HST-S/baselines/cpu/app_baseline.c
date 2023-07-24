@@ -164,10 +164,13 @@ int main(int argc, char **argv) {
     // Input/output allocation
     A = malloc(input_size * sizeof(T));
     T *bufferA = A;
-    if(!p.exp)
+    if(!p.exp) {
+        // upstream code left nr_of_dpus uninitialized
+        nr_of_dpus = p.n_threads;
         histo_host = malloc(nr_of_dpus * p.bins * sizeof(unsigned int));
-    else
+    } else {
         histo_host = malloc(p.bins * sizeof(unsigned int));
+    }
 
     // Create an input file with arbitrary data.
     read_input(A, p);
