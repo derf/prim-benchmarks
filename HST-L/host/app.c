@@ -23,6 +23,9 @@
 #define DPU_BINARY "./bin/dpu_code"
 #endif
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 #if ENERGY
 #include <dpu_probe.h>
 #endif
@@ -40,7 +43,7 @@ static void read_input(T* A, const Params p) {
 
     // Open input file
     unsigned short temp;
-    sprintf(dctFileName, p.file_name);
+    sprintf(dctFileName, "%s", p.file_name);
     if((File = fopen(dctFileName, "rb")) != NULL) {
         for(unsigned int y = 0; y < p.input_size; y++) {
             fread(&temp, sizeof(unsigned short), 1, File);
@@ -138,14 +141,14 @@ int main(int argc, char **argv) {
 
         // Compute output on CPU (performance comparison and verification purposes)
         if(rep >= p.n_warmup)
-            start(&timer, 0, rep - p.n_warmup);
+            start(&timer, 0, 0);
         histogram_host(histo_host, A, p.bins, p.input_size, 1, nr_of_dpus);
         if(rep >= p.n_warmup)
             stop(&timer, 0);
 
         printf("Load input data\n");
         if(rep >= p.n_warmup)
-            start(&timer, 1, rep - p.n_warmup);
+            start(&timer, 1, 0);
         // Input arguments
         unsigned int kernel = 0;
         i = 0;
@@ -177,11 +180,12 @@ int main(int argc, char **argv) {
         printf("Run program on DPU(s) \n");
         // Run DPU kernel
         if(rep >= p.n_warmup) {
-            start(&timer, 2, rep - p.n_warmup);
+            start(&timer, 2, 0);
             #if ENERGY
             DPU_ASSERT(dpu_probe_start(&probe));
             #endif
         }
+
         DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
         if(rep >= p.n_warmup) {
             stop(&timer, 2);
@@ -205,21 +209,35 @@ int main(int argc, char **argv) {
         printf("Retrieve results\n");
         i = 0;
         if(rep >= p.n_warmup)
-            start(&timer, 3, rep - p.n_warmup);
+            start(&timer, 3, 0);
         // PARALLEL RETRIEVE TRANSFER
         DPU_FOREACH(dpu_set, dpu, i) {
             DPU_ASSERT(dpu_prepare_xfer(dpu, histo + p.bins * i));
         }
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu_8bytes * sizeof(T), p.bins * sizeof(unsigned int), DPU_XFER_DEFAULT));
-		
+
         // Final histogram merging
         for(i = 1; i < nr_of_dpus; i++){
             for(unsigned int j = 0; j < p.bins; j++){
                 histo[j] += histo[j + i * p.bins];
-            }			
-        }		
+            }
+        }
         if(rep >= p.n_warmup)
             stop(&timer, 3);
+
+        if (rep >= p.n_warmup) {
+            printf("[::] HST-L NMC | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%u n_bins=%d "
+                "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f",
+                nr_of_dpus, NR_TASKLETS, XSTR(T), input_size, p.bins,
+                input_size * sizeof(T) / timer.time[0],
+                input_size * sizeof(T) / timer.time[2],
+                input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3]));
+            printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f",
+                input_size / timer.time[0],
+                input_size / timer.time[2],
+                input_size / (timer.time[1] + timer.time[2] + timer.time[3]));
+            printall(&timer, 3);
+        }
 
     }
 
@@ -237,8 +255,7 @@ int main(int argc, char **argv) {
     double energy;
     DPU_ASSERT(dpu_probe_get(&probe, DPU_ENERGY, DPU_AVERAGE, &energy));
     printf("DPU Energy (J): %f\t", energy);
-    #endif	
-
+    #endif
 
     // Check output
     bool status = true;
