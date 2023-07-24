@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
         for(i = 1; i < nr_of_dpus; i++){
             for(unsigned int j = 0; j < p.bins; j++){
                 histo[j] += histo[j + i * p.bins];
-            }			
+            }
         }
         if(rep >= p.n_warmup)
             stop(&timer, 3);
@@ -255,7 +255,7 @@ int main(int argc, char **argv) {
     double energy;
     DPU_ASSERT(dpu_probe_get(&probe, DPU_ENERGY, DPU_AVERAGE, &energy));
     printf("DPU Energy (J): %f\t", energy);
-    #endif	
+    #endif
 
     // Check output
     bool status = true;

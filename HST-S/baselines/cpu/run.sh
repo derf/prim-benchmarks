@@ -19,6 +19,7 @@ make -B verbose=1
 for nr_threads in 88 64 44 32 24 20 1 2 4 6 8 12 16; do
 	for i in `seq 1 20`; do
 		timeout --foreground -k 1m 30m ./hist -t ${nr_threads} -i 1006632960 || true
+		sleep 10
 	done
 done
 ) | tee "${HOST}-explore.txt"
