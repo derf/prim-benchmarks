@@ -8,8 +8,7 @@ echo "prim-benchmarks SpMV weak (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
 
-# 256 and 512 are not part of upstream
-for nr_dpus in 256 512 1 4 16 64; do
+for nr_dpus in 1 4 16 64; do
 	cd data/generate
 	make
 	./replicate ../bcsstk30.mtx ${nr_dpus} /tmp/bcsstk30.mtx.${nr_dpus}.mtx

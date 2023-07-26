@@ -14,8 +14,8 @@ echo "prim-benchmarks TS strong-rank (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
 
-# 256 and 512 are not part of upstream config space
-for nr_dpus in 512 256 1 4 16 64; do
+# >64 are not part of upstream config space
+for nr_dpus in 128 1 4 16 64; do
 	for nr_tasklets in 1 2 4 8 16; do
 		echo
 		# upstream code did not respect $BL in the makefile and used 256B (BL=8) instead.

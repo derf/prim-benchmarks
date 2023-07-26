@@ -14,8 +14,8 @@ echo "prim-benchmarks TS strong-full (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
 
-# 2544 is not part of upstream
-for nr_dpus in 2544 256 512 1024 2048; do
+# >2048 is not part of upstream
+for nr_dpus in 2543 2304 256 512 1024 2048; do
 	for nr_tasklets in 1 2 4 8 16; do
 		echo
 		# upstream code did not respect $BL in the makefile and used 256B (BL=8) instead.

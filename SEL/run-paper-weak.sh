@@ -8,7 +8,7 @@ set -e
 # -e: number of timed iterations
 # -i; ignored, always uses 262144 elements
 
-echo "prim-benchmarks UNI weak (dfatool edition)"
+echo "prim-benchmarks SEL weak (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
 

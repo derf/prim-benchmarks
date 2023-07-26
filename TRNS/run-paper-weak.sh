@@ -17,7 +17,7 @@ for nr_dpus in 256 512 1 4 16 64; do
 	for nr_tasklets in 1 2 4 8 16; do
 		echo
 		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets}; then
-			timeout --foreground -k 1m 30m bin/bs_host -w 0 -e 100 -p 1 -o 12288 -x 0 || true
+			timeout --foreground -k 1m 60m bin/bs_host -w 0 -e 100 -p 1 -o 12288 -x 0 || true
 		fi
 	done
 done | tee log-paper-weak.txt
