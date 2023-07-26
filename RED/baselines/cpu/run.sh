@@ -19,7 +19,8 @@ for nr_threads in 88 64 44 1 2 4 6 8 12 16 20 24 32; do
 		#for dt in UINT32 UINT64 INT32 INT64 FLOAT DOUBLE; do
 		for dt in UINT64; do
 			if make -B TYPE=${dt} verbose=1; then
-				timeout -k 1m 60m ./red -i ${i} -w 0 -e 100 -t ${nr_threads} || true
+				timeout --foreground -k 1m 60m ./red -i ${i} -w 0 -e 100 -t ${nr_threads} || true
+				sleep 10
 			fi
 		done
 	done
