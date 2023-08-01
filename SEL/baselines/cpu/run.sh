@@ -22,7 +22,7 @@ for nr_threads in 88 64 44 1 2 4 6 8 12 16 20 24 32; do
 		#for dt in uint8_t uint16_t uint32_t uint64_t float double; do
 		for dt in uint64_t; do
 			if make -B TYPE=${dt}; then
-				timeout --foreground -k 1m 60m ./sel -i ${i} -w 0 -e 100 -t ${nr_threads} || true
+				timeout --foreground -k 1m 90m ./sel -i ${i} -w 0 -e 100 -t ${nr_threads} || true
 				sleep 10
 			fi
 		done
