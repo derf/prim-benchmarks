@@ -37,7 +37,7 @@ static T* C2;
 // Create input arrays
 static void read_input(T* A, unsigned int nr_elements, unsigned int nr_elements_round) {
     srand(0);
-    printf("nr_elements\t%u\t", nr_elements);
+    //printf("nr_elements\t%u\t", nr_elements);
     for (unsigned int i = 0; i < nr_elements; i++) {
         A[i] = (T) (rand());
     }
@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
-    printf("Allocated %d DPU(s)\n", nr_of_dpus);
+    //printf("Allocated %d DPU(s)\n", nr_of_dpus);
 
     unsigned int i = 0;
     T accum = 0;
@@ -107,7 +107,7 @@ int main(int argc, char **argv) {
     // Timer declaration
     Timer timer;
 
-    printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
+    //printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
@@ -272,20 +272,16 @@ int main(int argc, char **argv) {
         }
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-            printf("[::] n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d b_unroll=%d n_elements=%d "
+            printf("[::] SCAN-SSA NMC | n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d b_unroll=%d n_elements=%u "
                 "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f\n",
                 nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, UNROLL, input_size,
                 input_size * sizeof(T) / timer.time[0],
-                input_size * sizeof(T) / (timer.time[2] + timer.time[4]),
-                input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
-            printf("[::] n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d b_unroll=%d n_elements=%d "
-                "| throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f\n",
-                nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, UNROLL, input_size,
+                input_size * sizeof(T) / (timer.time[2] + timer.time[3] + timer.time[4]),
+                input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5]));
+            printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f\n",
                 input_size / timer.time[0],
-                input_size / (timer.time[2] + timer.time[4]),
-                input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
-            printf("[::] n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d b_unroll=%d n_elements=%d | ",
-                nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, UNROLL, input_size);
+                input_size / (timer.time[2] + timer.time[3] + timer.time[4]),
+                input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5]));
             printall(&timer, 5);
         } else {
             printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
