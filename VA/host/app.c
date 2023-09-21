@@ -193,7 +193,7 @@ int main(int argc, char **argv) {
                     input_size * 3 * sizeof(T) / timer.time[0],
                     input_size * 3 * sizeof(T) / (timer.time[2]),
                     input_size * 3 * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3]));
-                printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f\n",
+                printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f",
                     input_size / timer.time[0],
                     input_size / (timer.time[2]),
                     input_size / (timer.time[1] + timer.time[2] + timer.time[3]));
