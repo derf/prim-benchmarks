@@ -94,9 +94,6 @@ int main(int argc, char **argv) {
     // Timer declaration
     Timer timer;
 
-    printf("NR_TASKLETS\t%d\n", NR_TASKLETS);
-    printf("M_\t%u, m\t%u, N_\t%u, n\t%u\n", M_, m, N_, n);
-
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
@@ -121,21 +118,25 @@ int main(int argc, char **argv) {
                 active_dpus = (N_ - curr_dpu);
             }
             if((active_dpus_before != active_dpus) && (!(first_round))){
+                start(&timer, 1, 1);
                 DPU_ASSERT(dpu_free(dpu_set));
                 DPU_ASSERT(dpu_alloc(active_dpus, NULL, &dpu_set));
                 DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
                 DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+                stop(&timer, 1);
                 printf("Allocated %d DPU(s)\n", nr_of_dpus);
             } else if (first_round){
+                start(&timer, 1, 0);
                 DPU_ASSERT(dpu_alloc(active_dpus, NULL, &dpu_set));
                 DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
                 DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+                stop(&timer, 1);
                 printf("Allocated %d DPU(s)\n", nr_of_dpus);
             }
 
-            printf("Load input data (step 1)\n");
-            if(rep >= p.n_warmup)
-                start(&timer, 1, 0);
+            if(rep >= p.n_warmup) {
+                start(&timer, 2, !first_round);
+            }
             // Load input matrix (step 1)
             for(unsigned int j = 0; j < M_ * m; j++){
                 unsigned int i = 0;
@@ -145,9 +146,13 @@ int main(int argc, char **argv) {
                 }
                 DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, sizeof(T) * j * n, sizeof(T) * n, DPU_XFER_DEFAULT));
             }
-            if(rep >= p.n_warmup)
-                stop(&timer, 1);
+            if(rep >= p.n_warmup) {
+                stop(&timer, 2);
+            }
             // Reset done array (for step 3)
+            if(rep >= p.n_warmup) {
+                start(&timer, 3, !first_round);
+            }
             DPU_FOREACH(dpu_set, dpu) {
                 DPU_ASSERT(dpu_prepare_xfer(dpu, done_host));
             }
@@ -159,17 +164,19 @@ int main(int argc, char **argv) {
 	            DPU_ASSERT(dpu_prepare_xfer(dpu, &input_arguments));
 	        }
 	        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0, sizeof(input_arguments), DPU_XFER_DEFAULT));
-            printf("Run step 2 on DPU(s) \n");
+            if(rep >= p.n_warmup) {
+                stop(&timer, 3);
+            }
             // Run DPU kernel
             if(rep >= p.n_warmup){
-                start(&timer, 2, 0);
+                start(&timer, 4, !first_round);
 #if ENERGY
                 DPU_ASSERT(dpu_probe_start(&probe));
 #endif
             }
             DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
             if(rep >= p.n_warmup){
-                stop(&timer, 2);
+                stop(&timer, 4);
 #if ENERGY
                 DPU_ASSERT(dpu_probe_stop(&probe));
 #endif
@@ -186,23 +193,28 @@ int main(int argc, char **argv) {
         }
 #endif
 
+            if(rep >= p.n_warmup) {
+                start(&timer, 5, !first_round);
+            }
             kernel = 1;
             dpu_arguments_t input_arguments2 = {m, n, M_, kernel};
 	        DPU_FOREACH(dpu_set, dpu, i) {
 	            DPU_ASSERT(dpu_prepare_xfer(dpu, &input_arguments2));
 	        }
 	        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0, sizeof(input_arguments2), DPU_XFER_DEFAULT));
-            printf("Run step 3 on DPU(s) \n");
+            if(rep >= p.n_warmup) {
+                stop(&timer, 5);
+            }
             // Run DPU kernel
             if(rep >= p.n_warmup){
-                start(&timer, 3, 0);
+                start(&timer, 6, !first_round);
 #if ENERGY
                 DPU_ASSERT(dpu_probe_start(&probe));
 #endif
             }
             DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
             if(rep >= p.n_warmup){
-                stop(&timer, 3);
+                stop(&timer, 6);
 #if ENERGY
                 DPU_ASSERT(dpu_probe_stop(&probe));
 #endif
@@ -219,16 +231,17 @@ int main(int argc, char **argv) {
         }
 #endif
 
-            printf("Retrieve results\n");
-            if(rep >= p.n_warmup)
-                start(&timer, 4, 0);
+            if(rep >= p.n_warmup) {
+                start(&timer, 7, !first_round);
+            }
             DPU_FOREACH(dpu_set, dpu) {
                 DPU_ASSERT(dpu_prepare_xfer(dpu, (T*)(&A_result[curr_dpu * m * n * M_])));
                 curr_dpu++;
             }
             DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, 0, sizeof(T) * m * n * M_, DPU_XFER_DEFAULT));
-            if(rep >= p.n_warmup)
-                stop(&timer, 4);
+            if(rep >= p.n_warmup) {
+                stop(&timer, 7);
+            }
 
             if(first_round){
                 first_round = 0;
@@ -250,17 +263,26 @@ int main(int argc, char **argv) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             unsigned long input_size = M_ * m * N_ * n;
             if (rep >= p.n_warmup) {
-                printf("[::] TRNS NMC | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%lu "
-                    "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f",
-                    nr_of_dpus, NR_TASKLETS, XSTR(T), input_size,
+                printf("[::] TRNS UPMEM | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%lu ",
+                    NR_DPUS, NR_TASKLETS, XSTR(T), input_size);
+                printf("| latency_cpu_us=%f latency_reconfigure_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f",
+                    timer.time[0],
+                    timer.time[1],
+                    timer.time[2] + timer.time[3] + timer.time[5],
+                    timer.time[4] + timer.time[6],
+                    timer.time[7]);
+                printf(" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
                     input_size * sizeof(T) / timer.time[0],
-                    input_size * sizeof(T) / (timer.time[2] + timer.time[3]),
-                    input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
-                printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f",
+                    input_size * sizeof(T) / (timer.time[4] + timer.time[6]),
+                    input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7]));
+                printf(" throughput_upmem_wxr_MBps=%f",
+                    input_size *  sizeof(T) / (timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7]));
+                printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
                     input_size / timer.time[0],
-                    input_size / (timer.time[2] + timer.time[3]),
-                    input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
-                printall(&timer, 4);
+                    input_size / (timer.time[4] + timer.time[6]),
+                    input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7]));
+                printf(" throughput_upmem_wxr_MOpps=%f\n",
+                    input_size / (timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7]));
             }
         } else {
             printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
