@@ -16,11 +16,13 @@ echo "Revision $(git describe --always)"
 
 for nr_dpus in 1 4 8 16 32 64 128 256 512 768 1024 1536 2048; do
 	for nr_tasklets in 8 12 16 20 24; do
-		for i in  2048 4096 8192 16384 65536 262144 1048576 2621440 167772160; do
+		# 2621440 run-paper-weak
+		# 167772160 run-paper-strong-full (needs at least 20 DPUs)
+		for i in 2048 4096 8192 16384 65536 262144 1048576 2621440 167772160; do
 			for dt in CHAR SHORT INT32 INT64 FLOAT DOUBLE; do
 				echo
-				if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10 TYPE=${dt} WITH_ALLOC_OVERHEAD=1; then
-					timeout --foreground -k 1m 30m bin/host_code -w 0 -e 100 -i ${i} -x 1 || true
+				if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10 TYPE=${dt} WITH_ALLOC_OVERHEAD=1 WITH_LOAD_OVERHEAD=1 WITH_FREE_OVERHEAD=1; then
+					timeout --foreground -k 1m 30m bin/host_code -w 0 -e 50 -i ${i} -x 1 || true
 				fi
 			done
 		done

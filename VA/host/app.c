@@ -64,14 +64,20 @@ int main(int argc, char **argv) {
     DPU_ASSERT(dpu_probe_init("energy_probe", &probe));
 #endif
 
-#if !WITH_ALLOC_OVERHEAD
+    printf("WITH_ALLOC_OVERHEAD=%d WITH_LOAD_OVERHEAD=%d WITH_FREE_OVERHEAD=%d\n", WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
+
     // Allocate DPUs and load binary
+#if !WITH_ALLOC_OVERHEAD
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+    timer.time[0] = 0; // alloc
+#endif
+#if !WITH_LOAD_OVERHEAD
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
     assert(nr_of_dpus == NR_DPUS);
-    timer.time[0] = 0; // alloc
     timer.time[1] = 0; // load
+#endif
+#if !WITH_FREE_OVERHEAD
     timer.time[6] = 0; // free
 #endif
 
@@ -109,6 +115,8 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup) {
             stop(&timer, 0);
         }
+#endif
+#if WITH_LOAD_OVERHEAD
         if(rep >= p.n_warmup) {
             start(&timer, 1, 0);
         }
@@ -205,13 +213,17 @@ int main(int argc, char **argv) {
         }
 
 #if WITH_ALLOC_OVERHEAD
+#if WITH_FREE_OVERHEAD
         if(rep >= p.n_warmup) {
             start(&timer, 6, 0);
         }
+#endif
         DPU_ASSERT(dpu_free(dpu_set));
+#if WITH_FREE_OVERHEAD
         if(rep >= p.n_warmup) {
             stop(&timer, 6);
         }
+#endif
 #endif
 
         // Check output
@@ -241,15 +253,25 @@ int main(int argc, char **argv) {
                     input_size * 3 * sizeof(T) / timer.time[2],
                     input_size * 3 * sizeof(T) / (timer.time[4]),
                     input_size * 3 * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
-                printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f\n",
+                printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
+                    input_size * 3 * sizeof(T) / (timer.time[3] + timer.time[4] + timer.time[5]),
+                    input_size * 3 * sizeof(T) / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
+                    input_size * 3 * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
+                printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
                     input_size / timer.time[2],
                     input_size / (timer.time[4]),
                     input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
+                printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f\n",
+                    input_size / (timer.time[3] + timer.time[4] + timer.time[5]),
+                    input_size / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
+                    input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
             }
         } else {
             printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
         }
     }
+    printf("throughput_*_MOpps == n_elements / (+ latency_*_us ...)\n");
+    printf("throughput_*_MBps == 3 * sizeof(e_type) * throughput_*_MOpps \n");
 
     // Print timing results
     /*
