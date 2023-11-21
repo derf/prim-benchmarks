@@ -119,16 +119,16 @@ int main(int argc, char **argv) {
 
     struct Params p = input_params(argc, argv);
 
-    const unsigned int file_size = p.exp == 0 ? p.input_size * p.n_threads : p.input_size;
+    const unsigned int input_size = p.exp == 0 ? p.input_size * p.n_threads : p.input_size;
 
     // Create an input file with arbitrary data.
-    create_test_file(file_size);
+    create_test_file(input_size);
 
     Timer timer;
 
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
         start(&timer, 0, 0);
-        vector_addition_host(file_size, p.n_threads);
+        vector_addition_host(input_size, p.n_threads);
         stop(&timer, 0);
 
         unsigned int nr_threads = 0;
@@ -139,10 +139,10 @@ int main(int argc, char **argv) {
         if (rep >= p.n_warmup) {
             printf("[::] VA CPU | n_threads=%d e_type=%s n_elements=%d "
                 "| throughput_MBps=%f",
-                nr_threads, XSTR(T), file_size,
-                file_size * 3 * sizeof(T) / timer.time[0]);
+                nr_threads, XSTR(T), input_size,
+                input_size * 3 * sizeof(T) / timer.time[0]);
             printf(" throughput_MOpps=%f",
-                file_size / timer.time[0]);
+                input_size / timer.time[0]);
             printall(&timer, 0);
         }
     }
