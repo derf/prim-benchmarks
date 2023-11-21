@@ -66,6 +66,9 @@ int main(int argc, char **argv) {
 
     printf("WITH_ALLOC_OVERHEAD=%d WITH_LOAD_OVERHEAD=%d WITH_FREE_OVERHEAD=%d\n", WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
 
+    // Timer declaration
+    Timer timer;
+
     // Allocate DPUs and load binary
 #if !WITH_ALLOC_OVERHEAD
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
@@ -100,9 +103,6 @@ int main(int argc, char **argv) {
 
     // Create an input file with arbitrary data
     read_input(A, B, input_size);
-
-    // Timer declaration
-    Timer timer;
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
