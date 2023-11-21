@@ -142,7 +142,6 @@ int main(int argc, char **argv) {
                 nr_threads, XSTR(T), file_size,
                 file_size * 3 * sizeof(T) / timer.time[0]);
             printf(" throughput_MOpps=%f",
-                nr_threads, XSTR(T), file_size,
                 file_size / timer.time[0]);
             printall(&timer, 0);
         }
