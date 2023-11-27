@@ -10,17 +10,18 @@ set -e
 
 (
 
-echo "prim-benchmarks VA strong-rank (dfatool edition)"
+echo "prim-benchmarks VA strong-full (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
 
-for nr_dpus in 1 4 16 64; do
+# >2048 is not part of upstream
+for nr_dpus in 2543 2304 256 512 1024 2048; do
 	for nr_tasklets in 1 2 4 8 16; do
 		echo
 		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10 verbose=1; then
-			timeout --foreground -k 1m 30m bin/host_code -w 0 -e 100 -i 2621440 -x 1 || true
+			timeout --foreground -k 1m 30m bin/host_code -w 0 -e 100 -i 167772160 -x 1 || true
 		fi
 	done
 done
 echo "Completed at $(date)"
-) | tee "log-prim-strong-rank-$(hostname).txt"
+) | tee "log-prim-strong-full-$(hostname).txt"
