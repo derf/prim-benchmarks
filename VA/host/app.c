@@ -29,6 +29,17 @@
 #include <dpu_probe.h>
 #endif
 
+#if WITH_DPUINFO
+#include <dpu_management.h>
+#include <dpu_target_macros.h>
+#endif
+
+#if SDK_SINGLETHREADED
+#define DPU_ALLOC_PROFILE "nrThreadsPerRank=0"
+#else
+#define DPU_ALLOC_PROFILE NULL
+#endif
+
 // Pointer declaration
 static T* A;
 static T* B;
@@ -72,7 +83,7 @@ int main(int argc, char **argv) {
 
     // Allocate DPUs and load binary
 #if !WITH_ALLOC_OVERHEAD
-    DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+    DPU_ASSERT(dpu_alloc(NR_DPUS, DPU_ALLOC_PROFILE, &dpu_set));
     timer.time[0] = 0; // alloc
 #endif
 #if !WITH_LOAD_OVERHEAD
@@ -113,10 +124,20 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup) {
             start(&timer, 0, 0);
         }
-        DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+        DPU_ASSERT(dpu_alloc(NR_DPUS, DPU_ALLOC_PROFILE, &dpu_set));
         if(rep >= p.n_warmup) {
             stop(&timer, 0);
         }
+#endif
+#if WITH_DPUINFO
+        printf("DPUs:");
+        DPU_FOREACH (dpu_set, dpu) {
+            int rank = dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) & DPU_TARGET_MASK;
+            int slice = dpu_get_slice_id(dpu_from_set(dpu));
+            int member = dpu_get_member_id(dpu_from_set(dpu));
+            printf(" %d(%d.%d)", rank, slice, member);
+        }
+        printf("\n");
 #endif
 #if WITH_LOAD_OVERHEAD
         if(rep >= p.n_warmup) {
@@ -242,8 +263,8 @@ int main(int argc, char **argv) {
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             if (rep >= p.n_warmup) {
-                printf("[::] VA UPMEM | n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d ",
-                    nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size);
+                printf("[::] VA UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d b_sdk_singlethreaded=%d ",
+                    nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size, SDK_SINGLETHREADED);
                 printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
                     timer.time[0],
                     timer.time[1],
@@ -264,7 +285,7 @@ int main(int argc, char **argv) {
                     input_size / timer.time[2],
                     input_size / (timer.time[4]),
                     input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
-                printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f\n",
+                printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
                     input_size / (timer.time[3] + timer.time[4] + timer.time[5]),
                     input_size / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
                     input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
