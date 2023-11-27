@@ -25,6 +25,17 @@
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
+#if WITH_DPUINFO
+#include <dpu_management.h>
+#include <dpu_target_macros.h>
+#endif
+
+#if SDK_SINGLETHREADED
+#define DPU_ALLOC_PROFILE "nrThreadsPerRank=0"
+#else
+#define DPU_ALLOC_PROFILE NULL
+#endif
+
 // Pointer declaration
 static T* A;
 static T* B;
@@ -92,22 +103,38 @@ int main(int argc, char **argv) {
 
     struct dpu_set_t dpu_set, dpu;
     uint32_t nr_of_dpus;
-    
+    uint32_t nr_of_ranks;
+
+    printf("WITH_ALLOC_OVERHEAD=%d WITH_LOAD_OVERHEAD=%d WITH_FREE_OVERHEAD=%d\n", WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
+
+    // Timer declaration
+    Timer timer;
+
     // Allocate DPUs and load binary
-    DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+#if !WITH_ALLOC_OVERHEAD
+    DPU_ASSERT(dpu_alloc(NR_DPUS, DPU_ALLOC_PROFILE, &dpu_set));
+    timer.time[0] = 0; // alloc
+#endif
+#if !WITH_LOAD_OVERHEAD
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
-    printf("Allocated %d DPU(s)\n", nr_of_dpus);
+    DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
+    assert(nr_of_dpus == NR_DPUS);
+    timer.time[1] = 0; // load
+#endif
+#if !WITH_FREE_OVERHEAD
+    timer.time[6] = 0; // free
+#endif
 
     unsigned int i = 0;
     double cc = 0;
     double cc_min = 0;
-    const unsigned int input_size = p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size;
+    const unsigned int input_size = p.exp == 0 ? p.input_size * NR_DPUS : p.input_size;
 
 #if defined(add) || defined(triad)
-    const unsigned int n_arrays = 3;
-#else
     const unsigned int n_arrays = 2;
+#else
+    const unsigned int n_arrays = 1;
 #endif
 
     // Input/output allocation
@@ -124,30 +151,59 @@ int main(int argc, char **argv) {
     // Create an input file with arbitrary data
     read_input(A, B, input_size);
 
-    // Timer declaration
-    Timer timer;
-
-    printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
-
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
-        // Compute output on CPU (performance comparison and verification purposes)
-        if(rep >= p.n_warmup)
+#if WITH_ALLOC_OVERHEAD
+        if(rep >= p.n_warmup) {
             start(&timer, 0, 0);
+        }
+        DPU_ASSERT(dpu_alloc(NR_DPUS, DPU_ALLOC_PROFILE, &dpu_set));
+        if(rep >= p.n_warmup) {
+            stop(&timer, 0);
+        }
+#endif
+#if WITH_DPUINFO
+        printf("DPUs:");
+        DPU_FOREACH (dpu_set, dpu) {
+            int rank = dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) & DPU_TARGET_MASK;
+            int slice = dpu_get_slice_id(dpu_from_set(dpu));
+            int member = dpu_get_member_id(dpu_from_set(dpu));
+            printf(" %d(%d.%d)", rank, slice, member);
+        }
+        printf("\n");
+#endif
+#if WITH_LOAD_OVERHEAD
+        if(rep >= p.n_warmup) {
+            start(&timer, 1, 0);
+        }
+        DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
+        if(rep >= p.n_warmup) {
+            stop(&timer, 1);
+        }
+        DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+        DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
+        assert(nr_of_dpus == NR_DPUS);
+#endif
+
+        // Compute output on CPU (performance comparison and verification purposes)
+        if(rep >= p.n_warmup) {
+            start(&timer, 2, 0);
+        }
 #if defined(add) || defined(triad)
         stream_host(C2, B, A, input_size);
 #else
         stream_host(C2, A, input_size);
 #endif
-        if(rep >= p.n_warmup)
-            stop(&timer, 0);
+        if(rep >= p.n_warmup) {
+            stop(&timer, 2);
+        }
 
-        //printf("Load input data\n");
-        if(rep >= p.n_warmup)
-            start(&timer, 1, 0);
+        if(rep >= p.n_warmup) {
+            start(&timer, 3, 0);
+        }
         // Input arguments
-        const unsigned int input_size_dpu = input_size / nr_of_dpus;
+        const unsigned int input_size_dpu = input_size / NR_DPUS;
         unsigned int kernel = 0;
         dpu_arguments_t input_arguments = {input_size_dpu * sizeof(T), kernel};
         DPU_ASSERT(dpu_copy_to(dpu_set, "DPU_INPUT_ARGUMENTS", 0, (const void *)&input_arguments, sizeof(input_arguments)));
@@ -160,16 +216,18 @@ int main(int argc, char **argv) {
 #endif
             i++;
         }
-        if(rep >= p.n_warmup)
-            stop(&timer, 1);
+        if(rep >= p.n_warmup) {
+            stop(&timer, 3);
+        }
 
-        //printf("Run program on DPU(s) \n");
         // Run DPU kernel
-        if(rep >= p.n_warmup)
-            start(&timer, 2, 0);
+        if(rep >= p.n_warmup) {
+            start(&timer, 4, 0);
+        }
         DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
-        if(rep >= p.n_warmup)
-            stop(&timer, 2);
+        if(rep >= p.n_warmup) {
+            stop(&timer, 4);
+        }
 
 #if PRINT
         {
@@ -183,10 +241,10 @@ int main(int argc, char **argv) {
         }
 #endif
 
-        //printf("Retrieve results\n");
-        if(rep >= p.n_warmup)
-            start(&timer, 3, 0);
-        dpu_results_t results[nr_of_dpus];
+        if(rep >= p.n_warmup) {
+            start(&timer, 5, 0);
+        }
+        dpu_results_t results[NR_DPUS];
         i = 0;
         DPU_FOREACH (dpu_set, dpu) {
             // Copy output array
@@ -197,8 +255,9 @@ int main(int argc, char **argv) {
 #endif
             i++;
         }
-        if(rep >= p.n_warmup)
-            stop(&timer, 3);
+        if(rep >= p.n_warmup) {
+            stop(&timer, 5);
+        }
 #if PERF
         i = 0;
         DPU_FOREACH (dpu_set, dpu) {
@@ -233,34 +292,72 @@ int main(int argc, char **argv) {
         }
 #endif
 
-    // Check output
-    bool status = true;
-    for (i = 0; i < input_size; i++) {
-#if defined(add) || defined(triad)
-        if(C2[i] != bufferC[i]){ 
-#else
-        if(C2[i] != bufferB[i]){ 
+#if WITH_ALLOC_OVERHEAD
+#if WITH_FREE_OVERHEAD
+        if(rep >= p.n_warmup) {
+            start(&timer, 6, 0);
+        }
 #endif
-            status = false;
+        DPU_ASSERT(dpu_free(dpu_set));
+#if WITH_FREE_OVERHEAD
+        if(rep >= p.n_warmup) {
+            stop(&timer, 6);
+        }
+#endif
+#endif
+
+        // Check output
+        bool status = true;
+        for (i = 0; i < input_size; i++) {
+#if defined(add) || defined(triad)
+            if(C2[i] != bufferC[i]){
+#else
+            if(C2[i] != bufferB[i]){
+#endif
+                status = false;
 #if PRINT
 #if defined(add) || defined(triad)
-            printf("%d: %u -- %u\n", i, C2[i], bufferC[i]);
+                printf("%d: %u -- %u\n", i, C2[i], bufferC[i]);
 #else
-            printf("%d: %u -- %u\n", i, C2[i], bufferB[i]);
+                printf("%d: %u -- %u\n", i, C2[i], bufferB[i]);
 #endif
 #endif
+            }
         }
-    }
-    if (status) {
-        printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-        printf("[::] n_dpus=%d n_tasklets=%d e_benchmark=%-6s e_type=%s e_mem=%s b_unroll=%d block_size_B=%d | throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f \n", nr_of_dpus, NR_TASKLETS, benchmark_name, XSTR(T), mem_name, UNROLL, BLOCK_SIZE, input_size * n_arrays * sizeof(T) / timer.time[0], input_size * n_arrays * sizeof(T) / timer.time[2], input_size * n_arrays * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3]));
-        printf("[::] n_dpus=%d n_tasklets=%d e_benchmark=%-6s e_type=%s e_mem=%s b_unroll=%d block_size_B=%d | throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f \n", nr_of_dpus, NR_TASKLETS, benchmark_name, XSTR(T), mem_name, UNROLL, BLOCK_SIZE, input_size / timer.time[0], input_size / timer.time[2], input_size / (timer.time[1] + timer.time[2] + timer.time[3]));
-    } else {
-        printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
-    }
+
+        if (status) {
+            printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
+            printf("[::] STREAM UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_benchmark=%-6s e_type=%s e_mem=%s b_unroll=%d block_size_B=%d n_elements=%d b_sdk_singlethreaded=%d ",
+                nr_of_dpus, nr_of_ranks, NR_TASKLETS, benchmark_name, XSTR(T), mem_name, UNROLL, BLOCK_SIZE, input_size, SDK_SINGLETHREADED);
+            printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
+                timer.time[0],
+                timer.time[1],
+                timer.time[2],
+                timer.time[3],
+                timer.time[4],
+                timer.time[5],
+                timer.time[6]);
+            printf(" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
+                input_size * n_arrays * sizeof(T) / timer.time[2],
+                input_size * n_arrays * sizeof(T) / (timer.time[4]),
+                input_size * n_arrays * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
+            printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
+                input_size * n_arrays * sizeof(T) / (timer.time[3] + timer.time[4] + timer.time[5]),
+                input_size * n_arrays * sizeof(T) / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
+                input_size * n_arrays * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
+            printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
+                input_size / timer.time[2],
+                input_size / (timer.time[4]),
+                input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
+            printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
+                input_size / (timer.time[3] + timer.time[4] + timer.time[5]),
+                input_size / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
+                input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
+        } else {
+            printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
+        }
 
     }
-    printf("DPU cycles  = %g cc\n", cc / p.n_reps);
 
     // Deallocation
     free(A);
@@ -269,7 +366,9 @@ int main(int argc, char **argv) {
     free(C);
 #endif
     free(C2);
+#if !WITH_ALLOC_OVERHEAD
     DPU_ASSERT(dpu_free(dpu_set));
+#endif
 	
     return 0;
 }
