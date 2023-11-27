@@ -58,6 +58,7 @@ int main(int argc, char **argv) {
 
     struct dpu_set_t dpu_set, dpu;
     uint32_t nr_of_dpus;
+    uint32_t nr_of_ranks;
 
 #if ENERGY
     struct dpu_probe_t probe;
@@ -77,6 +78,7 @@ int main(int argc, char **argv) {
 #if !WITH_LOAD_OVERHEAD
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+    DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
     assert(nr_of_dpus == NR_DPUS);
     timer.time[1] = 0; // load
 #endif
@@ -125,6 +127,7 @@ int main(int argc, char **argv) {
             stop(&timer, 1);
         }
         DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+        DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
         assert(nr_of_dpus == NR_DPUS);
 #endif
 
