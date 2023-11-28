@@ -38,7 +38,6 @@ static T* A_result;
 // Create input arrays
 static void read_input(T* A, unsigned int nr_elements) {
     srand(0);
-    printf("nr_elements\t%u\t", nr_elements);
     for (unsigned int i = 0; i < nr_elements; i++) {
         A[i] = (T) (rand());
     }
@@ -247,7 +246,9 @@ int main(int argc, char **argv) {
                 first_round = 0;
             }
         }
+        start(&timer, 1, 1);
         DPU_ASSERT(dpu_free(dpu_set));
+        stop(&timer, 1);
 
         // Check output
         bool status = true;
@@ -291,6 +292,7 @@ int main(int argc, char **argv) {
     }
 
     // Print timing results
+    /*
     printf("CPU ");
     print(&timer, 0, p.n_reps);
     printf("CPU-DPU (Step 1) ");
@@ -301,6 +303,7 @@ int main(int argc, char **argv) {
     print(&timer, 3, p.n_reps);
     printf("DPU-CPU ");
     print(&timer, 4, p.n_reps);
+    */
 
     #if ENERGY
     double energy;
