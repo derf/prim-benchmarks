@@ -58,6 +58,7 @@ int main(int argc, char **argv) {
 
     struct dpu_set_t dpu_set, dpu;
     uint32_t nr_of_dpus;
+    uint32_t nr_of_ranks;
 
     char ntpp[24];
 
@@ -74,6 +75,7 @@ int main(int argc, char **argv) {
     stop(&timer, 5);
     start(&timer, 6, 0);
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+    DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
     stop(&timer, 6);
     //printf("Allocated %d DPU(s)\n", nr_of_dpus);
 
@@ -168,9 +170,9 @@ int main(int argc, char **argv) {
             stop(&timer, 3);
 
         if (rep >= p.n_warmup) {
-            printf("[::] NMC transfer | n_dpus=%d n_tasklets=%d n_nops=%d e_type=%s n_elements=%u e_mode=%s"
+            printf("[::] transfer UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d e_type=%s n_elements=%u e_mode=%s"
                 " | throughput_dram_mram_MBps=%f throughput_mram_dram_MBps=%f",
-                nr_of_dpus, NR_TASKLETS, p.n_nops, XSTR(T), transfer_size, transfer_mode,
+                nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, XSTR(T), transfer_size, transfer_mode,
                 transfer_size * sizeof(T) / timer.time[1],
                 transfer_size * sizeof(T) / timer.time[3]);
             printf(" throughput_dram_mram_MOpps=%f throughput_mram_dram_MOpps=%f",
