@@ -15,11 +15,11 @@ echo "prim-benchmarks BS weak (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
 
-# 256 and 512 are not part of upstream
-for nr_dpus in 256 512 1 4 16 64; do
+for nr_dpus in 1 4 16 64; do
 	for nr_tasklets in 1 2 4 8 16; do
 		echo
-		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10 verbose=1; then
+		# original Makefile sets PROBLEM_SIZE=2, for some reason.
+		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10 verbose=1 PROBLEM_SIZE=2; then
 			i=$(( nr_dpus * 262144 ))
 			timeout --foreground -k 1m 30m bin/bs_host -w 0 -e 100 -i $i || true
 		fi
