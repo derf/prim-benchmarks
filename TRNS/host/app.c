@@ -66,6 +66,7 @@ int main(int argc, char **argv) {
 
     struct dpu_set_t dpu_set, dpu;
     uint32_t nr_of_dpus;
+    uint32_t nr_of_ranks;
     
 #if ENERGY
     struct dpu_probe_t probe;
@@ -122,6 +123,7 @@ int main(int argc, char **argv) {
                 DPU_ASSERT(dpu_alloc(active_dpus, NULL, &dpu_set));
                 DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
                 DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+                DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
                 stop(&timer, 1);
                 printf("Allocated %d DPU(s)\n", nr_of_dpus);
             } else if (first_round){
@@ -129,6 +131,7 @@ int main(int argc, char **argv) {
                 DPU_ASSERT(dpu_alloc(active_dpus, NULL, &dpu_set));
                 DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
                 DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+                DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
                 stop(&timer, 1);
                 printf("Allocated %d DPU(s)\n", nr_of_dpus);
             }
@@ -264,8 +267,8 @@ int main(int argc, char **argv) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             unsigned long input_size = M_ * m * N_ * n;
             if (rep >= p.n_warmup) {
-                printf("[::] TRNS UPMEM | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%lu ",
-                    NR_DPUS, NR_TASKLETS, XSTR(T), input_size);
+                printf("[::] TRNS UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%lu ",
+                    NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T), input_size);
                 printf("| latency_cpu_us=%f latency_reconfigure_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f",
                     timer.time[0],
                     timer.time[1],
