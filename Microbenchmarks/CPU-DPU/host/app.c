@@ -103,9 +103,9 @@ int main(int argc, char **argv) {
     read_input(A, B, input_size);
 
     //printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
-    printf("[::] NMC reconfiguration | n_dpus=%d n_tasklets=%d n_nops=%d e_type=%s n_elements=%u e_mode=%s"
+    printf("[::] NMC reconfiguration | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d e_type=%s n_elements=%u e_mode=%s"
         " | latency_dpu_alloc_us=%f latency_dpu_load_us=%f latency_dpu_get_us=%f\n",
-        nr_of_dpus, NR_TASKLETS, p.n_nops, XSTR(T), transfer_size, transfer_mode,
+        nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, XSTR(T), transfer_size, transfer_mode,
         timer.time[4], timer.time[5], timer.time[6]);
 
     // Loop over main kernel
