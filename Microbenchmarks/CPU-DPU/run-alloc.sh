@@ -2,7 +2,12 @@
 
 NCORES=$(grep -c '^processor' /proc/cpuinfo)
 
-trap "pkill -f 'stress -c ${NCORES}'" INT
+cleanexit() {
+	pkill -f "stress -c ${NCORES}"
+	pkill -f mpstat
+}
+
+trap cleanexit TERM INT
 
 set -e
 
