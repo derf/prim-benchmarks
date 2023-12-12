@@ -22,6 +22,9 @@
 #define DPU_BINARY "./bin/dpu_code"
 #endif
 
+#define XSTR(x) STR(x)
+#define STR(x) #x
+
 // Pointer declaration
 static unsigned int* A;
 static T* B;
@@ -49,6 +52,14 @@ static void read_input(unsigned int* A, T* B, unsigned int nr_elements) {
     }
 }
 
+#ifdef streaming
+char transfer_mode[] = "streaming";
+#elif strided
+char transfer_mode[] = "strided";
+#else
+char transfer_mode[] = "random";
+#endif
+
 // Compute output in the host
 static void copy_host(T* C, T* B, unsigned int* A, unsigned int nr_elements) {
     unsigned int wram_size = BLOCK_SIZE >> DIV;
@@ -67,11 +78,13 @@ int main(int argc, char **argv) {
 
     struct dpu_set_t dpu_set, dpu;
     uint32_t nr_of_dpus;
+    uint32_t nr_of_ranks;
     
     // Allocate DPUs and load binary
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+    DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
     printf("Allocated %d DPU(s)\n", nr_of_dpus);
 
     unsigned int i = 0;
@@ -165,6 +178,10 @@ int main(int argc, char **argv) {
                 dpu_results_t result;
                 result.cycles = 0;
                 DPU_ASSERT(dpu_copy_from(dpu, "DPU_RESULTS", each_tasklet * sizeof(dpu_results_t), &result, sizeof(dpu_results_t)));
+                printf("[::] DMA UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%u e_mode=%s block_size_B=%d"
+                    " | dpu_cycles=%lu\n",
+                    nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T), input_size_dpu, transfer_mode, BLOCK_SIZE,
+                    result.cycles);
                 if (result.cycles > results[i].cycles)
                     results[i].cycles = result.cycles;
             }
@@ -195,16 +212,6 @@ int main(int argc, char **argv) {
     }
     printf("DPU cycles  = %g cc\n", cc / p.n_reps);
 
-    // Print timing results
-    printf("CPU ");
-    print(&timer, 0, p.n_reps);
-    printf("CPU-DPU ");
-    print(&timer, 1, p.n_reps);
-    printf("DPU Kernel ");
-    print(&timer, 2, p.n_reps);
-    printf("DPU-CPU ");
-    print(&timer, 3, p.n_reps);
-
     // Check output
     bool status = true;
     for (i = 0; i < input_size; i++) {
@@ -214,11 +221,6 @@ int main(int argc, char **argv) {
             printf("%d: %u -- %u\n", i, C2[i], bufferC[i]);
 #endif
         }
-    }
-    if (status) {
-        printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-    } else {
-        printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
     }
 
     // Deallocation
