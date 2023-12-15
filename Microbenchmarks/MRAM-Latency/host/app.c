@@ -143,14 +143,14 @@ int main(int argc, char **argv) {
                 printf("[::] DMA UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%u block_size_B=%d"
                     " | latency_mram_read_us=%f latency_mram_write_us=%f"
                     " throughput_dpu_mram_read_MBps=%f throughput_dpu_mram_write_MBps=%f"
-                    " throughput_mram_read_MBps=%f throughput_mram_write_MBps=%f\n",
+                    " throughput_tasklet_mram_read_MBps=%f throughput_tasklet_mram_write_MBps=%f\n",
                     nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T), input_size_dpu, BLOCK_SIZE,
                     ((double)result.r_cycles * 1e6 / clocks_per_sec) / result.count,
                     ((double)result.w_cycles * 1e6 / clocks_per_sec) / result.count,
-                    input_size * sizeof(T) / ((double)result.r_cycles * 1e6 / clocks_per_sec),
-                    input_size * sizeof(T) / ((double)result.w_cycles * 1e6 / clocks_per_sec),
-                    input_size * sizeof(T) / ((double)result.r_cycles * 1e6 * NR_TASKLETS / clocks_per_sec),
-                    input_size * sizeof(T) / ((double)result.w_cycles * 1e6 * NR_TASKLETS / clocks_per_sec));
+                    input_size_dpu * sizeof(T) / ((double)result.r_cycles * 1e6 / clocks_per_sec),
+                    input_size_dpu * sizeof(T) / ((double)result.w_cycles * 1e6 / clocks_per_sec),
+                    input_size_dpu * sizeof(T) / ((double)result.r_cycles * 1e6 * NR_TASKLETS / clocks_per_sec),
+                    input_size_dpu * sizeof(T) / ((double)result.w_cycles * 1e6 * NR_TASKLETS / clocks_per_sec));
             }
 #endif
             i++;
