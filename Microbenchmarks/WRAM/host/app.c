@@ -38,7 +38,6 @@ static void read_input(unsigned int* A, T* B, unsigned int nr_elements, unsigned
 static void read_input(unsigned int* A, T* B, unsigned int nr_elements) {
 #endif
     srand(0);
-    printf("nr_elements\t%u\t", nr_elements);
     for (unsigned int i = 0; i < nr_elements; i++) {
 #ifdef streaming
         A[i] = i % (BLOCK_SIZE >> DIV);
@@ -77,6 +76,7 @@ int main(int argc, char **argv) {
     struct Params p = input_params(argc, argv);
 
     struct dpu_set_t dpu_set, dpu;
+    uint32_t clocks_per_sec;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
     
@@ -85,7 +85,6 @@ int main(int argc, char **argv) {
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
     DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
-    printf("Allocated %d DPU(s)\n", nr_of_dpus);
 
     unsigned int i = 0;
     double cc = 0;
@@ -111,8 +110,6 @@ int main(int argc, char **argv) {
     // Timer declaration
     Timer timer;
 
-    printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
-
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
@@ -123,7 +120,6 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             stop(&timer, 0);
 
-        printf("Load input data\n");
         if(rep >= p.n_warmup)
             start(&timer, 1, rep - p.n_warmup);
         // Input arguments
@@ -142,7 +138,6 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             stop(&timer, 1);
 
-        printf("Run program on DPU(s) \n");
         // Run DPU kernel
         if(rep >= p.n_warmup)
             start(&timer, 2, rep - p.n_warmup);
@@ -162,7 +157,6 @@ int main(int argc, char **argv) {
         }
 #endif
 
-        printf("Retrieve results\n");
         if(rep >= p.n_warmup)
             start(&timer, 3, rep - p.n_warmup);
         dpu_results_t results[nr_of_dpus];
@@ -173,15 +167,19 @@ int main(int argc, char **argv) {
 			
 #if PERF
             results[i].cycles = 0;
+            DPU_ASSERT(dpu_copy_from(dpu, "CLOCKS_PER_SEC", 0, &clocks_per_sec, sizeof(clocks_per_sec)));
             // Retrieve tasklet timings
             for (unsigned int each_tasklet = 0; each_tasklet < NR_TASKLETS; each_tasklet++) {
                 dpu_results_t result;
                 result.cycles = 0;
+                result.count = 0;
                 DPU_ASSERT(dpu_copy_from(dpu, "DPU_RESULTS", each_tasklet * sizeof(dpu_results_t), &result, sizeof(dpu_results_t)));
-                printf("[::] DMA UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%u e_mode=%s block_size_B=%d"
-                    " | dpu_cycles=%lu\n",
+                printf("[::] COPY UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%u e_mode=%s block_size_B=%d"
+                    " | latency_block_copy_us=%f throughput_dpu_copy_MBps=%f throughput_tasklet_copy_MBps=%f\n",
                     nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T), input_size_dpu, transfer_mode, BLOCK_SIZE,
-                    result.cycles);
+                    ((double)result.cycles * 1e6 / clocks_per_sec) / result.count,
+                    input_size_dpu * sizeof(T) / ((double)result.cycles * 1e6 / clocks_per_sec),
+                    input_size_dpu * sizeof(T) / ((double)result.cycles * 1e6 * NR_TASKLETS / clocks_per_sec));
                 if (result.cycles > results[i].cycles)
                     results[i].cycles = result.cycles;
             }
@@ -210,7 +208,6 @@ int main(int argc, char **argv) {
 #endif
 
     }
-    printf("DPU cycles  = %g cc\n", cc / p.n_reps);
 
     // Check output
     bool status = true;

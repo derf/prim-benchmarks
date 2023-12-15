@@ -12,6 +12,7 @@ typedef struct {
 
 typedef struct {
     uint64_t cycles;
+    uint64_t count;
 } dpu_results_t;
 
 // Transfer size between MRAM and WRAM

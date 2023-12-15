@@ -63,6 +63,7 @@ int main_kernel1() {
 
     dpu_results_t *result = &DPU_RESULTS[tasklet_id];
     result->cycles = 0;
+    result->count = 0;
 
     const uint32_t A_SIZE = (BLOCK_SIZE >> DIV) << 2;
     // Address of the current processing block in MRAM
@@ -81,7 +82,7 @@ int main_kernel1() {
         // Load cache with current MRAM block
         mram_read((__mram_ptr void const*)(mram_base_addr_A + A_byte_index), cache_A, A_SIZE);
         mram_read((__mram_ptr void const*)(mram_base_addr_B + byte_index), cache_B, BLOCK_SIZE);
-        mram_read((__mram_ptr void const*)(mram_base_addr_C + byte_index), cache_C, BLOCK_SIZE); // Clean cache_C
+        //mram_read((__mram_ptr void const*)(mram_base_addr_C + byte_index), cache_C, BLOCK_SIZE); // Clean cache_C
 
 #ifdef WRAM
         // Barrier
@@ -102,6 +103,7 @@ int main_kernel1() {
         mram_write(cache_C, (__mram_ptr void*)(mram_base_addr_C + byte_index), BLOCK_SIZE);
 
         A_byte_index += A_SIZE * NR_TASKLETS;
+        result->count += 1;
     }
 
 #ifndef WRAM
