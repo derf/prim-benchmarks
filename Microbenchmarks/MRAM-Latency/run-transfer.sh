@@ -22,11 +22,12 @@ for ndpu in 1 4 8 16 32 48 64; do
 	for ntask in 1 2 4 8 12 16 20; do
 		for bl in 4 5 6 7 8 9 10 11; do
 			if make -B NR_DPUS=$ndpu NR_TASKLETS=$ntask BL=$bl; then
-				bin/host_code -w 0 -e 100 || true
+				bin/host_code -w 0 -e 50 || true
 			fi
 		done
 	done
 done
 echo "Completed at $(date)"
 ) | tee "log-$(hostname).txt"
+rm -f "log-$(hostname).txt"
 xz -v -9 -M 800M "log-$(hostname).txt"
