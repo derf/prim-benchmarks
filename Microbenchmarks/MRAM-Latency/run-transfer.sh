@@ -29,5 +29,5 @@ for ndpu in 1 4 8 16 32 48 64; do
 done
 echo "Completed at $(date)"
 ) | tee "log-$(hostname).txt"
-rm -f "log-$(hostname).txt"
+rm -f "log-$(hostname).txt.xz"
 xz -v -9 -M 800M "log-$(hostname).txt"

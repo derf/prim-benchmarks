@@ -30,7 +30,7 @@ for ndpu in 1 4 8 16 32 48 64 128 256; do
 done
 echo "Completed at $(date)"
 ) | tee "log-$(hostname)-wram.txt"
-rm -f "log-$(hostname)-wram.txt"
+rm -f "log-$(hostname)-wram.txt.xz"
 xz -v -9 -M 800M "log-$(hostname)-wram.txt"
 
 (
@@ -52,5 +52,5 @@ for ndpu in 1 4 8 16 32 48 64 128 256; do
 done
 echo "Completed at $(date)"
 ) | tee "log-$(hostname)-mram.txt"
-rm -f "log-$(hostname)-mram.txt"
+rm -f "log-$(hostname)-mram.txt.xz"
 xz -v -9 -M 800M "log-$(hostname)-mramd.txt"
