@@ -113,17 +113,17 @@ int main(int argc, char **argv) {
     // Allocate DPUs and load binary
 #if !WITH_ALLOC_OVERHEAD
     DPU_ASSERT(dpu_alloc(NR_DPUS, DPU_ALLOC_PROFILE, &dpu_set));
-    timer.time[0] = 0; // alloc
+    timer.nanoseconds[0] = 0; // alloc
 #endif
 #if !WITH_LOAD_OVERHEAD
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
     DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
     assert(nr_of_dpus == NR_DPUS);
-    timer.time[1] = 0; // load
+    timer.nanoseconds[1] = 0; // load
 #endif
 #if !WITH_FREE_OVERHEAD
-    timer.time[6] = 0; // free
+    timer.nanoseconds[6] = 0; // free
 #endif
 
     unsigned int i = 0;
@@ -329,30 +329,30 @@ int main(int argc, char **argv) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             printf("[::] STREAM UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_benchmark=%-6s e_type=%s e_mem=%s b_unroll=%d block_size_B=%d n_elements=%d n_elements_per_dpu=%d b_sdk_singlethreaded=%d ",
                 NR_DPUS, nr_of_ranks, NR_TASKLETS, benchmark_name, XSTR(T), mem_name, UNROLL, BLOCK_SIZE, input_size, input_size / NR_DPUS, SDK_SINGLETHREADED);
-            printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
-                timer.time[0],
-                timer.time[1],
-                timer.time[2],
-                timer.time[3],
-                timer.time[4],
-                timer.time[5],
-                timer.time[6]);
-            printf(" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
-                input_size * n_arrays * sizeof(T) / timer.time[2],
-                input_size * n_arrays * sizeof(T) / (timer.time[4]),
-                input_size * n_arrays * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
-            printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
-                input_size * n_arrays * sizeof(T) / (timer.time[3] + timer.time[4] + timer.time[5]),
-                input_size * n_arrays * sizeof(T) / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
-                input_size * n_arrays * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
-            printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
-                input_size / timer.time[2],
-                input_size / (timer.time[4]),
-                input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
-            printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
-                input_size / (timer.time[3] + timer.time[4] + timer.time[5]),
-                input_size / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
-                input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
+            printf("| latency_alloc_ns=%lu latency_load_ns=%lu latency_cpu_ns=%lu latency_write_ns=%lu latency_kernel_ns=%lu latency_read_ns=%lu latency_free_ns=%lu",
+                timer.nanoseconds[0],
+                timer.nanoseconds[1],
+                timer.nanoseconds[2],
+                timer.nanoseconds[3],
+                timer.nanoseconds[4],
+                timer.nanoseconds[5],
+                timer.nanoseconds[6]);
+            printf(" throughput_cpu_Bps=%f throughput_upmem_kernel_Bps=%f throughput_upmem_total_Bps=%f",
+                input_size * n_arrays * sizeof(T) * 1e9 / timer.nanoseconds[2],
+                input_size * n_arrays * sizeof(T) * 1e9 / (timer.nanoseconds[4]),
+                input_size * n_arrays * sizeof(T) * 1e9 / (timer.nanoseconds[0] + timer.nanoseconds[1] + timer.nanoseconds[3] + timer.nanoseconds[4] + timer.nanoseconds[5] + timer.nanoseconds[6]));
+            printf(" throughput_upmem_wxr_Bps=%f throughput_upmem_lwxr_Bps=%f throughput_upmem_alwxr_Bps=%f",
+                input_size * n_arrays * sizeof(T) * 1e9 / (timer.nanoseconds[3] + timer.nanoseconds[4] + timer.nanoseconds[5]),
+                input_size * n_arrays * sizeof(T) * 1e9 / (timer.nanoseconds[1] + timer.nanoseconds[3] + timer.nanoseconds[4] + timer.nanoseconds[5]),
+                input_size * n_arrays * sizeof(T) * 1e9 / (timer.nanoseconds[0] + timer.nanoseconds[1] + timer.nanoseconds[3] + timer.nanoseconds[4] + timer.nanoseconds[5]));
+            printf(" throughput_cpu_Opps=%f throughput_upmem_kernel_Opps=%f throughput_upmem_total_Opps=%f",
+                input_size * 1e9 / timer.nanoseconds[2],
+                input_size * 1e9 / (timer.nanoseconds[4]),
+                input_size * 1e9 / (timer.nanoseconds[0] + timer.nanoseconds[1] + timer.nanoseconds[3] + timer.nanoseconds[4] + timer.nanoseconds[5] + timer.nanoseconds[6]));
+            printf(" throughput_upmem_wxr_Opps=%f throughput_upmem_lwxr_Opps=%f throughput_upmem_alwxr_Opps=%f\n",
+                input_size * 1e9 / (timer.nanoseconds[3] + timer.nanoseconds[4] + timer.nanoseconds[5]),
+                input_size * 1e9 / (timer.nanoseconds[1] + timer.nanoseconds[3] + timer.nanoseconds[4] + timer.nanoseconds[5]),
+                input_size * 1e9 / (timer.nanoseconds[0] + timer.nanoseconds[1] + timer.nanoseconds[3] + timer.nanoseconds[4] + timer.nanoseconds[5]));
         } else {
             printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
         }
