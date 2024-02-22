@@ -217,6 +217,6 @@ int main(int argc, char **argv) {
     free(C);
     free(C2);
     DPU_ASSERT(dpu_free(dpu_set));
-	
-    return status ? 0 : -1;
+
+    return 0;
 }

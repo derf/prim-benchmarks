@@ -15,4 +15,4 @@ stress -c ${NCORES} &
 
 cleanexit
 
-xz -v -9 -M 800M "$(hostname)-alloc/rank-stress-c${NCORES}.txt"
+xz -f -v -9 -M 800M "$(hostname)-alloc/rank-stress-c${NCORES}.txt"
