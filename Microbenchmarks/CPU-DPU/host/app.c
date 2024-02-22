@@ -104,9 +104,9 @@ int main(int argc, char **argv) {
 
     //printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
     printf("[::] NMC reconfiguration | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d e_type=%s n_elements=%u e_mode=%s"
-        " | latency_dpu_alloc_us=%f latency_dpu_load_us=%f latency_dpu_get_us=%f\n",
+        " | latency_dpu_alloc_ns=%lu latency_dpu_load_ns=%lu latency_dpu_get_ns=%lu\n",
         nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, XSTR(T), transfer_size, transfer_mode,
-        timer.time[4], timer.time[5], timer.time[6]);
+        timer.nanoseconds[4], timer.nanoseconds[5], timer.nanoseconds[6]);
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
@@ -171,32 +171,19 @@ int main(int argc, char **argv) {
 
         if (rep >= p.n_warmup) {
             printf("[::] transfer UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d e_type=%s n_elements=%u e_mode=%s"
-                " | throughput_dram_mram_MBps=%f throughput_mram_dram_MBps=%f",
+                " | latency_dram_mram_ns=%lu latency_mram_dram_ns=%lu throughput_dram_mram_Bps=%f throughput_mram_dram_Bps=%f",
                 nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, XSTR(T), transfer_size, transfer_mode,
-                transfer_size * sizeof(T) / timer.time[1],
-                transfer_size * sizeof(T) / timer.time[3]);
-            printf(" throughput_dram_mram_MOpps=%f throughput_mram_dram_MOpps=%f",
-                transfer_size / timer.time[1],
-                transfer_size / timer.time[3]);
-            printf(" latency_dpu_launch_us=%f\n",
-                timer.time[2]);
+                timer.nanoseconds[1], timer.nanoseconds[3],
+                transfer_size * sizeof(T) * 1e9 / timer.nanoseconds[1],
+                transfer_size * sizeof(T) * 1e9 / timer.nanoseconds[3]);
+            printf(" throughput_dram_mram_Opps=%f throughput_mram_dram_Opps=%f",
+                transfer_size * 1e9 / timer.nanoseconds[1],
+                transfer_size * 1e9 / timer.nanoseconds[3]);
+            printf(" latency_dpu_launch_ns=%lu\n",
+                timer.nanoseconds[2]);
         }
     }
 
-    // Print timing results
-    /*
-    printf("CPU-DPU ");
-    print(&timer, 1, p.n_reps);
-    double time_load = timer.time[1] / (1000 * 1);
-    printf("CPU-DPU Bandwidth (GB/s): %f\n", (input_size * 8)/(time_load*1e6));
-    printf("DPU Kernel ");
-    print(&timer, 2, p.n_reps);
-    printf("\n");
-    printf("DPU-CPU ");
-    print(&timer, 3, p.n_reps);
-    double time_retrieve = timer.time[3] / (1000 * 1);
-    printf("DPU-CPU Bandwidth (GB/s): %f\n", (input_size * 8)/(time_retrieve*1e6));
-    */
     // Check output
     bool status = true;
 #ifdef BROADCASTX
