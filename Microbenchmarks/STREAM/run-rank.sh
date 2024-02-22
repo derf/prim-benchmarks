@@ -2,8 +2,6 @@
 
 set -e
 
-(
-
 echo "prim-benchmarks STREAM microbenchmark (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
@@ -13,9 +11,9 @@ echo "Revision $(git describe --always)"
 # With a total MRAM capacity of 64M, this gives us ~21M per buffer, or 16M when rounding down to the next power of two.
 # With a maximum data type width of 8B (uint64_t, double), this limits the number of elements per DPU to 2097152.
 for i in 2097152 1048576 131072 16384 4096; do
-	for nr_dpus in 1 4 8 16 32 48 64; do
-		for nr_tasklets in 1 8 12 16; do
-			for dt in uint64_t uint8_t uint16_t uint32_t float double; do
+	for dt in uint64_t uint8_t uint16_t uint32_t float double; do
+		for nr_dpus in 1 4 8 16 32 48 64; do
+			for nr_tasklets in 1 8 12 16; do
 				for op in triad scale add copy copyw; do
 					# BL: use 2^(BL) B blocks for MRAM <-> WRAM transfers on PIM module
 					# Our largest data type holds 8B, so the minimum block size is 3.
@@ -35,4 +33,3 @@ for i in 2097152 1048576 131072 16384 4096; do
 	done
 done
 echo "Completed at $(date)"
-) | tee "log-$(hostname)-rank-idle.txt"
