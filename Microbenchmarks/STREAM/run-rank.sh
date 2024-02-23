@@ -20,8 +20,8 @@ for i in 2097152 1048576 131072 16384 4096; do
 					# From a performance perspective, 8 to 10 is usually best for sequential operations.
 					for bl in 3 4 5 6 8 10; do
 						echo
-						if make -B OP=${op} NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=${bl} T=${dt} UNROLL=1 WITH_ALLOC_OVERHEAD=1 WITH_LOAD_OVERHEAD=1 WITH_FREE_OVERHEAD=1 \
-							|| make -B OP=${op} NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=${bl} T=${dt} UNROLL=0 WITH_ALLOC_OVERHEAD=1 WITH_LOAD_OVERHEAD=1 WITH_FREE_OVERHEAD=1; then
+						if make -B OP=${op} NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=${bl} T=${dt} UNROLL=1 WITH_ALLOC_OVERHEAD=0 WITH_LOAD_OVERHEAD=0 WITH_FREE_OVERHEAD=0 \
+							|| make -B OP=${op} NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=${bl} T=${dt} UNROLL=0 WITH_ALLOC_OVERHEAD=0 WITH_LOAD_OVERHEAD=0 WITH_FREE_OVERHEAD=0; then
 							# -w: number of un-timed warmup iterations
 							# -e: number of timed iterations
 							timeout --foreground -k 1m 30m bin/host_code -w 0 -e 100 -i $i -x 0 || true
