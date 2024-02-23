@@ -5,6 +5,7 @@ mkdir -p $(hostname)
 NCORES=$(grep -c '^processor' /proc/cpuinfo)
 cleanexit() {
 	pkill -f "stress -c ${NCORES}"
+	exit 0
 }
 
 trap cleanexit TERM INT
