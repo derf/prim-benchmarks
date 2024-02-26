@@ -14,7 +14,7 @@ for i in 1 4 8 16 32 48 64; do
 		# 8 B ... 64 MB
 		for l in 4096 65536 262144 1048576 4194304 6291456 8388608; do
 			make -B NR_DPUS=$i NR_TASKLETS=1 BL=10 TRANSFER=$k
-			bin/host_code -w 0 -e 100 -x 1 -i $l
+			bin/host_code -w 0 -e 100 -x 1 -N 0 -I $(size -A bin/dpu_code | awk '($1 == ".text") {print $2/8}')  -i $l
 		done
 	done
 	for k in SERIAL PUSH; do
