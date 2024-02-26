@@ -16,7 +16,7 @@ for i in 1 4 8 16 32 48 64; do
 		n_nops=$((j * 256))
 		if make -B NR_DPUS=$i NR_TASKLETS=1 BL=10 DPU_BINARY=\'\"bin/dpu_size\"\'; then
 			for l in $(seq 1 100); do
-				bin/host_code -w 1 -e 0 -x 1 -i 65536 -N $n_nops || true
+				bin/host_code -w 1 -e 0 -x 1 -i 65536 -N $n_nops -I $(size -A bin/dpu_size | awk '($1 == ".text") {print $2/8}') || true
 			done
 		fi
 	done

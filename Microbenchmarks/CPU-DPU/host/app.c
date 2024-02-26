@@ -103,9 +103,9 @@ int main(int argc, char **argv) {
     read_input(A, B, input_size);
 
     //printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
-    printf("[::] NMC reconfiguration | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d e_type=%s n_elements=%u e_mode=%s"
+    printf("[::] NMC reconfiguration | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%u e_mode=%s"
         " | latency_dpu_alloc_ns=%lu latency_dpu_load_ns=%lu latency_dpu_get_ns=%lu\n",
-        nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, XSTR(T), transfer_size, transfer_mode,
+        nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_mode,
         timer.nanoseconds[4], timer.nanoseconds[5], timer.nanoseconds[6]);
 
     // Loop over main kernel
@@ -170,9 +170,9 @@ int main(int argc, char **argv) {
             stop(&timer, 3);
 
         if (rep >= p.n_warmup) {
-            printf("[::] transfer UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d e_type=%s n_elements=%u e_mode=%s"
+            printf("[::] transfer UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%u e_mode=%s"
                 " | latency_dram_mram_ns=%lu latency_mram_dram_ns=%lu throughput_dram_mram_Bps=%f throughput_mram_dram_Bps=%f",
-                nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, XSTR(T), transfer_size, transfer_mode,
+                nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_mode,
                 timer.nanoseconds[1], timer.nanoseconds[3],
                 transfer_size * sizeof(T) * 1e9 / timer.nanoseconds[1],
                 transfer_size * sizeof(T) * 1e9 / timer.nanoseconds[3]);
