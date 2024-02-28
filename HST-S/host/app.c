@@ -297,8 +297,8 @@ int main(int argc, char **argv) {
 #endif
 
         if (rep >= p.n_warmup) {
-            printf("[::] HST-S UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%d n_bins=%d b_sdk_singlethreaded=%d ",
-                nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T), input_size, p.bins, SDK_SINGLETHREADED);
+            printf("[::] HST-S UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%d n_bins=%d ",
+                nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T), input_size, p.bins);
             printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
                 timer.time[0],
                 timer.time[1],
