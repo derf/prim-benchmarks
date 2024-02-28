@@ -263,8 +263,8 @@ int main(int argc, char **argv) {
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             if (rep >= p.n_warmup) {
-                printf("[::] VA UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d b_sdk_singlethreaded=%d ",
-                    nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size, SDK_SINGLETHREADED);
+                printf("[::] VA UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d n_elements_per_dpu=%d b_sdk_singlethreaded=%d ",
+                    nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size, input_size / NR_DPUS, SDK_SINGLETHREADED);
                 printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
                     timer.time[0],
                     timer.time[1],
