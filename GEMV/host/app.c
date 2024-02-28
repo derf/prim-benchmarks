@@ -303,7 +303,7 @@ int main(int argc, char **argv) {
 					n_size * m_size / timer.time[2],
 					n_size * m_size / (timer.time[4]),
 					n_size * m_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
-				printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f\n",
+				printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
 					n_size * m_size / (timer.time[3] + timer.time[4] + timer.time[5]),
 					n_size * m_size / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
 					n_size * m_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
