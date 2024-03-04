@@ -172,7 +172,11 @@ int main(int argc, char **argv) {
         if (rep >= p.n_warmup) {
             printf("[::] transfer UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%u n_elements_per_dpu=%u e_mode=%s"
                 " | latency_dram_mram_ns=%lu latency_mram_dram_ns=%lu throughput_dram_mram_Bps=%f throughput_mram_dram_Bps=%f",
+#ifdef BROADCAST
+                nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_size, transfer_mode,
+#else
                 nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_size / NR_DPUS, transfer_mode,
+#endif
                 timer.nanoseconds[1], timer.nanoseconds[3],
                 transfer_size * sizeof(T) * 1e9 / timer.nanoseconds[1],
                 transfer_size * sizeof(T) * 1e9 / timer.nanoseconds[3]);
