@@ -12,6 +12,6 @@ trap cleanexit TERM INT
 
 stress -c ${NCORES} &
 
-./run-rank.sh | tee "$(hostname)/rank-stress-c${NCORES}.txt"
+./run-rank.sh | tee "$(hostname)/$(date +%Y%m%d)-rank-stress-c${NCORES}.txt"
 
 cleanexit
