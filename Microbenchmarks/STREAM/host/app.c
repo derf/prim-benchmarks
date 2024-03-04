@@ -44,6 +44,14 @@ static T* C;
 #endif
 static T* C2;
 
+static const char transfer_mode[] =
+#if SERIAL
+"SERIAL"
+#else
+"PUSH"
+#endif
+;
+
 // Create input arrays
 static void read_input(T* A, T* B, unsigned int nr_elements) {
     srand(0);
@@ -208,14 +216,25 @@ int main(int argc, char **argv) {
         dpu_arguments_t input_arguments = {input_size_dpu * sizeof(T), kernel};
         DPU_ASSERT(dpu_copy_to(dpu_set, "DPU_INPUT_ARGUMENTS", 0, (const void *)&input_arguments, sizeof(input_arguments)));
         // Copy input arrays
-        i = 0;
-        DPU_FOREACH (dpu_set, dpu) {
+#ifdef SERIAL
+        DPU_FOREACH (dpu_set, dpu, i) {
             DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME, 0, bufferA + input_size_dpu * i, input_size_dpu * sizeof(T)));
 #if defined(add) || defined(triad)
             DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu * sizeof(T), bufferB + input_size_dpu * i, input_size_dpu * sizeof(T)));
 #endif
-            i++;
         }
+#else
+        DPU_FOREACH (dpu_set, dpu, i) {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, bufferA + input_size_dpu * i));
+        }
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, 0, input_size_dpu * sizeof(T), DPU_XFER_DEFAULT));
+#if defined(add) || defined(triad)
+        DPU_FOREACH (dpu_set, dpu, i) {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, bufferB + input_size_dpu * i));
+        }
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu * sizeof(T), input_size_dpu * sizeof(T), DPU_XFER_DEFAULT));
+#endif
+#endif
         if(rep >= p.n_warmup) {
             stop(&timer, 3);
         }
@@ -244,20 +263,37 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup) {
             start(&timer, 5, 0);
         }
+
         dpu_results_t results[NR_DPUS];
-        i = 0;
-        DPU_FOREACH (dpu_set, dpu) {
+
+#ifdef SERIAL
+        DPU_FOREACH (dpu_set, dpu, i) {
             // Copy output array
 #if defined(add) || defined(triad)
             DPU_ASSERT(dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME, 2 * input_size_dpu * sizeof(T), bufferC + input_size_dpu * i, input_size_dpu * sizeof(T)));
 #else
             DPU_ASSERT(dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu * sizeof(T), bufferB + input_size_dpu * i, input_size_dpu * sizeof(T)));
 #endif
-            i++;
         }
+#else
+        DPU_FOREACH (dpu_set, dpu, i) {
+#if defined(add) || defined(triad)
+            DPU_ASSERT(dpu_prepare_xfer(dpu, bufferC + input_size_dpu * i));
+#else
+            DPU_ASSERT(dpu_prepare_xfer(dpu, bufferB + input_size_dpu * i));
+#endif
+        }
+#if defined(add) || defined(triad)
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, 2 * input_size_dpu * sizeof(T), input_size_dpu * sizeof(T), DPU_XFER_DEFAULT));
+#else
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu * sizeof(T), input_size_dpu * sizeof(T), DPU_XFER_DEFAULT));
+#endif
+#endif
+
         if(rep >= p.n_warmup) {
             stop(&timer, 5);
         }
+
 #if PERF
         i = 0;
         DPU_FOREACH (dpu_set, dpu) {
@@ -327,8 +363,8 @@ int main(int argc, char **argv) {
 
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-            printf("[::] STREAM UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_benchmark=%-6s e_type=%s e_mem=%s b_unroll=%d block_size_B=%d n_elements=%d n_elements_per_dpu=%d b_sdk_singlethreaded=%d ",
-                NR_DPUS, nr_of_ranks, NR_TASKLETS, benchmark_name, XSTR(T), mem_name, UNROLL, BLOCK_SIZE, input_size, input_size / NR_DPUS, SDK_SINGLETHREADED);
+            printf("[::] STREAM UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_benchmark=%-6s e_type=%s e_mem=%s e_mode=%s b_unroll=%d block_size_B=%d n_elements=%d n_elements_per_dpu=%d b_sdk_singlethreaded=%d ",
+                NR_DPUS, nr_of_ranks, NR_TASKLETS, benchmark_name, XSTR(T), mem_name, transfer_mode, UNROLL, BLOCK_SIZE, input_size, input_size / NR_DPUS, SDK_SINGLETHREADED);
             printf("| latency_alloc_ns=%lu latency_load_ns=%lu latency_cpu_ns=%lu latency_write_ns=%lu latency_kernel_ns=%lu latency_read_ns=%lu latency_free_ns=%lu",
                 timer.nanoseconds[0],
                 timer.nanoseconds[1],
