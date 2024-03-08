@@ -1,3 +1,7 @@
+This is an improved and extended version of the PrIM benchmarks by Gómez-Luna
+et al. Let's call it **PrIME**: Processing-in-memory Benchmarks, Extended.
+
+The original README follows.
 
 # PrIM (Processing-In-Memory Benchmarks)
 
