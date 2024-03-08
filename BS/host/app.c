@@ -339,7 +339,9 @@ int main(int argc, char **argv) {
 	#endif
 
 	free(input);
+#if !WITH_ALLOC_OVERHEAD
 	DPU_ASSERT(dpu_free(dpu_set));
+#endif
 
 	return 0;
 }
