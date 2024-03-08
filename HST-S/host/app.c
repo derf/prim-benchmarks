@@ -101,8 +101,6 @@ int main(int argc, char **argv) {
     DPU_ASSERT(dpu_probe_init("energy_probe", &probe));
 #endif
 
-    printf("WITH_ALLOC_OVERHEAD=%d WITH_LOAD_OVERHEAD=%d WITH_FREE_OVERHEAD=%d\n", WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
-
     // Timer declaration
     Timer timer;
 
@@ -297,8 +295,10 @@ int main(int argc, char **argv) {
 #endif
 
         if (rep >= p.n_warmup) {
-            printf("[::] HST-S UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%d n_bins=%d ",
+            printf("[::] HST-S UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%d n_bins=%d",
                 nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T), input_size, p.bins);
+            printf(" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d ",
+                WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
             printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
                 timer.time[0],
                 timer.time[1],
@@ -372,7 +372,9 @@ int main(int argc, char **argv) {
     free(A);
     free(histo_host);
     free(histo);
-    DPU_ASSERT(dpu_free(dpu_set));
+#if !WITH_ALLOC_OVERHEAD
+	DPU_ASSERT(dpu_free(dpu_set));
+#endif
 	
     return status ? 0 : -1;
 }
