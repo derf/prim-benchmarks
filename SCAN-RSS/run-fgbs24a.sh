@@ -4,6 +4,8 @@ set -e
 
 mkdir -p $(hostname)
 
+ts=$(date +%Y%m%d)
+
 (
 
 echo "prim-benchmarks SCAN-RSS (dfatool fgbs24a edition)"
@@ -11,13 +13,16 @@ echo "Started at $(date)"
 echo "Revision $(git describe --always)"
 
 # >2048 is not part of upstream
-for nr_dpus in 2543 2304 2048; do
+for nr_dpus in 2304 2048 2543; do
 	for nr_tasklets in 16; do
 		echo
 		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10; then
 			timeout --foreground -k 1m 30m bin/host_code -w 0 -e 100 -i 251658240 -x 1 || true
 		fi
+		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10 WITH_ALLOC_OVERHEAD=1 WITH_LOAD_OVERHEAD=1 WITH_FREE_OVERHEAD=1; then
+			timeout --foreground -k 1m 30m bin/host_code -w 0 -e 100 -i 251658240 -x 1 || true
+		fi
 	done
 done
 echo "Completed at $(date)"
-) | tee "$(hostname)/fgbs24a.txt"
+) | tee "$(hostname)/${ts}-fgbs24a.txt"
