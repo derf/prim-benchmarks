@@ -296,7 +296,7 @@ int main(int argc, char **argv) {
                 printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
                     input_size / timer.time[2],
                     input_size / (timer.time[4] + timer.time[5] + timer.time[6]),
-                    input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7] + timer.time[8]));
+                    input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7]));
                 printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
                     input_size / (timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]),
                     input_size / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]),
