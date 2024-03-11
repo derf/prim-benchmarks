@@ -338,7 +338,7 @@ int main(int argc, char **argv) {
                 input_size / timer.time[2],
                 input_size / (timer.time[4] + timer.time[5] + timer.time[6]),
                 input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7] + timer.time[8]));
-            printf(" throughput_upmem_s_MOpps=%f throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
+            printf(" throughput_upmem_s_MOpps=%f throughput_upmem_wxsxr_MOpps=%f throughput_upmem_lwxsxr_MOpps=%f throughput_upmem_alwxsxr_MOpps=%f\n",
                 input_size / (timer.time[5]),
                 input_size / (timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7]),
                 input_size / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7]),
