@@ -74,8 +74,6 @@ int main(int argc, char **argv) {
     DPU_ASSERT(dpu_probe_init("energy_probe", &probe));
 #endif
 
-    printf("WITH_ALLOC_OVERHEAD=%d WITH_LOAD_OVERHEAD=%d WITH_FREE_OVERHEAD=%d\n", WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
-
     // Timer declaration
     Timer timer;
 
@@ -296,8 +294,10 @@ int main(int argc, char **argv) {
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             if (rep >= p.n_warmup) {
-                printf("[::] UNI UPMEM | n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d ",
-                    nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size);
+                printf("[::] UNI UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d",
+                    NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size);
+                printf(" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d ",
+                    WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
                 printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_sync_us=%f latency_read_us=%f latency_free_us=%f",
                     timer.time[0],
                     timer.time[1],
