@@ -16,7 +16,7 @@ echo "prim-benchmarks TRNS strong-full (dfatool fgbs24a edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
 
-for nr_dpus in 2543 2304 2048; do
+for nr_dpus in 2304 2048 2543; do
 	for nr_tasklets in 16; do
 		echo
 		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets}; then
