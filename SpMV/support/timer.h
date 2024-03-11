@@ -18,8 +18,8 @@ static void stopTimer(Timer* timer) {
     gettimeofday(&(timer->endTime), NULL);
 }
 
-static float getElapsedTime(Timer timer) {
-    return ((float) ((timer.endTime.tv_sec - timer.startTime.tv_sec)
+static double getElapsedTime(Timer timer) {
+    return ((double) ((timer.endTime.tv_sec - timer.startTime.tv_sec)
                    + (timer.endTime.tv_usec - timer.startTime.tv_usec)/1.0e6));
 }
 

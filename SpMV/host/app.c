@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
 
     // Timing and profiling
     Timer timer;
-    float loadTime = 0.0f, dpuTime = 0.0f, retrieveTime = 0.0f;
+    double allocTime = 0.0f, loadTime = 0.0f, writeTime = 0.0f, dpuTime = 0.0f, readTime = 0.0f, freeTime = 0.0f;
     #if ENERGY
     struct dpu_probe_t probe;
     DPU_ASSERT(dpu_probe_init("energy_probe", &probe));
@@ -48,10 +48,21 @@ int main(int argc, char** argv) {
 
     // Allocate DPUs and load binary
     struct dpu_set_t dpu_set, dpu;
-    uint32_t numDPUs;
+    uint32_t numDPUs, numRanks;
+
+    startTimer(&timer);
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+    stopTimer(&timer);
+    allocTime += getElapsedTime(timer);
+
+    startTimer(&timer);
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
+    stopTimer(&timer);
+    loadTime += getElapsedTime(timer);
+
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &numDPUs));
+    DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &numRanks));
+    assert(numDPUs == NR_DPUS);
     PRINT_INFO(p.verbosity >= 1, "Allocated %d DPU(s)", numDPUs);
 
     // Initialize SpMV data structures
@@ -125,7 +136,7 @@ int main(int argc, char** argv) {
             copyToDPU(dpu, (uint8_t*)dpuNonzeros_h, dpuNonzeros_m, dpuNumNonzeros*sizeof(struct Nonzero));
             copyToDPU(dpu, (uint8_t*)inVector, dpuInVector_m, numCols*sizeof(float));
             stopTimer(&timer);
-            loadTime += getElapsedTime(timer);
+            writeTime += getElapsedTime(timer);
 
         }
 
@@ -134,12 +145,12 @@ int main(int argc, char** argv) {
         startTimer(&timer);
         copyToDPU(dpu, (uint8_t*)&dpuParams[dpuIdx], dpuParams_m, sizeof(struct DPUParams));
         stopTimer(&timer);
-        loadTime += getElapsedTime(timer);
+        writeTime += getElapsedTime(timer);
 
         ++dpuIdx;
 
     }
-    PRINT_INFO(p.verbosity >= 1, "    CPU-DPU Time: %f ms", loadTime*1e3);
+    PRINT_INFO(p.verbosity >= 1, "    CPU-DPU Time: %f ms", writeTime*1e3);
 
     // Run all DPUs
     PRINT_INFO(p.verbosity >= 1, "Booting DPUs");
@@ -171,9 +182,8 @@ int main(int argc, char** argv) {
         ++dpuIdx;
     }
     stopTimer(&timer);
-    retrieveTime += getElapsedTime(timer);
-    PRINT_INFO(p.verbosity >= 1, "    DPU-CPU Time: %f ms", retrieveTime*1e3);
-    if(p.verbosity == 0) PRINT("CPU-DPU Time(ms): %f    DPU Kernel Time (ms): %f    DPU-CPU Time (ms): %f", loadTime*1e3, dpuTime*1e3, retrieveTime*1e3);
+    readTime += getElapsedTime(timer);
+    PRINT_INFO(p.verbosity >= 1, "    DPU-CPU Time: %f ms", readTime*1e3);
 
     // Calculating result on CPU
     PRINT_INFO(p.verbosity >= 1, "Calculating result on CPU");
@@ -200,21 +210,32 @@ int main(int argc, char** argv) {
         }
     }
 
+    startTimer(&timer);
+    DPU_ASSERT(dpu_free(dpu_set));
+    stopTimer(&timer);
+    freeTime += getElapsedTime(timer);
+
     if (status) {
-        printf("[::] SpMV NMC | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d "
-            "| throughput_pim_MBps=%f throughput_MBps=%f",
-            // coomatrix / csrmatrix use uint32_t indexes and float values
-            numDPUs, NR_TASKLETS, "float", csrMatrix.numNonzeros,
+        printf("[::] SpMV UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%d ",
+            numDPUs, numRanks, NR_TASKLETS, "float", csrMatrix.numNonzeros);
+        printf("| latency_alloc_us=%f latency_load_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
+            allocTime, loadTime, writeTime, dpuTime, readTime, freeTime);
+        printf(" throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
+            // coomatrix / csrmatrix use uint32_t indexes and float values, so all 32bit
             csrMatrix.numNonzeros * sizeof(float) / (dpuTime * 1e6),
-            csrMatrix.numNonzeros * sizeof(uint32_t) / ((loadTime + dpuTime + retrieveTime) * 1e6)
-        );
-        printf(" throughput_pim_MOpps=%f throughput_MOpps=%f",
+            csrMatrix.numNonzeros * sizeof(float) / ((allocTime + loadTime + writeTime + dpuTime + readTime + freeTime) * 1e6));
+        printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
+            csrMatrix.numNonzeros * sizeof(float) / ((writeTime + dpuTime + readTime) * 1e6),
+            csrMatrix.numNonzeros * sizeof(float) / ((loadTime + writeTime + dpuTime + readTime) * 1e6),
+            csrMatrix.numNonzeros * sizeof(float) / ((allocTime + loadTime + writeTime + dpuTime + readTime) * 1e6));
+        printf(" throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
+            // coomatrix / csrmatrix use uint32_t indexes and float values, so all 32bit
             csrMatrix.numNonzeros / (dpuTime * 1e6),
-            csrMatrix.numNonzeros / ((loadTime + dpuTime + retrieveTime) * 1e6)
-        );
-        printf(" timer_load_us=%f timer_dpu_us=%f timer_retrieve_us=%f\n",
-            loadTime * 1e6, dpuTime * 1e6, retrieveTime * 1e6
-        );
+            csrMatrix.numNonzeros / ((allocTime + loadTime + writeTime + dpuTime + readTime + freeTime) * 1e6));
+        printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f",
+            csrMatrix.numNonzeros / ((writeTime + dpuTime + readTime) * 1e6),
+            csrMatrix.numNonzeros / ((loadTime + writeTime + dpuTime + readTime) * 1e6),
+            csrMatrix.numNonzeros / ((allocTime + loadTime + writeTime + dpuTime + readTime) * 1e6));
     }
 
     // Display DPU Logs
