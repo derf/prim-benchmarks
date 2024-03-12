@@ -1,9 +1,9 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
-// Structures used by both the host and the dpu to communicate information 
+// Structures used by both the host and the dpu to communicate information
 typedef struct {
-    uint32_t size;
+	uint64_t size;
 	enum kernels {
 	    kernel1 = 0,
 	    nr_kernels = 1,

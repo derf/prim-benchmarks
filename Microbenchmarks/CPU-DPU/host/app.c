@@ -80,15 +80,15 @@ int main(int argc, char **argv) {
     //printf("Allocated %d DPU(s)\n", nr_of_dpus);
 
     unsigned int i = 0;
-    unsigned int input_size = p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size;
+    uint64_t input_size = p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size;
 
     //printf("Load input data\n");
     // Input arguments
-    const unsigned int input_size_dpu = input_size / nr_of_dpus;
+    const uint64_t input_size_dpu = input_size / nr_of_dpus;
 #ifdef BROADCAST
-    const unsigned int transfer_size = input_size;
+    const uint64_t transfer_size = input_size;
 #else
-    const unsigned int transfer_size = input_size;
+    const uint64_t transfer_size = input_size;
 #endif
 
     // Input/output allocation
@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
     read_input(A, B, input_size);
 
     //printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
-    printf("[::] NMC reconfiguration | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%u e_mode=%s"
+    printf("[::] NMC reconfiguration | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%lu e_mode=%s"
         " | latency_dpu_alloc_ns=%lu latency_dpu_load_ns=%lu latency_dpu_get_ns=%lu\n",
         nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_mode,
         timer.nanoseconds[4], timer.nanoseconds[5], timer.nanoseconds[6]);
@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
             stop(&timer, 3);
 
         if (rep >= p.n_warmup) {
-            printf("[::] transfer UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%u n_elements_per_dpu=%u e_mode=%s"
+            printf("[::] transfer UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%lu n_elements_per_dpu=%lu e_mode=%s"
                 " | latency_dram_mram_ns=%lu latency_mram_dram_ns=%lu throughput_dram_mram_Bps=%f throughput_mram_dram_Bps=%f",
 #ifdef BROADCAST
                 nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_size, transfer_mode,

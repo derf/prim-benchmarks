@@ -15,7 +15,7 @@
 __host dpu_arguments_t DPU_INPUT_ARGUMENTS;
 
 // Barrier
-BARRIER_INIT(my_barrier, NR_TASKLETS);
+BARRIER_INIT(my_barrier, NR_TASKLETS)
 
 extern int main_kernel1(void);
 
