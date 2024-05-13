@@ -2,11 +2,14 @@
 
 set -e
 
+export LC_ALL=C
+
 echo "prim-benchmarks STREAM microbenchmark (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
-echo "Host: $(hostname)"
+echo "Host: $(uname -a) $(lsb_release -sd)"
 echo "Compilers: $(make info)"
+echo "---"
 
 ITERATIONS=100
 TIMEOUT=30m
