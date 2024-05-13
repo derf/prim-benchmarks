@@ -5,6 +5,8 @@ set -e
 echo "prim-benchmarks STREAM microbenchmark (dfatool edition)"
 echo "Started at $(date)"
 echo "Revision $(git describe --always)"
+echo "Host: $(hostname)"
+echo "Compilers: $(make info)"
 
 # -i: input size (number of elements, not number of bytes!)
 # Each DPU uses three buffers, each of which holds $i * sizeof($dt) bytes.

@@ -40,4 +40,8 @@ bin/host_code: ${HOST_SOURCES} bin
 clean:
 	${QUIET}${RM} -f bin/dpu_code bin/host_code
 
-.PHONY: all clean
+info:
+	@${CC} --version
+	@dpu-upmem-dpurte-clang --version
+
+.PHONY: all clean info
