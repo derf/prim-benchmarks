@@ -22,13 +22,12 @@ for dt in uint64_t ; do #uint8_t uint16_t uint32_t float double; do
 					# From a performance perspective, 8 to 10 is usually best for sequential operations.
 					for bl in 3 8 10; do
 						for transfer in SERIAL PUSH; do
-							echo "Running at $(date)"
-							if make -B OP=${op} NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=${bl} T=${dt} TRANSFER=${transfer} UNROLL=1 WITH_ALLOC_OVERHEAD=0 WITH_LOAD_OVERHEAD=0 WITH_FREE_OVERHEAD=0; then
-								timeout --foreground -k 1m 30m bin/host_code -w 0 -e 100 -i $i -x 0 || true
-							fi
-							if make -B OP=${op} NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=${bl} T=${dt} TRANSFER=${transfer} UNROLL=0 WITH_ALLOC_OVERHEAD=0 WITH_LOAD_OVERHEAD=0 WITH_FREE_OVERHEAD=0; then
-								timeout --foreground -k 1m 30m bin/host_code -w 0 -e 100 -i $i -x 0 || true
-							fi
+							for unroll in 1 0; do
+								echo "Running at $(date)"
+								if make -B OP=${op} NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=${bl} T=${dt} TRANSFER=${transfer} UNROLL=${unroll} WITH_ALLOC_OVERHEAD=0 WITH_LOAD_OVERHEAD=0 WITH_FREE_OVERHEAD=0; then
+									timeout --foreground -k 1m 30m bin/host_code -w 0 -e 100 -i $i -x 0 || true
+								fi
+							done
 						done
 					done
 				done
