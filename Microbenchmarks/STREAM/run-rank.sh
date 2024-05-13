@@ -8,6 +8,9 @@ echo "Revision $(git describe --always)"
 echo "Host: $(hostname)"
 echo "Compilers: $(make info)"
 
+ITERATIONS=100
+TIMEOUT=30m
+
 # -i: input size (number of elements, not number of bytes!)
 # Each DPU uses three buffers, each of which holds $i * sizeof($dt) bytes.
 # With a total MRAM capacity of 64M, this gives us ~21M per buffer, or 16M when rounding down to the next power of two.
@@ -25,7 +28,7 @@ for dt in uint64_t ; do #uint8_t uint16_t uint32_t float double; do
 							for unroll in 1 0; do
 								echo "Running at $(date)"
 								if make -B OP=${op} NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=${bl} T=${dt} TRANSFER=${transfer} UNROLL=${unroll} WITH_ALLOC_OVERHEAD=0 WITH_LOAD_OVERHEAD=0 WITH_FREE_OVERHEAD=0; then
-									timeout --foreground -k 1m 30m bin/host_code -w 0 -e 100 -i $i -x 0 || true
+									timeout --foreground -k 1m ${TIMEOUT} bin/host_code -w 0 -e ${ITERATIONS} -i $i -x 0 || true
 								fi
 							done
 						done
