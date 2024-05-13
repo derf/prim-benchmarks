@@ -31,11 +31,11 @@ all: bin/dpu_code bin/host_code
 bin:
 	${QUIET}mkdir -p bin
 
-bin/dpu_code: ${DPU_SOURCES}
+bin/dpu_code: ${DPU_SOURCES} bin
 	${QUIET}dpu-upmem-dpurte-clang ${DPU_FLAGS} ${DPU_SOURCES} -o $@
 
-bin/host_code: ${HOST_SOURCES}
 	${QUIET}${CC} ${HOST_FLAGS} ${HOST_SOURCES} -o $@
+bin/host_code: ${HOST_SOURCES} bin
 
 clean:
 	${QUIET}${RM} -f bin/dpu_code bin/host_code
