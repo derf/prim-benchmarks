@@ -16,9 +16,9 @@ TIMEOUT=30m
 # With a total MRAM capacity of 64M, this gives us ~21M per buffer, or 16M when rounding down to the next power of two.
 # With a maximum data type width of 8B (uint64_t, double), this limits the number of elements per DPU to 2097152.
 for dt in uint64_t ; do #uint8_t uint16_t uint32_t float double; do
-	for i in 16384; do # 2097152; do # 524288 131072 4096; do
-		for nr_dpus in 64 1 4 8 16 32 48; do
-			for nr_tasklets in 1 8 12 16; do
+	for i in 2097152 16384; do # 524288 131072 4096
+		for nr_dpus in 64; do # 1 4 8 16 32 48
+			for nr_tasklets in 1 4 8 12 16; do
 				for op in triad scale add copy copyw; do
 					# BL: use 2^(BL) B blocks for MRAM <-> WRAM transfers on PIM module
 					# Our largest data type holds 8B, so the minimum block size is 3.
