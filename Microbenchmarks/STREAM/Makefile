@@ -34,8 +34,8 @@ bin:
 bin/dpu_code: ${DPU_SOURCES} bin
 	${QUIET}dpu-upmem-dpurte-clang ${DPU_FLAGS} ${DPU_SOURCES} -o $@
 
-	${QUIET}${CC} ${HOST_FLAGS} ${HOST_SOURCES} -o $@
 bin/host_code: ${HOST_SOURCES} bin
+	${QUIET}${CC} ${HOST_SOURCES} ${HOST_FLAGS} -o $@
 
 clean:
 	${QUIET}${RM} -f bin/dpu_code bin/host_code
