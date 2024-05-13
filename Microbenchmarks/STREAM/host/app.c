@@ -392,6 +392,7 @@ int main(int argc, char **argv) {
         } else {
             printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
         }
+        fflush(stdout);
 
     }
 
