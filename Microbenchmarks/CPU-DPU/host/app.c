@@ -68,7 +68,13 @@ int main(int argc, char **argv) {
     snprintf(ntpp, 24, "nrThreadPerPool=%d", p.n_threads);
     // Allocate DPUs and load binary
     start(&timer, 4, 0);
+#if NR_DPUS
     DPU_ASSERT(dpu_alloc(NR_DPUS, ntpp, &dpu_set));
+#elif NR_RANKS
+    DPU_ASSERT(dpu_alloc_ranks(NR_RANKS, ntpp, &dpu_set));
+#else
+#error "NR_DPUS o NR_RANKS must be set"
+#endif
     stop(&timer, 4);
     start(&timer, 5, 0);
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
@@ -175,7 +181,7 @@ int main(int argc, char **argv) {
 #ifdef BROADCAST
                 nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_size, transfer_mode,
 #else
-                nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_size / NR_DPUS, transfer_mode,
+                nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_size / nr_of_dpus, transfer_mode,
 #endif
                 timer.nanoseconds[1], timer.nanoseconds[3],
                 transfer_size * sizeof(T) * 1e9 / timer.nanoseconds[1],
@@ -190,7 +196,7 @@ int main(int argc, char **argv) {
 
     // Check output
     bool status = true;
-#ifdef BROADCASTX
+#ifdef BROADCAST
     for (i = 0; i < input_size/nr_of_dpus; i++) {
         if(B[i] != bufferC[i]){ 
             status = false;
