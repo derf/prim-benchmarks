@@ -3,6 +3,11 @@
 
 #include "common.h"
 
+#if NUMA
+#include <numaif.h>
+#include <numa.h>
+#endif
+
 typedef struct Params {
     unsigned int   input_size;
     unsigned int   n_threads;
@@ -11,6 +16,11 @@ typedef struct Params {
     int   n_warmup;
     int   n_reps;
     int  exp;
+#if NUMA
+    struct bitmask* bitmask_in;
+    struct bitmask* bitmask_out;
+    int numa_node_cpu;
+#endif
 }Params;
 
 static void usage() {
@@ -28,6 +38,9 @@ static void usage() {
         "\n    -n <N>    number of threads per pool (default=8)"
         "\n    -N <N>    number of nops in dpu task (default=0)"
         "\n    -I <N>    number of instructions in dpu binary (default=0)"
+        "\n    -a <spec> allocate input data on specified NUMA node(s)"
+        "\n    -b <spec> allocate output data on specified NUMA node(s)"
+        "\n    -c <spec> run on specified NUMA node(s) -- does not affect transfer thread pool"
         "\n");
 }
 
@@ -40,9 +53,14 @@ struct Params input_params(int argc, char **argv) {
     p.n_warmup      = 1;
     p.n_reps        = 3;
     p.exp           = 0;
+#if NUMA
+    p.bitmask_in     = NULL;
+    p.bitmask_out    = NULL;
+    p.numa_node_cpu = -1;
+#endif
 
     int opt;
-    while((opt = getopt(argc, argv, "hi:n:w:e:x:N:I:")) >= 0) {
+    while((opt = getopt(argc, argv, "hi:n:w:e:x:N:I:a:b:c:")) >= 0) {
         switch(opt) {
         case 'h':
         usage();
@@ -55,13 +73,17 @@ struct Params input_params(int argc, char **argv) {
         case 'w': p.n_warmup      = atoi(optarg); break;
         case 'e': p.n_reps        = atoi(optarg); break;
         case 'x': p.exp           = atoi(optarg); break;
+#if NUMA
+        case 'a': p.bitmask_in    = numa_parse_nodestring(optarg); break;
+        case 'b': p.bitmask_out   = numa_parse_nodestring(optarg); break;
+        case 'c': p.numa_node_cpu = atoi(optarg); break;
+#endif
         default:
             fprintf(stderr, "\nUnrecognized option!\n");
             usage();
             exit(0);
         }
     }
-    assert(NR_DPUS > 0 && "Invalid # of dpus!");
 
     return p;
 }

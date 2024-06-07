@@ -17,6 +17,25 @@
 #include "../support/timer.h"
 #include "../support/params.h"
 
+#if NUMA
+
+
+#include <dpu_management.h>
+#include <dpu_target_macros.h>
+
+
+#include <numaif.h>
+#include <numa.h>
+
+void* mp_pages[1];
+int mp_status[1];
+int mp_nodes[1];
+int numa_node_in = -1;
+int numa_node_out = -1;
+int numa_node_rank = -1;
+int numa_node_cpu = -1;
+#endif
+
 // Define the DPU Binary path as DPU_BINARY here
 #ifndef DPU_BINARY
 #define DPU_BINARY "./bin/dpu_code"
@@ -97,20 +116,104 @@ int main(int argc, char **argv) {
 #endif
 
     // Input/output allocation
+
+#if NUMA
+    if (p.bitmask_in) {
+        numa_set_membind(p.bitmask_in);
+        numa_free_nodemask(p.bitmask_in);
+    }
+#endif
+
     A = malloc(input_size * sizeof(T));
     B = malloc(input_size * sizeof(T));
+
+#if NUMA
+    if (p.bitmask_out) {
+        numa_set_membind(p.bitmask_out);
+        numa_free_nodemask(p.bitmask_out);
+    }
+#endif
+
     C = malloc(input_size * sizeof(T));
 
     T *bufferA = A;
     T *bufferC = C;
+
+
+#if NUMA
+    struct bitmask *bitmask_all = numa_allocate_nodemask();
+    numa_bitmask_setall(bitmask_all);
+    numa_set_membind(bitmask_all);
+    numa_free_nodemask(bitmask_all);
+#endif
+
+#if NUMA
+    mp_pages[0] = A;
+    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+        perror("move_pages(A)");
+    }
+    else if (mp_status[0] < 0) {
+        printf("move_pages error: %d", mp_status[0]);
+    }
+    else {
+        numa_node_in = mp_status[0];
+    }
+
+    mp_pages[0] = C;
+    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+        perror("move_pages(C)");
+    }
+    else if (mp_status[0] < 0) {
+        printf("move_pages error: %d", mp_status[0]);
+    }
+    else {
+        numa_node_out = mp_status[0];
+    }
+
+    numa_node_cpu = p.numa_node_cpu;
+    if (numa_node_cpu != -1) {
+        if (numa_run_on_node(numa_node_cpu) == -1) {
+            perror("numa_run_on_node");
+            numa_node_cpu = -1;
+        }
+    }
+#endif
+
+
+#if NUMA
+    int prev_rank_id = -1;
+    int rank_id = -1;
+    DPU_FOREACH (dpu_set, dpu) {
+        rank_id = dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) & DPU_TARGET_MASK;
+        numa_node_rank = dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)));
+        if (rank_id != prev_rank_id) {
+            printf("/dev/dpu_rank%d @ NUMA node %d\n", rank_id, numa_node_rank);
+            prev_rank_id = rank_id;
+        }
+/*
+        printf("DPU @ rank %d slice.member %d.%d\n",
+            rank_id,
+            dpu_get_slice_id(dpu_from_set(dpu)),
+            dpu_get_member_id(dpu_from_set(dpu))
+        );
+*/
+    }
+#endif
+
 
     // Create an input file with arbitrary data
     read_input(A, B, input_size);
 
     //printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
     printf("[::] NMC reconfiguration | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%lu e_mode=%s"
+#if NUMA
+        " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_node_rank=%d"
+#endif
         " | latency_dpu_alloc_ns=%lu latency_dpu_load_ns=%lu latency_dpu_get_ns=%lu\n",
         nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_mode,
+#if NUMA
+        numa_node_in, numa_node_out, numa_node_cpu, numa_node_rank,
+#endif
         timer.nanoseconds[4], timer.nanoseconds[5], timer.nanoseconds[6]);
 
     // Loop over main kernel
@@ -176,11 +279,17 @@ int main(int argc, char **argv) {
 
         if (rep >= p.n_warmup) {
             printf("[::] transfer UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%lu n_elements_per_dpu=%lu e_mode=%s"
+#if NUMA
+                " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_node_rank=%d"
+#endif
                 " | latency_dram_mram_ns=%lu latency_mram_dram_ns=%lu throughput_dram_mram_Bps=%f throughput_mram_dram_Bps=%f",
 #ifdef BROADCAST
                 nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_size, transfer_mode,
 #else
                 nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_size / nr_of_dpus, transfer_mode,
+#endif
+#if NUMA
+                numa_node_in, numa_node_out, numa_node_cpu, numa_node_rank,
 #endif
                 timer.nanoseconds[1], timer.nanoseconds[3],
                 transfer_size * sizeof(T) * 1e9 / timer.nanoseconds[1],
