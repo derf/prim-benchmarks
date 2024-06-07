@@ -29,7 +29,6 @@
 static T* A;
 static T* B;
 static T* C;
-static T* C2;
 
 static const char transfer_mode[] =
 #if SERIAL
@@ -101,7 +100,7 @@ int main(int argc, char **argv) {
     A = malloc(input_size * sizeof(T));
     B = malloc(input_size * sizeof(T));
     C = malloc(input_size * sizeof(T));
-    C2 = malloc(input_size * sizeof(T));
+
     T *bufferA = A;
     T *bufferC = C;
 
@@ -225,7 +224,6 @@ int main(int argc, char **argv) {
     free(A);
     free(B);
     free(C);
-    free(C2);
     DPU_ASSERT(dpu_free(dpu_set));
 
     return 0;
