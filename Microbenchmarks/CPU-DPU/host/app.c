@@ -122,19 +122,23 @@ int main(int argc, char **argv) {
         numa_set_membind(p.bitmask_in);
         numa_free_nodemask(p.bitmask_in);
     }
-#endif
-
+    A = numa_alloc(input_size * sizeof(T));
+    B = numa_alloc(input_size * sizeof(T));
+#else
     A = malloc(input_size * sizeof(T));
     B = malloc(input_size * sizeof(T));
+#endif
 
 #if NUMA
     if (p.bitmask_out) {
         numa_set_membind(p.bitmask_out);
         numa_free_nodemask(p.bitmask_out);
     }
+    C = numa_alloc(input_size * sizeof(T));
+#else
+    C = malloc(input_size * sizeof(T));
 #endif
 
-    C = malloc(input_size * sizeof(T));
 
     T *bufferA = A;
     T *bufferC = C;
@@ -330,9 +334,15 @@ int main(int argc, char **argv) {
     }
 
     // Deallocation
+#if NUMA
+    numa_free(A, input_size * sizeof(T));
+    numa_free(B, input_size * sizeof(T));
+    numa_free(C, input_size * sizeof(T));
+#else
     free(A);
     free(B);
     free(C);
+#endif
     DPU_ASSERT(dpu_free(dpu_set));
 
     return 0;
