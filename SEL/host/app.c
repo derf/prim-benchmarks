@@ -108,6 +108,11 @@ int main(int argc, char **argv) {
     T *bufferA = A;
     T *bufferC = C2;
 
+    dpu_results_t* results_retrieve[NR_DPUS];
+    for (i = 0; i < NR_DPUS; i++) {
+        results_retrieve[i] = (dpu_results_t*)malloc(NR_TASKLETS * sizeof(dpu_results_t));
+    }
+
     // Create an input file with arbitrary data
     read_input(A, input_size, input_size_dpu_round * NR_DPUS);
 
@@ -202,10 +207,8 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
 		    start(&timer, 5, 0);
         // PARALLEL RETRIEVE TRANSFER
-        dpu_results_t* results_retrieve[NR_DPUS];
 
         DPU_FOREACH(dpu_set, dpu, i) {
-            results_retrieve[i] = (dpu_results_t*)malloc(NR_TASKLETS * sizeof(dpu_results_t));
             DPU_ASSERT(dpu_prepare_xfer(dpu, results_retrieve[i]));
         }
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, "DPU_RESULTS", 0, NR_TASKLETS * sizeof(dpu_results_t), DPU_XFER_DEFAULT));
@@ -225,12 +228,30 @@ int main(int argc, char **argv) {
 #if PRINT
             printf("i=%d -- %u,  %u, %u\n", i, results_scan[i], accum, temp);
 #endif
-            free(results_retrieve[i]);
         }
         if(rep >= p.n_warmup)
             stop(&timer, 5);
 
         i = 0;
+#if PARALLEL_READ
+        if(rep >= p.n_warmup)
+            start(&timer, 6, 0);
+        DPU_FOREACH(dpu_set, dpu, i) {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, bufferC + input_size_dpu * i));
+        }
+        DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, input_size_dpu * sizeof(T), input_size_dpu * sizeof(T), DPU_XFER_DEFAULT));
+        if(rep >= p.n_warmup)
+            stop(&timer, 6);
+        if(rep >= p.n_warmup)
+            start(&timer, 7, 0);
+        uint64_t offset = results[0].t_count;
+        for (i = 1; i < nr_of_dpus; i++) {
+            memcpy(bufferC + offset, bufferC + input_size_dpu * i, results[i].t_count * sizeof(T));
+            offset += results[i].t_count;
+        }
+        if(rep >= p.n_warmup)
+            stop(&timer, 7);
+#else
         if(rep >= p.n_warmup)
             start(&timer, 6, 0);
         DPU_FOREACH (dpu_set, dpu) {
@@ -241,17 +262,18 @@ int main(int argc, char **argv) {
         }
         if(rep >= p.n_warmup)
             stop(&timer, 6);
+#endif
 
 #if WITH_ALLOC_OVERHEAD
 #if WITH_FREE_OVERHEAD
         if(rep >= p.n_warmup) {
-            start(&timer, 7, 0);
+            start(&timer, 8, 0);
         }
 #endif
         DPU_ASSERT(dpu_free(dpu_set));
 #if WITH_FREE_OVERHEAD
         if(rep >= p.n_warmup) {
-            stop(&timer, 7);
+            stop(&timer, 8);
         }
 #endif
 #endif
@@ -273,8 +295,8 @@ int main(int argc, char **argv) {
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             if (rep >= p.n_warmup) {
-                printf("[::] SEL UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d",
-                    NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size);
+                printf("[::] SEL UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d n_elements_per_dpu=%d",
+                    NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size, input_size_dpu_round);
                 printf(" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d ",
                     WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
                 printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
@@ -284,11 +306,23 @@ int main(int argc, char **argv) {
                     timer.time[3], // write
                     timer.time[4], // kernel
                     timer.time[5] + timer.time[6], // read
+                    timer.time[8]);
+                printf(" latency_read1_us=%f latency_read2_us=%f",
+                    timer.time[5],
+                    timer.time[6]);
+#if PARALLEL_READ
+                printf(" latency_sync_us=%f",
                     timer.time[7]);
+#endif
                 printf(" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
                     input_size * sizeof(T) / timer.time[2],
                     input_size * sizeof(T) / timer.time[4],
-                    input_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7]));
+#if PARALLEL_READ
+                    input_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7] + timer.time[8])
+#else
+                    input_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[8])
+#endif
+                );
                 printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
                     input_size * sizeof(T) / (timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]),
                     input_size * sizeof(T) / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]),
@@ -296,7 +330,12 @@ int main(int argc, char **argv) {
                 printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
                     input_size / timer.time[2],
                     input_size / timer.time[4],
-                    input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7]));
+#if PARALLEL_READ
+                    input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7] + timer.time[8])
+#else
+                    input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[8])
+#endif
+                );
                 printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
                     input_size / (timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]),
                     input_size / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]),
