@@ -14,6 +14,18 @@
 #include <omp.h>
 #include "../../support/timer.h"
 
+#if NUMA
+#include <numaif.h>
+#include <numa.h>
+
+void* mp_pages[1];
+int mp_status[1];
+int mp_nodes[1];
+int numa_node_in = -1;
+int numa_node_out = -1;
+int numa_node_cpu = -1;
+#endif
+
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
@@ -21,10 +33,24 @@
 #define T uint64_t
 #endif
 
+// Params ---------------------------------------------------------------------
+typedef struct Params {
+    char* dpu_type;
+    int   input_size;
+    int   n_warmup;
+    int   n_reps;
+    int   n_threads;
+#if NUMA
+    struct bitmask* bitmask_in;
+    struct bitmask* bitmask_out;
+    int numa_node_cpu;
+#endif
+}Params;
+
+struct Params p;
+
 static T *A;
-static T *B;
 static T *C;
-static T *C2;
 static int pos;
 
 bool pred(const T x){
@@ -35,15 +61,70 @@ bool pred(const T x){
 void  *create_test_file(unsigned int nr_elements) {
     //srand(0);
 
+#if NUMA
+    if (p.bitmask_in) {
+        numa_set_membind(p.bitmask_in);
+        numa_free_nodemask(p.bitmask_in);
+    }
+    A = (T*) numa_alloc(nr_elements * sizeof(T));
+#else
     A = (T*) malloc(nr_elements * sizeof(T));
-    B = (T*) malloc(nr_elements * sizeof(T));
+#endif
+
+#if NUMA
+    if (p.bitmask_out) {
+        numa_set_membind(p.bitmask_out);
+        numa_free_nodemask(p.bitmask_out);
+    }
+    C = (T*) numa_alloc(nr_elements * sizeof(T));
+#else
     C = (T*) malloc(nr_elements * sizeof(T));
+#endif
+
+#if NUMA
+    struct bitmask *bitmask_all = numa_allocate_nodemask();
+    numa_bitmask_setall(bitmask_all);
+    numa_set_membind(bitmask_all);
+    numa_free_nodemask(bitmask_all);
+#endif
 
     for (int i = 0; i < nr_elements; i++) {
         //A[i] = (unsigned int) (rand());
         A[i] = i+1;
-        B[i] = 0;
     }
+
+#if NUMA
+    mp_pages[0] = A;
+    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+        perror("move_pages(A)");
+    }
+    else if (mp_status[0] < 0) {
+        printf("move_pages error: %d", mp_status[0]);
+    }
+    else {
+        numa_node_in = mp_status[0];
+    }
+
+    mp_pages[0] = C;
+    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+        perror("move_pages(C)");
+    }
+    else if (mp_status[0] < 0) {
+        printf("move_pages error: %d", mp_status[0]);
+    }
+    else {
+        numa_node_out = mp_status[0];
+    }
+
+    numa_node_cpu = p.numa_node_cpu;
+    if (numa_node_cpu != -1) {
+        if (numa_run_on_node(numa_node_cpu) == -1) {
+            perror("numa_run_on_node");
+            numa_node_cpu = -1;
+        }
+    }
+#endif
+
 }
 
 /**
@@ -67,15 +148,6 @@ static int select_host(int size, int t) {
     return pos;
 }
 
-// Params ---------------------------------------------------------------------
-typedef struct Params {
-    char* dpu_type;
-    int   input_size;
-    int   n_warmup;
-    int   n_reps;
-    int   n_threads;
-}Params;
-
 void usage() {
     fprintf(stderr,
         "\nUsage:  ./program [options]"
@@ -92,15 +164,19 @@ void usage() {
         "\n");
 }
 
-struct Params input_params(int argc, char **argv) {
-    struct Params p;
+void input_params(int argc, char **argv) {
     p.input_size    = 16 << 20;
     p.n_warmup      = 1;
     p.n_reps        = 3;
     p.n_threads     = 5;
+#if NUMA
+    p.bitmask_in     = NULL;
+    p.bitmask_out    = NULL;
+    p.numa_node_cpu = -1;
+#endif
 
     int opt;
-    while((opt = getopt(argc, argv, "hi:w:e:t:")) >= 0) {
+    while((opt = getopt(argc, argv, "hi:w:e:t:a:b:c:")) >= 0) {
         switch(opt) {
         case 'h':
         usage();
@@ -110,6 +186,11 @@ struct Params input_params(int argc, char **argv) {
         case 'w': p.n_warmup      = atoi(optarg); break;
         case 'e': p.n_reps        = atoi(optarg); break;
         case 't': p.n_threads     = atoi(optarg); break;
+#if NUMA
+        case 'a': p.bitmask_in    = numa_parse_nodestring(optarg); break;
+        case 'b': p.bitmask_out   = numa_parse_nodestring(optarg); break;
+        case 'c': p.numa_node_cpu = atoi(optarg); break;
+#endif
         default:
             fprintf(stderr, "\nUnrecognized option!\n");
             usage();
@@ -117,8 +198,6 @@ struct Params input_params(int argc, char **argv) {
         }
     }
     assert(p.n_threads > 0 && "Invalid # of ranks!");
-
-    return p;
 }
 
 /**
@@ -126,7 +205,7 @@ struct Params input_params(int argc, char **argv) {
 */
 int main(int argc, char **argv) {
 
-    struct Params p = input_params(argc, argv);
+    input_params(argc, argv);
 
     const unsigned int file_size = p.input_size;
     int total_count;
@@ -147,9 +226,15 @@ int main(int argc, char **argv) {
         nr_threads++;
 
         if (rep >= p.n_warmup) {
-            printf("[::] SEL CPU | n_threads=%d e_type=%s n_elements=%d "
-                "| throughput_MBps=%f",
+            printf("[::] SEL | n_threads=%d e_type=%s n_elements=%d"
+#if NUMA
+                " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+#endif
+                " | throughput_MBps=%f",
                 nr_threads, XSTR(T), file_size,
+#if NUMA
+                numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
+#endif
                 file_size * 2 * sizeof(T) / timer.time[0]);
             printf(" throughput_MOpps=%f",
                 file_size / timer.time[0]);
@@ -157,8 +242,12 @@ int main(int argc, char **argv) {
         }
     }
 
+#if NUMA
+    numa_free(A, file_size * sizeof(T));
+    numa_free(C, file_size * sizeof(T));
+#else
     free(A);
-    free(B);
     free(C);
+#endif
     return 0;
 }

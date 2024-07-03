@@ -1,10 +1,17 @@
+NUMA ?= 0
+FLAGS =
+
+ifeq (${NUMA}, 1)
+	FLAGS += -lnuma
+endif
+
 .PHONY: all
 all: sel
 
 TYPE ?= uint64_t
 
 sel: app_baseline.c
-	gcc -O2 -o sel -fopenmp -DT=${TYPE} app_baseline.c
+	gcc -O2 -o sel -fopenmp -DT=${TYPE} -DNUMA=${NUMA} app_baseline.c ${FLAGS}
 
 sel_O0: app_baseline.c
 	gcc -o sel_O0 -fopenmp app_baseline.c
