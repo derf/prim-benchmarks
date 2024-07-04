@@ -20,6 +20,22 @@
 
 #include <omp.h>
 
+#if NUMA
+#include <numaif.h>
+#include <numa.h>
+
+struct bitmask* bitmask_in;
+struct bitmask* bitmask_out;
+
+void* mp_pages[1];
+int mp_status[1];
+int mp_nodes[1];
+int numa_node_in = -1;
+int numa_node_out = -1;
+int numa_node_cpu = -1;
+#endif
+
+
 #include "../../support/common.h"
 #include "../../support/timer.h"
 
@@ -38,6 +54,11 @@ typedef struct Params {
     const char *file_name;
     int  exp;
     int  n_threads;
+#if NUMA
+    struct bitmask* bitmask_in;
+    struct bitmask* bitmask_out;
+    int numa_node_cpu;
+#endif
 }Params;
 
 /**
@@ -51,13 +72,17 @@ static void read_input(T* A, const Params p) {
 
     // Open input file
     unsigned short temp;
-    sprintf(dctFileName, p.file_name);
+    sprintf(dctFileName, "%s", p.file_name);
     if((File = fopen(dctFileName, "rb")) != NULL) {
         for(unsigned int y = 0; y < p.input_size; y++) {
-            fread(&temp, sizeof(unsigned short), 1, File);
-            A[y] = (unsigned int)ByteSwap16(temp);
-            if(A[y] >= 4096)
-                A[y] = 4095;
+            if (fread(&temp, sizeof(unsigned short), 1, File) == 1) {
+                A[y] = (unsigned int)ByteSwap16(temp);
+                if(A[y] >= 4096)
+                    A[y] = 4095;
+            } else {
+                //printf("out of bounds read at offset %d -- seeking back to 0\n", y);
+                rewind(File);
+            }
         }
         fclose(File);
     } else {
@@ -120,9 +145,14 @@ struct Params input_params(int argc, char **argv) {
     p.n_threads     = 8;
     p.exp           = 1;
     p.file_name     = "../../input/image_VanHateren.iml";
+#if NUMA
+    p.bitmask_in     = NULL;
+    p.bitmask_out    = NULL;
+    p.numa_node_cpu = -1;
+#endif
 
     int opt;
-    while((opt = getopt(argc, argv, "hi:b:w:e:f:x:t:")) >= 0) {
+    while((opt = getopt(argc, argv, "hi:b:w:e:f:x:t:A:B:C:")) >= 0) {
         switch(opt) {
         case 'h':
         usage();
@@ -135,6 +165,11 @@ struct Params input_params(int argc, char **argv) {
         case 'f': p.file_name     = optarg; break;
         case 'x': p.exp           = atoi(optarg); break;
         case 't': p.n_threads     = atoi(optarg); break;
+#if NUMA
+        case 'A': p.bitmask_in    = numa_parse_nodestring(optarg); break;
+        case 'B': p.bitmask_out   = numa_parse_nodestring(optarg); break;
+        case 'C': p.numa_node_cpu = atoi(optarg); break;
+#endif
         default:
             fprintf(stderr, "\nUnrecognized option!\n");
             usage();
@@ -162,18 +197,79 @@ int main(int argc, char **argv) {
         assert(input_size % p.n_threads == 0 && "Input size!");
 
     // Input/output allocation
+#if NUMA
+    if (p.bitmask_in) {
+        numa_set_membind(p.bitmask_in);
+        numa_free_nodemask(p.bitmask_in);
+    }
+    A = numa_alloc(input_size * sizeof(T));
+#else
     A = malloc(input_size * sizeof(T));
-    T *bufferA = A;
+#endif
+
+#if NUMA
+    if (p.bitmask_out) {
+        numa_set_membind(p.bitmask_out);
+        numa_free_nodemask(p.bitmask_out);
+    }
+#endif
     if(!p.exp) {
         // upstream code left nr_of_dpus uninitialized
         nr_of_dpus = p.n_threads;
+#if NUMA
+        histo_host = numa_alloc(nr_of_dpus * p.bins * sizeof(unsigned int));
+#else
         histo_host = malloc(nr_of_dpus * p.bins * sizeof(unsigned int));
+#endif
     } else {
+#if NUMA
+        histo_host = numa_alloc(p.bins * sizeof(unsigned int));
+#else
         histo_host = malloc(p.bins * sizeof(unsigned int));
+#endif
     }
+
+#if NUMA
+    struct bitmask *bitmask_all = numa_allocate_nodemask();
+    numa_bitmask_setall(bitmask_all);
+    numa_set_membind(bitmask_all);
+    numa_free_nodemask(bitmask_all);
+#endif
 
     // Create an input file with arbitrary data.
     read_input(A, p);
+
+#if NUMA
+    mp_pages[0] = A;
+    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+        perror("move_pages(A)");
+    }
+    else if (mp_status[0] < 0) {
+        printf("move_pages error: %d", mp_status[0]);
+    }
+    else {
+        numa_node_in = mp_status[0];
+    }
+
+    mp_pages[0] = histo_host;
+    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+        perror("move_pages(C)");
+    }
+    else if (mp_status[0] < 0) {
+        printf("move_pages error: %d", mp_status[0]);
+    }
+    else {
+        numa_node_out = mp_status[0];
+    }
+
+    numa_node_cpu = p.numa_node_cpu;
+    if (numa_node_cpu != -1) {
+        if (numa_run_on_node(numa_node_cpu) == -1) {
+            perror("numa_run_on_node");
+            numa_node_cpu = -1;
+        }
+    }
+#endif
 
     Timer timer;
     start(&timer, 0, 0);
@@ -192,9 +288,15 @@ int main(int argc, char **argv) {
 #pragma omp atomic
     nr_threads++;
 
-    printf("[::] HST-S CPU | n_threads=%d e_type=%s n_elements=%d n_bins=%d "
-        "| throughput_MBps=%f",
+    printf("[::] HST-S CPU | n_threads=%d e_type=%s n_elements=%d n_bins=%d"
+#if NUMA
+        " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+#endif
+        " | throughput_MBps=%f",
         nr_threads, XSTR(T), input_size, p.exp ? p.bins : p.bins * nr_of_dpus,
+#if NUMA
+        numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
+#endif
         input_size * sizeof(T) / timer.time[0]);
     printf(" throughput_MOpps=%f",
         input_size / timer.time[0]);
