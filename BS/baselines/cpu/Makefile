@@ -1,8 +1,15 @@
+NUMA ?= 0
+FLAGS =
+
+ifeq (${NUMA}, 1)
+	FLAGS += -lnuma
+endif
+
 .PHONY: all
 all: bs_omp
 
 bs_omp: bs_omp.c
-	gcc -O2 bs_omp.c -o bs_omp -fopenmp
+	gcc -Wall -Wextra -pedantic -O2 -DNUMA=${NUMA} bs_omp.c -o bs_omp -fopenmp ${FLAGS}
 
 bs_omp_O0: bs_omp.c
 	gcc bs_omp.c -o bs_omp_O0 -fopenmp
