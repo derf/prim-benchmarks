@@ -71,7 +71,7 @@ parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
 	num_queries=${num_queries_upstream} input_size=${input_size_upstream} \
 	::: i $(seq 1 20) \
 	::: cpu -1 \
-	::: ram any \
+	::: ram 0 1 \
 	::: nr_threads 48 64
 
 parallel -j1 --eta --joblog ${fn}.4.joblog --resume --header : \
@@ -79,7 +79,7 @@ parallel -j1 --eta --joblog ${fn}.4.joblog --resume --header : \
 	num_queries=${num_queries_dpu} input_size=${input_size_dpu} \
 	::: i $(seq 1 20) \
 	::: cpu -1 \
-	::: ram any \
+	::: ram 0 1 \
 	::: nr_threads 48 64
 
 ) > ${fn}.txt

@@ -8,8 +8,8 @@ fn=log/$(hostname)/$(date +%Y%m%d)
 
 # upstream DPU version uses 2048576 * uint64 ≈ 16 MiB (DPU max: 64 MiB)
 # upstream DPU version uses 2 queries
-# * uint64 == 16 MiB -- fits into cache
-input_size_dpu=$(perl -E 'say 2 ** 21')
+# * uint64 == 32 MiB
+input_size_dpu=$(perl -E 'say 2 ** 22')
 # * uint64 == 8 MiB
 num_queries_dpu=1048576
 
