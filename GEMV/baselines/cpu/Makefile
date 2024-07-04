@@ -1,8 +1,15 @@
+NUMA ?= 0
+FLAGS =
+
+ifeq (${NUMA}, 1)
+	FLAGS += -lnuma
+endif
+
 .PHONY: all
 all: gemv
 
 gemv: gemv_openmp.c
-	gcc -O2 -o gemv -fopenmp gemv_openmp.c
+	gcc -O2 -Wall -Wextra -pedantic -o gemv -fopenmp -DNUMA=${NUMA} gemv_openmp.c ${FLAGS}
 
 gemv_O0: gemv_openmp.c
 	gcc -o gemv_O0 -fopenmp gemv_openmp.c
