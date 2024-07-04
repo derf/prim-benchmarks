@@ -9,7 +9,7 @@ endif
 all: bs_omp
 
 bs_omp: bs_omp.c
-	gcc -Wall -Wextra -pedantic -O2 -DNUMA=${NUMA} bs_omp.c -o bs_omp -fopenmp ${FLAGS}
+	gcc -Wall -Wextra -pedantic -march=native -O2 -DNUMA=${NUMA} bs_omp.c -o bs_omp -fopenmp ${FLAGS}
 
 bs_omp_O0: bs_omp.c
 	gcc bs_omp.c -o bs_omp_O0 -fopenmp

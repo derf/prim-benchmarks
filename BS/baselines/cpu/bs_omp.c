@@ -148,7 +148,7 @@ uint64_t binarySearch(DTYPE * input, uint64_t input_size, DTYPE* querys, unsigne
 
     int status = (result_host);
     if (status) {
-        printf("[::] BS CPU | n_threads=%d e_type=%s n_elements=%lu"
+        printf("[::] BS-CPU | n_threads=%d e_type=%s n_elements=%lu"
 #if NUMA
             " numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
 #endif

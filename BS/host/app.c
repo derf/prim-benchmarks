@@ -23,12 +23,6 @@
 #include <dpu_target_macros.h>
 #endif
 
-#if SDK_SINGLETHREADED
-#define DPU_ALLOC_PROFILE "nrThreadsPerRank=0"
-#else
-#define DPU_ALLOC_PROFILE NULL
-#endif
-
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
@@ -97,7 +91,7 @@ int main(int argc, char **argv) {
 
     // Allocate DPUs and load binary
 #if !WITH_ALLOC_OVERHEAD
-    DPU_ASSERT(dpu_alloc(NR_DPUS, DPU_ALLOC_PROFILE, &dpu_set));
+    DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
     timer.time[0] = 0; // alloc
 #endif
 #if !WITH_LOAD_OVERHEAD
@@ -140,7 +134,7 @@ int main(int argc, char **argv) {
 		if(rep >= p.n_warmup) {
 			start(&timer, 0, 0);
 		}
-		DPU_ASSERT(dpu_alloc(NR_DPUS, DPU_ALLOC_PROFILE, &dpu_set));
+		DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
 		if(rep >= p.n_warmup) {
 			stop(&timer, 0);
 		}
@@ -287,10 +281,10 @@ int main(int argc, char **argv) {
 		if (status) {
 			printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] results are equal\n");
 			if (rep >= p.n_warmup) {
-				printf("[::] BS UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%lu",
+				printf("[::] BS-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%lu",
 					NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(DTYPE), BLOCK_SIZE, input_size);
-				printf(" b_sdk_singlethreaded=%d b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d ",
-					SDK_SINGLETHREADED, WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
+				printf(" with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d ",
+					WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
 				printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
 					timer.time[0],
 					timer.time[1],
