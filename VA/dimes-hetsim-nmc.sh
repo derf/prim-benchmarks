@@ -30,7 +30,7 @@ parallel -j1 --eta --joblog ${fn}.joblog --resume --header : \
 	::: nr_dpus 64 128 256 512 768 1024 1536 2048 2304 \
 	::: input_size 167772160
 
-) | tee ${fn}.txt
+) > ${fn}.txt
 
 xz -f -v -9 -M 800M ${fn}.txt
 
@@ -53,6 +53,6 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	::: nr_threads 48 64 \
 	::: input_size 167772160
 
-) | tee ${fn}.txt
+) > ${fn}.txt
 
 xz -f -v -9 -M 800M ${fn}.txt

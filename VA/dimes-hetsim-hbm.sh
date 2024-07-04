@@ -34,6 +34,6 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	::: ram $(seq 0 15) \
 	::: input_size 167772160
 
-) | tee ${fn}.txt
+) > ${fn}.txt
 
 xz -f -v -9 -M 800M ${fn}.txt
