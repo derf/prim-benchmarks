@@ -11,7 +11,7 @@ all: va
 TYPE ?= int32_t
 
 va: app_baseline.c
-	gcc -O2 -Wall -Wextra -pedantic -march=native -o va -fopenmp -DNUMA=${NUMA} -DT=${TYPE} app_baseline.c ${FLAGS}
+	gcc -Wall -Wextra -pedantic -march=native -O2 -o va -fopenmp -DNUMA=${NUMA} -DT=${TYPE} app_baseline.c ${FLAGS}
 
 va_O0: app_baseline.c
 	gcc -o va_O0 -fopenmp app_baseline.c
