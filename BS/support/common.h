@@ -10,6 +10,7 @@
 #endif
 
 // Transfer size between MRAM and WRAM
+// BL=10 does not work here.
 #ifdef BL
 #define BLOCK_SIZE_LOG2 BL
 #define BLOCK_SIZE (1 << BLOCK_SIZE_LOG2)
@@ -22,7 +23,9 @@
 #define DTYPE int64_t
 
 // Vector size
+#ifndef INPUT_SIZE
 #define INPUT_SIZE 2048576
+#endif
 
 typedef struct {
 	uint64_t input_size;

@@ -13,8 +13,8 @@ num_queries_dpu=1048576
 
 run_benchmark_nmc() {
 	local "$@"
-	if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} WITH_ALLOC_OVERHEAD=1 WITH_LOAD_OVERHEAD=1 WITH_FREE_OVERHEAD=1 PROBLEM_SIZE=${num_queries}; then
-		bin/bs_host -w 0 -e 100 -i ${input_size}
+	if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} WITH_ALLOC_OVERHEAD=1 WITH_LOAD_OVERHEAD=1 WITH_FREE_OVERHEAD=1 INPUT_SIZE=${input_size} PROBLEM_SIZE=${num_queries}; then
+		bin/bs_host -w 0 -e 100
 	fi
 	return $?
 }
