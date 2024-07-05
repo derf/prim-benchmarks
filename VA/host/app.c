@@ -29,10 +29,8 @@
 #include <dpu_probe.h>
 #endif
 
-#if WITH_DPUINFO
 #include <dpu_management.h>
 #include <dpu_target_macros.h>
-#endif
 
 // Pointer declaration
 static T* A;
@@ -72,6 +70,8 @@ int main(int argc, char **argv) {
 
     // Timer declaration
     Timer timer;
+
+    int numa_node_rank = -2;
 
     // Allocate DPUs and load binary
 #if !WITH_ALLOC_OVERHEAD
@@ -143,6 +143,24 @@ int main(int argc, char **argv) {
         DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
         assert(nr_of_dpus == NR_DPUS);
 #endif
+
+        // int prev_rank_id = -1;
+        int rank_id = -1;
+        DPU_FOREACH (dpu_set, dpu) {
+            rank_id = dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) & DPU_TARGET_MASK;
+            if ((numa_node_rank != -2) && numa_node_rank != dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)))) {
+                numa_node_rank = -1;
+            } else {
+                numa_node_rank = dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)));
+            }
+            /*
+            if (rank_id != prev_rank_id) {
+                printf("/dev/dpu_rank%d @ NUMA node %d\n", rank_id, numa_node_rank);
+                prev_rank_id = rank_id;
+            }
+            */
+        }
+
 
         // Compute output on CPU (performance comparison and verification purposes)
         if(rep >= p.n_warmup) {
@@ -257,8 +275,8 @@ int main(int argc, char **argv) {
             if (rep >= p.n_warmup) {
                 printf("[::] VA-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d n_elements_per_dpu=%d",
                     nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size, input_size / NR_DPUS);
-                printf(" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d ",
-                    WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
+                printf(" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d numa_node_rank=%d ",
+                    WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD, numa_node_rank);
                 printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
                     timer.time[0],
                     timer.time[1],
