@@ -8,7 +8,7 @@ endif
 all: hist
 
 hist: app_baseline.c
-	gcc -Wall -Wextra -pedantic -O2 -DNUMA=${NUMA} -o hist -fopenmp app_baseline.c ${FLAGS}
+	gcc -Wall -Wextra -pedantic -march=native -O2 -DNUMA=${NUMA} -o hist -fopenmp app_baseline.c ${FLAGS}
 
 hist_O0: app_baseline.c
 	gcc -o hist_O0 -fopenmp app_baseline.c
