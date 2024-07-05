@@ -142,6 +142,19 @@ int main(int argc, char *argv[])
 #endif
 
   printf("sum(x) = %f, sum(Ax) = %f\n", sum_vec(x,cols), sum_vec(b,rows));
+
+#if NUMA
+  numa_free(b, sizeof(double)*rows);
+  numa_free(x, sizeof(double)*cols);
+  numa_free(*A, sizeof(double)*rows*cols);
+  numa_free(A, sizeof(double)*rows);
+#else
+  free(b);
+  free(x);
+  free(*A);
+  free(A);
+#endif
+
   return 0;
 }
 
