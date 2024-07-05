@@ -84,7 +84,7 @@ struct Params input_params(int argc, char **argv) {
     p.input_size    = 16777216;
     p.n_warmup      = 1;
     p.n_reps        = 3;
-    p.exp           = 0;
+    p.exp           = 1;
     p.n_threads     = 5;
 #if NUMA
     p.bitmask_in     = NULL;
