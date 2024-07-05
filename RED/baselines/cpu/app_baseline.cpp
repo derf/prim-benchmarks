@@ -34,6 +34,17 @@
 #include "../../support/common.h"
 #include "../../support/timer.h"
 
+#if NUMA
+#include <numaif.h>
+#include <numa.h>
+
+void* mp_pages[1];
+int mp_status[1];
+int mp_nodes[1];
+int numa_node_in = -1;
+int numa_node_cpu = -1;
+#endif
+
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
@@ -43,8 +54,6 @@
 
 // Pointer declaration
 static T* A;
-static T* C;
-static T* C2;
 
 /**
 * @brief creates input arrays
@@ -77,6 +86,11 @@ typedef struct Params {
     int   n_reps;
     int   exp;
     int   n_threads;
+#if NUMA
+    struct bitmask* bitmask_in;
+    struct bitmask* bitmask_out;
+    int numa_node_cpu;
+#endif
 }Params;
 
 void usage() {
@@ -102,9 +116,14 @@ struct Params input_params(int argc, char **argv) {
     p.n_reps        = 3;
     p.exp           = 0;
     p.n_threads     = 1;
+#if NUMA
+    p.bitmask_in     = NULL;
+    p.bitmask_out    = NULL;
+    p.numa_node_cpu = -1;
+#endif
 
     int opt;
-    while((opt = getopt(argc, argv, "hi:w:e:x:t:")) >= 0) {
+    while((opt = getopt(argc, argv, "hi:w:e:x:t:a:b:c:")) >= 0) {
         switch(opt) {
         case 'h':
         usage();
@@ -115,6 +134,11 @@ struct Params input_params(int argc, char **argv) {
         case 'e': p.n_reps        = atoi(optarg); break;
         case 'x': p.exp           = atoi(optarg); break;
         case 't': p.n_threads     = atoi(optarg); break;
+#if NUMA
+        case 'a': p.bitmask_in    = numa_parse_nodestring(optarg); break;
+        case 'b': p.bitmask_out   = numa_parse_nodestring(optarg); break;
+        case 'c': p.numa_node_cpu = atoi(optarg); break;
+#endif
         default:
             fprintf(stderr, "\nUnrecognized option!\n");
             usage();
@@ -133,28 +157,50 @@ int main(int argc, char **argv) {
 
     struct Params p = input_params(argc, argv);
 
-    unsigned int nr_of_dpus = 1;
-    
-    unsigned int i = 0;
     const unsigned int input_size = p.exp == 0 ? p.input_size * p.n_threads : p.input_size;
     assert(input_size % (p.n_threads) == 0 && "Input size!");
 
     // Input/output allocation
+
+#if NUMA
+    if (p.bitmask_in) {
+        numa_set_membind(p.bitmask_in);
+        numa_free_nodemask(p.bitmask_in);
+    }
+    A = (T*)numa_alloc(input_size * sizeof(T));
+#else
     A = (T*)malloc(input_size * sizeof(T));
-    C = (T*)malloc(input_size * sizeof(T));
-    C2 = (T*)malloc(input_size * sizeof(T));
-    T *bufferA = A;
-    T *bufferC = C2;
-	
+#endif
+
     T count = 0;
     T count_host = 0;
 
     // Create an input file with arbitrary data.
     read_input(A, input_size);
 
+#if NUMA
+    mp_pages[0] = A;
+    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+        perror("move_pages(A)");
+    }
+    else if (mp_status[0] < 0) {
+        printf("move_pages error: %d", mp_status[0]);
+    }
+    else {
+        numa_node_in = mp_status[0];
+    }
+
+    numa_node_cpu = p.numa_node_cpu;
+    if (numa_node_cpu != -1) {
+        if (numa_run_on_node(numa_node_cpu) == -1) {
+            perror("numa_run_on_node");
+            numa_node_cpu = -1;
+        }
+    }
+#endif
+
     // Timer declaration
     Timer timer;
-    float time_gpu = 0;
 
     thrust::omp::vector<T> h_output(input_size);
 
@@ -194,9 +240,15 @@ int main(int argc, char **argv) {
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             if(rep >= p.n_warmup) {
-                printf("[::] RED CPU | n_threads=%d e_type=%s n_elements=%u "
-                    "| throughput_seq_MBps=%f throughput_MBps=%f",
+                printf("[::] RED-CPU | n_threads=%d e_type=%s n_elements=%u"
+#if NUMA
+                    " numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
+#endif
+                    " | throughput_seq_MBps=%f throughput_MBps=%f",
                     nr_threads, XSTR(T), input_size,
+#if NUMA
+                    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu),
+#endif
                     input_size * sizeof(T) / timer.time[0],
                     input_size * sizeof(T) / timer.time[1]);
                 printf(" throughput_seq_MOpps=%f throughput_MOpps=%f",
@@ -217,9 +269,11 @@ int main(int argc, char **argv) {
 
 
     // Deallocation
+#if NUMA
+	numa_free(A, input_size * sizeof(T));
+#else
     free(A);
-    free(C);
-    free(C2);
+#endif
 	
     return 0;
 }
