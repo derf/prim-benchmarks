@@ -55,10 +55,14 @@ static void read_input(T* A, const Params p) {
     sprintf(dctFileName, "%s", p.file_name);
     if((File = fopen(dctFileName, "rb")) != NULL) {
         for(unsigned int y = 0; y < p.input_size; y++) {
-            fread(&temp, sizeof(unsigned short), 1, File);
-            A[y] = (unsigned int)ByteSwap16(temp);
-            if(A[y] >= 4096)
-                A[y] = 4095;
+            if (fread(&temp, sizeof(unsigned short), 1, File) == 1) {
+                A[y] = (unsigned int)ByteSwap16(temp);
+                if(A[y] >= 4096)
+                    A[y] = 4095;
+            } else {
+                //printf("out of bounds read at offset %d -- seeking back to 0\n", y);
+                rewind(File);
+            }
         }
         fclose(File);
     } else {
