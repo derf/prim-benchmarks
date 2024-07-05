@@ -288,7 +288,7 @@ int main(int argc, char **argv) {
 #pragma omp atomic
     nr_threads++;
 
-    printf("[::] HST-S CPU | n_threads=%d e_type=%s n_elements=%d n_bins=%d"
+    printf("[::] HST-S-CPU | n_threads=%d e_type=%s n_elements=%d n_bins=%d"
 #if NUMA
         " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
