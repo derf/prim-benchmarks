@@ -302,5 +302,17 @@ int main(int argc, char **argv) {
         input_size / timer.time[0]);
     printall(&timer, 0);
 
+#if NUMA
+    numa_free(A, input_size * sizeof(T));
+    if (!p.exp) {
+        numa_free(histo_host, nr_of_dpus * p.bins * sizeof(unsigned int));
+    } else {
+        numa_free(histo_host, p.bins * sizeof(unsigned int));
+    }
+#else
+    free(A);
+    free(histo_host);
+#endif
+
     return 0;
 }
