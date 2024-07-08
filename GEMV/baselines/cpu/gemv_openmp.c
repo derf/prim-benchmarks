@@ -22,8 +22,14 @@ int numa_node_cpu = -1;
 int main(int argc, char *argv[])
 {
     (void) argc;
+/*  // upstream config:
     const size_t rows = 20480;
     const size_t cols = 8192;
+*/
+
+    // DPU config: 163840 -n 4096
+    const size_t rows = 163840;
+    const size_t cols = 4096;
 
     double **A, *b, *x;
 
