@@ -4,7 +4,7 @@ cd baselines/cpu
 make -B NUMA=1
 
 mkdir -p log/$(hostname)
-fn=log/$(hostname)/$(date +%Y%m%d)-baseline
+fn=log/$(hostname)/$(date +%Y%m%d)
 
 # upstream DPU version uses -m 163840 -n 4096
 # → (163840 * 4096 + 4096) * uint32 ≈ 2.5 GiB
