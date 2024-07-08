@@ -1,5 +1,7 @@
 #!/bin/bash
 
+echo PrIM BS
+
 mkdir -p log/$(hostname) baselines/cpu/log/$(hostname)
 fn=log/$(hostname)/$(date +%Y%m%d)
 
@@ -15,7 +17,7 @@ run_benchmark_nmc() {
 	local "$@"
 	sudo limit_ranks_to_numa_node ${numa_rank}
 	if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} WITH_ALLOC_OVERHEAD=1 WITH_LOAD_OVERHEAD=1 WITH_FREE_OVERHEAD=1 INPUT_SIZE=${input_size} PROBLEM_SIZE=${num_queries}; then
-		bin/bs_host -w 0 -e 100
+		bin/bs_host -w 0 -e 100 2>&1
 	fi
 	return $?
 }
@@ -24,7 +26,7 @@ export -f run_benchmark_nmc
 
 run_benchmark_baseline() {
 	local "$@"
-	OMP_NUM_THREADS=${nr_threads} ./bs_omp ${input_size} ${num_queries} ${ram} ${cpu}
+	OMP_NUM_THREADS=${nr_threads} ./bs_omp ${input_size} ${num_queries} ${ram} ${cpu} 2>&1
 	return $?
 }
 
@@ -42,7 +44,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 
 echo "NMC multi-node upstream-ref (2/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 numa_rank={numa_rank} \
 	num_queries=${num_queries_upstream} input_size=${input_size_upstream} \
 	::: numa_rank -1 \
@@ -50,7 +52,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 
 echo "NMC single-node DPU-ref (3/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
 	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 numa_rank={numa_rank} \
 	num_queries=${num_queries_dpu} input_size=${input_size_dpu} \
 	::: numa_rank 0 1 \
@@ -58,7 +60,7 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 
 echo "NMC multi-node DPU-ref (4/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.4.joblog --resume --header : \
 	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 numa_rank={numa_rank} \
 	num_queries=${num_queries_dpu} input_size=${input_size_dpu} \
 	::: numa_rank -1 \
