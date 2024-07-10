@@ -9,7 +9,12 @@ log-*.txt
 log
 
 BFS/baselines/cpu/bfs
+
 BS/baselines/cpu/bs_omp
+
+GEMV/baselines/cpu/gemv
+
+TRNS/baselines/cpu/trns
 
 TS/baselines/cpu/streamp_openmp
 TS/baselines/cpu/inputs/randomlistDPU.txt
