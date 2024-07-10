@@ -83,7 +83,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 	::: i $(seq 1 20) \
 	::: cpu 0 1 \
 	::: ram 0 1 \
-	::: nr_threads 1 2 4 8 12 16 32
+	::: nr_threads 1 2 4 8 12 16
 
 echo "CPU single-node DPU-ref (2/4)" >&2
 
@@ -93,7 +93,7 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	::: i $(seq 1 20) \
 	::: cpu 0 1 \
 	::: ram 0 1 \
-	::: nr_threads 1 2 4 8 12 16 32
+	::: nr_threads 1 2 4 8 12 16
 
 echo "CPU multi-node upstream-ref (3/4)" >&2
 
@@ -103,7 +103,7 @@ parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
 	::: i $(seq 1 20) \
 	::: cpu -1 \
 	::: ram 0 1 \
-	::: nr_threads 48 64
+	::: nr_threads 24 32
 
 echo "CPU multi-node DPU-ref (4/4)" >&2
 
@@ -113,7 +113,7 @@ parallel -j1 --eta --joblog ${fn}.4.joblog --resume --header : \
 	::: i $(seq 1 20) \
 	::: cpu -1 \
 	::: ram 0 1 \
-	::: nr_threads 48 64
+	::: nr_threads 24 32
 
 ) > ${fn}.txt
 
