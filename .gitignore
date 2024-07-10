@@ -5,4 +5,12 @@ log-paper-weak.txt
 *-O2.txt
 *-explore.txt
 */bin
+log-*.txt
 log
+
+BFS/baselines/cpu/bfs
+BS/baselines/cpu/bs_omp
+
+TS/baselines/cpu/streamp_openmp
+TS/baselines/cpu/inputs/randomlistDPU.txt
+TS/baselines/cpu/inputs/randomlist10M.txt
