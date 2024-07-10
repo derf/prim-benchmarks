@@ -11,7 +11,7 @@ all: sel
 TYPE ?= uint64_t
 
 sel: app_baseline.c
-	gcc -O2 -o sel -fopenmp -DT=${TYPE} -DNUMA=${NUMA} app_baseline.c ${FLAGS}
+	gcc -Wall -Wextra -pedantic -march=native -O2 -o sel -fopenmp -DT=${TYPE} -DNUMA=${NUMA} app_baseline.c ${FLAGS}
 
 sel_O0: app_baseline.c
 	gcc -o sel_O0 -fopenmp app_baseline.c
