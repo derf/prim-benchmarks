@@ -19,3 +19,5 @@ TRNS/baselines/cpu/trns
 TS/baselines/cpu/streamp_openmp
 TS/baselines/cpu/inputs/randomlistDPU.txt
 TS/baselines/cpu/inputs/randomlist10M.txt
+
+VA/baselines/cpu/va
