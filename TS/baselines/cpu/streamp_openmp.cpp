@@ -42,6 +42,18 @@ The second column of the output file is the matrix profile index.
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
+#if NUMA
+#include <numaif.h>
+#include <numa.h>
+
+void* mp_pages[1];
+int mp_status[1];
+int mp_nodes[1];
+struct bitmask* bitmask_in = NULL;
+int numa_node_in = -1;
+int numa_node_cpu = -1;
+#endif
+
 #include "mprofile.h"
 
 bool interrupt = false;
@@ -109,7 +121,8 @@ void streamp()
   {
     DTYPE  lastz, distance, windowSizeDTYPE;
     DTYPE  * distances, * lastzs;
-    int diag, my_offset, i, j, ri;
+    int diag, my_offset, i, j;
+    size_t ri;
 
     distances = new DTYPE[ARIT_FACT];
     lastzs    = new DTYPE[ARIT_FACT];
@@ -271,6 +284,16 @@ int main(int argc, char* argv[])
   // Set window size
   windowSize = atoi(argv[2]);
 
+#if NUMA
+  bitmask_in    = numa_parse_nodestring(argv[3]);
+  numa_node_cpu = atoi(argv[4]);
+
+  if (bitmask_in) {
+    numa_set_membind(bitmask_in);
+    numa_free_nodemask(bitmask_in);
+  }
+#endif
+
   // Set the exclusion zone
   exclusionZone = (int) (windowSize * 0.25);
 
@@ -308,6 +331,26 @@ int main(int argc, char* argv[])
   time_elapsed = tend - tstart;
   std::cout << "[OK] Read File Time: " << std::setprecision(std::numeric_limits<double>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
 
+#if NUMA
+    mp_pages[0] = static_cast<void*>(A.data());
+    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+        perror("move_pages(A)");
+    }
+    else if (mp_status[0] < 0) {
+        printf("move_pages error: %d", mp_status[0]);
+    }
+    else {
+        numa_node_in = mp_status[0];
+    }
+
+    if (numa_node_cpu != -1) {
+        if (numa_run_on_node(numa_node_cpu) == -1) {
+            perror("numa_run_on_node");
+            numa_node_cpu = -1;
+        }
+    }
+#endif
+
   // Set Matrix Profile Length
   ProfileLength = timeSeriesLength - windowSize + 1;
 
@@ -338,12 +381,21 @@ int main(int argc, char* argv[])
   tend = std::chrono::high_resolution_clock::now();
   time_elapsed = tend - tstart;
   //std::cout << "[OK] Preprocess Time:         " << std::setprecision(std::numeric_limits<double>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
-  printf("[::] TS CPU | n_threads=%d e_type=%s n_elements=%d | throughput_preproc_MBps=%f throughput_preproc_MOpps=%f", numThreads, XSTR(DTYPE), timeSeriesLength, timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
+  printf("[::] TS CPU | n_threads=%d e_type=%s n_elements=%d"
+#if NUMA
+    " numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
+#endif
+    " | throughput_preproc_MBps=%f throughput_preproc_MOpps=%f latency_preproc_s=%f",
+    numThreads, XSTR(DTYPE), timeSeriesLength,
+#if NUMA
+    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu),
+#endif
+    timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6), time_elapsed.count());
 
   //Initialize Matrix Profile and Matrix Profile Index
   //std::cout << "[>>] Initializing Profile..." << std::endl;
-  tstart = std::chrono::high_resolution_clock::now();
 
+  tstart = std::chrono::high_resolution_clock::now();
   profile          = new DTYPE[ProfileLength];
   profileIndex     = new int[ProfileLength];
 
@@ -355,7 +407,7 @@ int main(int argc, char* argv[])
   tend = std::chrono::high_resolution_clock::now();
   time_elapsed = tend - tstart;
   //std::cout << "[OK] Initialize Profile Time: " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
-  printf(" throughput_init_MBps=%f throughput_init_MOpps=%f", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
+  printf(" throughput_init_MBps=%f throughput_init_MOpps=%f latency_init_s=%f", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6), time_elapsed.count());
 
   // Random shuffle the diagonals
   idx.clear();
@@ -374,7 +426,7 @@ int main(int argc, char* argv[])
   tend = std::chrono::high_resolution_clock::now();
   time_elapsed = tend - tstart;
   //std::cout << "[OK] STREAMP Time:            " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
-  printf(" throughput_streamp_MBps=%f throughput_streamp_MOpps=%f", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
+  printf(" throughput_streamp_MBps=%f throughput_streamp_MOpps=%f latency_streamp_s=%f", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6), time_elapsed.count());
 
   // Save profile to file
   //std::cout << "[>>] Saving Profile..." << std::endl;
@@ -389,7 +441,7 @@ int main(int argc, char* argv[])
   // Calculate total time
   time_elapsed = tend - tprogstart;
   //std::cout << "[OK] Total Time:              " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
-  printf(" throughput_MBps=%f throughput_MOpps=%f\n", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6));
+  printf(" throughput_MBps=%f throughput_MOpps=%f latency_s=%f\n", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6), time_elapsed.count());
   //std::cout << std::endl;
 
   delete profile;
