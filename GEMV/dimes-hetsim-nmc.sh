@@ -9,6 +9,9 @@ fn=log/$(hostname)/$(date +%Y%m%d)
 # upstream baseline uses 20480 rows and 8192 cols, allocating 20480 * double + 8192 * double + 20480 * double + 20480 * 8192 * double
 # → ≈ 1.25 GiB
 
+# Note: Upstream uses int32_t in DPU version and double in baseline.
+# Here, we use int32_t for both.
+
 run_benchmark_nmc() {
 	local "$@"
 	sudo limit_ranks_to_numa_node ${numa_rank}
@@ -32,14 +35,14 @@ export -f run_benchmark_baseline
 
 echo "NMC single-node (1/2)" >&2
 
-parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
 	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 numa_rank={numa_rank} \
 	::: numa_rank 0 1 \
 	::: nr_dpus 64 128 256 512 768 1024
 
 echo "NMC multi-node (2/2)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.2.joblog --header : \
 	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 numa_rank={numa_rank} \
 	::: numa_rank -1 \
 	::: nr_dpus 1536 2048 2304
@@ -49,25 +52,25 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 xz -f -v -9 -M 800M ${fn}.txt
 
 cd baselines/cpu
-make -B NUMA=1
+make -B NUMA=1 TYPE=int32_t
 
 (
 
 echo "CPU single-node (1/2)" >&2
 
-parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
 	run_benchmark_baseline nr_threads={nr_threads} ram={ram} cpu={cpu} \
 	::: cpu 0 1 \
 	::: ram 0 1 \
-	::: nr_threads 1 2 4 8 12 16 32
+	::: nr_threads 1 2 4 8 12 16
 
 echo "CPU multi-node (2/2)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.2.joblog --header : \
 	run_benchmark_baseline nr_threads={nr_threads} ram={ram} cpu={cpu} \
 	::: cpu -1 \
 	::: ram 0 1 \
-	::: nr_threads 48 64
+	::: nr_threads 24 32
 
 ) > ${fn}.txt
 
