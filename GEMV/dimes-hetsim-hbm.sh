@@ -24,7 +24,7 @@ export -f run_benchmark
 
 echo "CPU single-node (1/2)" >&2
 
-parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
 	run_benchmark nr_threads={nr_threads} ram={ram} cpu={cpu} \
 	::: cpu $(seq 0 7) \
 	::: ram $(seq 0 15) \
@@ -32,7 +32,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 
 echo "CPU multi-node (2/2)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.2.joblog --header : \
 	run_benchmark nr_threads={nr_threads} ram={ram} cpu={cpu} \
 	::: cpu -1 \
 	::: ram $(seq 0 15) \
