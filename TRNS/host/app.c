@@ -30,6 +30,9 @@
 #include <dpu_probe.h>
 #endif
 
+#include <dpu_management.h>
+#include <dpu_target_macros.h>
+
 // Pointer declaration
 static T* A_host;
 static T* A_backup;
@@ -93,6 +96,8 @@ int main(int argc, char **argv) {
 
     // Timer declaration
     Timer timer;
+
+    int numa_node_rank = -2;
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
@@ -250,6 +255,24 @@ int main(int argc, char **argv) {
                 first_round = 0;
             }
         }
+
+        // int prev_rank_id = -1;
+        int rank_id = -1;
+        DPU_FOREACH (dpu_set, dpu) {
+            rank_id = dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) & DPU_TARGET_MASK;
+            if ((numa_node_rank != -2) && numa_node_rank != dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)))) {
+                numa_node_rank = -1;
+            } else {
+                numa_node_rank = dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)));
+            }
+            /*
+            if (rank_id != prev_rank_id) {
+                printf("/dev/dpu_rank%d @ NUMA node %d\n", rank_id, numa_node_rank);
+                prev_rank_id = rank_id;
+            }
+            */
+        }
+
         start(&timer, 1, 1);
         DPU_ASSERT(dpu_free(dpu_set));
         stop(&timer, 1);
@@ -268,8 +291,8 @@ int main(int argc, char **argv) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             unsigned long input_size = M_ * m * N_ * n;
             if (rep >= p.n_warmup) {
-                printf("[::] TRNS UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%lu ",
-                    NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T), input_size);
+                printf("[::] TRNS UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%lu numa_node_rank=%d ",
+                    NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T), input_size, numa_node_rank);
                 printf("| latency_cpu_us=%f latency_realloc_us=%f latency_load_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f",
                     timer.time[0], // CPU
                     timer.time[1], // free + alloc

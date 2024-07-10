@@ -32,8 +32,15 @@
 #  THE SOFTWARE.
 # 
 
+NUMA ?= 0
+FLAGS =
+
+ifeq (${NUMA}, 1)
+	FLAGS += -lnuma
+endif
+
 CXX=g++
-CXX_FLAGS=-std=c++11
+CXX_FLAGS=-std=c++11 -Wall -Wextra -pedantic -DNUMA=${NUMA}
 
 LIB=-L/usr/lib/ -lm -pthread
 
@@ -44,7 +51,7 @@ EXE=trns
 all: trns
 
 trns: ${SRC}
-	$(CXX) -O2 $(CXX_FLAGS) $(SRC) $(LIB) -o $(EXE)
+	$(CXX) -O2 $(CXX_FLAGS) $(SRC) $(LIB) -o $(EXE) $(FLAGS)
 
 trns_O0: ${SRC}
 	$(CXX) $(CXX_FLAGS) $(SRC) $(LIB) -o $(EXE)_O0

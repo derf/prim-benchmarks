@@ -47,6 +47,19 @@
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
+#if NUMA
+#include <numaif.h>
+#include <numa.h>
+
+void* mp_pages[1];
+int mp_status[1];
+int mp_nodes[1];
+int numa_node_in = -1;
+int numa_node_out = -1;
+int numa_node_cpu = -1;
+#endif
+
+
 // Params ---------------------------------------------------------------------
 struct Params {
 
@@ -57,6 +70,11 @@ struct Params {
     int m;
     int N_;
     int n;
+#if NUMA
+    struct bitmask* bitmask_in;
+    struct bitmask* bitmask_out;
+    int numa_node_cpu;
+#endif
 
     Params(int argc, char **argv) {
         n_threads     = 4;
@@ -66,8 +84,13 @@ struct Params {
         m             = 16;
         N_            = 128;
         n             = 8;
+#if NUMA
+        bitmask_in    = NULL;
+        bitmask_out   = NULL;
+        numa_node_cpu = -1;
+#endif
         int opt;
-        while((opt = getopt(argc, argv, "ht:w:r:m:n:o:p:")) >= 0) {
+        while((opt = getopt(argc, argv, "ht:w:r:m:n:o:p:a:b:c:")) >= 0) {
             switch(opt) {
             case 'h':
                 usage();
@@ -80,6 +103,11 @@ struct Params {
             case 'n': n             = atoi(optarg); break;
             case 'o': M_            = atoi(optarg); break;
             case 'p': N_            = atoi(optarg); break;
+#if NUMA
+            case 'a': bitmask_in    = numa_parse_nodestring(optarg); break;
+            case 'b': bitmask_out   = numa_parse_nodestring(optarg); break;
+            case 'c': numa_node_cpu = atoi(optarg); break;
+#endif
             default:
                 fprintf(stderr, "\nUnrecognized option!\n");
                 usage();
@@ -133,11 +161,41 @@ int main(int argc, char **argv) {
     int n       = p.n;
     int in_size       = M_ * m * N_ * n;
     int finished_size = M_ * m * N_;
+
+#if NUMA
+    if (p.bitmask_in) {
+        numa_set_membind(p.bitmask_in);
+        numa_free_nodemask(p.bitmask_in);
+    }
+    T *              h_in_out = (T *)numa_alloc(in_size * sizeof(T));
+    std::atomic_int *h_finished =
+        (std::atomic_int *)numa_alloc(sizeof(std::atomic_int) * finished_size);
+#else
     T *              h_in_out = (T *)malloc(in_size * sizeof(T));
     std::atomic_int *h_finished =
         (std::atomic_int *)malloc(sizeof(std::atomic_int) * finished_size);
+#endif
+
+#if NUMA
+    if (p.bitmask_out) {
+        numa_set_membind(p.bitmask_out);
+        numa_free_nodemask(p.bitmask_out);
+    }
+    std::atomic_int *h_head = (std::atomic_int *)numa_alloc(N_ * sizeof(std::atomic_int));
+#else
     std::atomic_int *h_head = (std::atomic_int *)malloc(N_ * sizeof(std::atomic_int));
+#endif
+
     ALLOC_ERR(h_in_out, h_finished, h_head);
+
+
+#if NUMA
+    struct bitmask *bitmask_all = numa_allocate_nodemask();
+    numa_bitmask_setall(bitmask_all);
+    numa_set_membind(bitmask_all);
+    numa_free_nodemask(bitmask_all);
+#endif
+
     T *h_in_backup = (T *)malloc(in_size * sizeof(T));
     ALLOC_ERR(h_in_backup);
     timer.stop("Allocation");
@@ -152,6 +210,40 @@ int main(int argc, char **argv) {
     timer.stop("Initialization");
     //timer.print("Initialization", 1);
     memcpy(h_in_backup, h_in_out, in_size * sizeof(T)); // Backup for reuse across iterations
+
+#if NUMA
+    mp_pages[0] = h_in_out;
+    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+        perror("move_pages(A)");
+    }
+    else if (mp_status[0] < 0) {
+        printf("move_pages error: %d", mp_status[0]);
+    }
+    else {
+        numa_node_in = mp_status[0];
+    }
+
+    mp_pages[0] = h_finished;
+    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+        perror("move_pages(C)");
+    }
+    else if (mp_status[0] < 0) {
+        printf("move_pages error: %d", mp_status[0]);
+    }
+    else {
+        numa_node_out = mp_status[0];
+    }
+
+    numa_node_cpu = p.numa_node_cpu;
+    if (numa_node_cpu != -1) {
+        if (numa_run_on_node(numa_node_cpu) == -1) {
+            perror("numa_run_on_node");
+            numa_node_cpu = -1;
+        }
+    }
+#endif
+
+
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
@@ -202,9 +294,15 @@ int main(int argc, char **argv) {
             timer.stop("Step 3");
 
         if (rep >= p.n_warmup) {
-            printf("[::] TRNS CPU | n_threads=%d e_type=%s n_elements=%d "
-                "| throughput_MBps=%f",
+            printf("[::] TRNS CPU | n_threads=%d e_type=%s n_elements=%d"
+#if NUMA
+                " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+#endif
+                " | throughput_MBps=%f",
                 p.n_threads, XSTR(T), in_size,
+#if NUMA
+                numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
+#endif
                 in_size * sizeof(T) / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));
             printf(" throughput_MOpps=%f",
                 in_size / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));
@@ -221,10 +319,17 @@ int main(int argc, char **argv) {
 
     // Free memory
     timer.start("Deallocation");
+#if NUMA
+    numa_free(h_in_out, in_size * sizeof(T));
+    numa_free(h_finished, sizeof(std::atomic_int) * finished_size);
+    numa_free(h_head, N_ * sizeof(std::atomic_int));
+    numa_free(h_in_backup, in_size * sizeof(T));
+#else
     free(h_in_out);
     free(h_finished);
     free(h_head);
     free(h_in_backup);
+#endif
     timer.stop("Deallocation");
     //timer.print("Deallocation", 1);
 
