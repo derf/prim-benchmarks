@@ -32,7 +32,7 @@ export -f run_benchmark
 
 echo "single-node execution, DPU ref (1/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
 	run_benchmark i={i} nr_threads={nr_threads} ram={ram} cpu={cpu} \
 	input_size=${input_size_dpu} num_queries=${num_queries_dpu} \
 	::: i $(seq 1 5) \
@@ -42,7 +42,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 
 echo "single-node execution, HBM ref (2/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.2.joblog --header : \
 	run_benchmark i={i} nr_threads={nr_threads} ram={ram} cpu={cpu} \
 	input_size=${input_size_hbm} num_queries=${num_queries_hbm} \
 	::: i $(seq 1 5) \
@@ -52,7 +52,7 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 
 echo "multi-node execution, DPU ref (3/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.3.joblog --header : \
 	run_benchmark i={i} nr_threads={nr_threads} ram={ram} cpu={cpu} \
 	input_size=${input_size_dpu} num_queries=${num_queries_dpu} \
 	::: i $(seq 1 40) \
@@ -62,7 +62,7 @@ parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
 
 echo "multi-node execution, HBM ref (4/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.4.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.4.joblog --header : \
 	run_benchmark i={i} nr_threads={nr_threads} ram={ram} cpu={cpu} \
 	input_size=${input_size_hbm} num_queries=${num_queries_hbm} \
 	::: i $(seq 1 40) \

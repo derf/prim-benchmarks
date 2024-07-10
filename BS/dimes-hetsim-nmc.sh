@@ -36,7 +36,7 @@ export -f run_benchmark_baseline
 
 echo "NMC single-node upstream-ref (1/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
 	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 numa_rank={numa_rank} \
 	num_queries=${num_queries_upstream} input_size=${input_size_upstream} \
 	::: numa_rank 0 1 \
@@ -44,7 +44,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 
 echo "NMC multi-node upstream-ref (2/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.2.joblog --header : \
 	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 numa_rank={numa_rank} \
 	num_queries=${num_queries_upstream} input_size=${input_size_upstream} \
 	::: numa_rank -1 \
@@ -52,7 +52,7 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 
 echo "NMC single-node DPU-ref (3/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.3.joblog --header : \
 	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 numa_rank={numa_rank} \
 	num_queries=${num_queries_dpu} input_size=${input_size_dpu} \
 	::: numa_rank 0 1 \
@@ -60,7 +60,7 @@ parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
 
 echo "NMC multi-node DPU-ref (4/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.4.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.4.joblog --header : \
 	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 numa_rank={numa_rank} \
 	num_queries=${num_queries_dpu} input_size=${input_size_dpu} \
 	::: numa_rank -1 \
@@ -77,7 +77,7 @@ make -B NUMA=1
 
 echo "CPU single-node upstream-ref (1/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
 	run_benchmark_baseline i={i} nr_threads={nr_threads} ram={ram} cpu={cpu} \
 	num_queries=${num_queries_upstream} input_size=${input_size_upstream} \
 	::: i $(seq 1 20) \
@@ -87,7 +87,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 
 echo "CPU single-node DPU-ref (2/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.2.joblog --header : \
 	run_benchmark_baseline i={i} nr_threads={nr_threads} ram={ram} cpu={cpu} \
 	num_queries=${num_queries_dpu} input_size=${input_size_dpu} \
 	::: i $(seq 1 20) \
@@ -97,7 +97,7 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 
 echo "CPU multi-node upstream-ref (3/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.3.joblog --header : \
 	run_benchmark_baseline i={i} nr_threads={nr_threads} ram={ram} cpu={cpu} \
 	num_queries=${num_queries_upstream} input_size=${input_size_upstream} \
 	::: i $(seq 1 20) \
@@ -107,7 +107,7 @@ parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
 
 echo "CPU multi-node DPU-ref (4/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.4.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.4.joblog --header : \
 	run_benchmark_baseline i={i} nr_threads={nr_threads} ram={ram} cpu={cpu} \
 	num_queries=${num_queries_dpu} input_size=${input_size_dpu} \
 	::: i $(seq 1 20) \
