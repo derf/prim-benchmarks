@@ -1,5 +1,6 @@
 NUMA ?= 0
 FLAGS =
+TYPE ?= double
 
 ifeq (${NUMA}, 1)
 	FLAGS += -lnuma
@@ -9,7 +10,7 @@ endif
 all: gemv
 
 gemv: gemv_openmp.c
-	gcc -Wall -Wextra -pedantic -march=native -O2 -o gemv -fopenmp -DNUMA=${NUMA} gemv_openmp.c ${FLAGS}
+	gcc -Wall -Wextra -pedantic -march=native -O2 -o gemv -fopenmp -DNUMA=${NUMA} -DT=${TYPE} -DTYPE_${TYPE} gemv_openmp.c ${FLAGS}
 
 gemv_O0: gemv_openmp.c
 	gcc -o gemv_O0 -fopenmp gemv_openmp.c

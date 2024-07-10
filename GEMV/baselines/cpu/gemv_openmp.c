@@ -6,6 +6,10 @@
 #include <numaif.h>
 #include <numa.h>
 
+#ifndef T
+#define T double
+#endif
+
 struct bitmask* bitmask_in;
 struct bitmask* bitmask_out;
 
@@ -16,6 +20,9 @@ int numa_node_in = -1;
 int numa_node_out = -1;
 int numa_node_cpu = -1;
 #endif
+
+#define XSTR(x) STR(x)
+#define STR(x) #x
 
 #include "gemv_utils.h"
 
@@ -31,12 +38,14 @@ int main(int argc, char *argv[])
     const size_t rows = 163840;
     const size_t cols = 4096;
 
-    double **A, *b, *x;
+    T **A, *b, *x;
 
 #if NUMA
     bitmask_in    = numa_parse_nodestring(argv[1]);
     bitmask_out   = numa_parse_nodestring(argv[2]);
     numa_node_cpu = atoi(argv[3]);
+#else
+    (void) argv;
 #endif
 
 #if NUMA
@@ -44,9 +53,9 @@ int main(int argc, char *argv[])
         numa_set_membind(bitmask_out);
         numa_free_nodemask(bitmask_out);
     }
-    b = (double*) numa_alloc(sizeof(double)*rows);
+    b = (T*) numa_alloc(sizeof(T)*rows);
 #else
-    b = (double*) malloc(sizeof(double)*rows);
+    b = (T*) malloc(sizeof(T)*rows);
 #endif
 
 #if NUMA
@@ -54,9 +63,9 @@ int main(int argc, char *argv[])
         numa_set_membind(bitmask_in);
         // no free yet, re-used in allocate_dense
     }
-    x = (double*) numa_alloc(sizeof(double)*cols);
+    x = (T*) numa_alloc(sizeof(T)*cols);
 #else
-    x = (double*) malloc(sizeof(double)*cols);
+    x = (T*) malloc(sizeof(T)*cols);
 #endif
 
     allocate_dense(rows, cols, &A);
@@ -108,12 +117,12 @@ int main(int argc, char *argv[])
         {
 #pragma omp for
         for (size_t i = 0; i < cols; i++) {
-          x[i] = (double) i+1 ;
+          x[i] = (T) i+1 ;
         }
 
 #pragma omp for
         for (size_t i = 0; i < rows; i++) {
-          b[i] = (double) 0.0;
+          b[i] = (T) 0;
         }
         }
 
@@ -130,11 +139,11 @@ int main(int argc, char *argv[])
             " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
             " | throughput_MBps=%f",
-            nr_threads, "double", rows * cols,
+            nr_threads, STR(T), rows * cols,
 #if NUMA
             numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
 #endif
-            rows * cols * sizeof(double) / timer.time[0]);
+            rows * cols * sizeof(T) / timer.time[0]);
         printf(" throughput_MOpps=%f",
             rows * cols / timer.time[0]);
         printall(&timer, 0);
@@ -147,13 +156,17 @@ int main(int argc, char *argv[])
   print_vec(b, rows);
 #endif
 
+#if TYPE_double || TYPE_float
   printf("sum(x) = %f, sum(Ax) = %f\n", sum_vec(x,cols), sum_vec(b,rows));
+#else
+  printf("sum(x) = %d, sum(Ax) = %d\n", sum_vec(x,cols), sum_vec(b,rows));
+#endif
 
 #if NUMA
-  numa_free(b, sizeof(double)*rows);
-  numa_free(x, sizeof(double)*cols);
-  numa_free(*A, sizeof(double)*rows*cols);
-  numa_free(A, sizeof(double)*rows);
+  numa_free(b, sizeof(T)*rows);
+  numa_free(x, sizeof(T)*cols);
+  numa_free(*A, sizeof(T)*rows*cols);
+  numa_free(A, sizeof(void*)*rows);
 #else
   free(b);
   free(x);
@@ -164,7 +177,7 @@ int main(int argc, char *argv[])
   return 0;
 }
 
-void gemv(double** A, double* x, size_t rows, size_t cols, double** b) {
+void gemv(T** A, T* x, size_t rows, size_t cols, T** b) {
 #pragma omp parallel for
   for (size_t i = 0; i < rows; i ++ )
   for (size_t j = 0; j < cols; j ++ ) {
@@ -172,17 +185,21 @@ void gemv(double** A, double* x, size_t rows, size_t cols, double** b) {
   }
 }
 
-void make_hilbert_mat(size_t rows, size_t cols, double*** A) {
+void make_hilbert_mat(size_t rows, size_t cols, T*** A) {
 #pragma omp parallel for
   for (size_t i = 0; i < rows; i++) {
     for (size_t j = 0; j < cols; j++) {
-      (*A)[i][j] = 1.0/( (double) i + (double) j + 1.0);
+#if TYPE_double || TYPE_float
+      (*A)[i][j] = 1.0/( (T) i + (T) j + 1.0);
+#else
+      (*A)[i][j] = (T)(((i+j)%10));
+#endif
     }
   }
 }
 
-double sum_vec(double* vec, size_t rows) {
-  double sum = 0.0;
+T sum_vec(T* vec, size_t rows) {
+  T sum = 0;
 #pragma omp parallel for reduction(+:sum)
   for (int i = 0; i < rows; i++) sum = sum + vec[i];
   return sum;

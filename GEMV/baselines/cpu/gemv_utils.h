@@ -1,15 +1,15 @@
-void allocate_dense(size_t rows,size_t  cols, double*** dense) {
+void allocate_dense(size_t rows,size_t  cols, T*** dense) {
 
 #if NUMA
     if (bitmask_in) {
         numa_set_membind(bitmask_in);
         numa_free_nodemask(bitmask_in);
     }
-  *dense = numa_alloc(sizeof(double)*rows);
-  **dense = numa_alloc(sizeof(double)*rows*cols);
+  *dense = numa_alloc(sizeof(void*)*rows);
+  **dense = numa_alloc(sizeof(T)*rows*cols);
 #else
-  *dense = malloc(sizeof(double)*rows);
-  **dense = malloc(sizeof(double)*rows*cols);
+  *dense = malloc(sizeof(void*)*rows);
+  **dense = malloc(sizeof(T)*rows*cols);
 #endif
 
   for (size_t i=0; i < rows; i++ ) {
@@ -18,7 +18,7 @@ void allocate_dense(size_t rows,size_t  cols, double*** dense) {
 
 }
 
-void print_mat(double** A, size_t rows, size_t cols) {
+void print_mat(T** A, size_t rows, size_t cols) {
   for (size_t i = 0; i < rows; i++) {
     for (size_t j = 0; j < cols; j++) {
       printf("%f ", A[i][j]);
@@ -27,12 +27,12 @@ void print_mat(double** A, size_t rows, size_t cols) {
   }
 }
 
-void print_vec(double* b, size_t rows) {
+void print_vec(T* b, size_t rows) {
   for (size_t i = 0; i < rows; i++) {
     printf("%f\n", b[i]);
   }
 }
 
-void gemv(double** A, double* x, size_t rows, size_t cols, double** b);
-void make_hilbert_mat(size_t rows, size_t cols, double*** A);
-double sum_vec(double* vec, size_t rows);
+void gemv(T** A, T* x, size_t rows, size_t cols, T** b);
+void make_hilbert_mat(size_t rows, size_t cols, T*** A);
+T sum_vec(T* vec, size_t rows);
