@@ -1,29 +1,41 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
-echo "prim-benchmarks CPU-DPU alloc (dfatool edition)"
-echo "Started at $(date)"
-echo "Revision $(git describe --always)"
+mkdir -p log/$(hostname)
+fn=log/$(hostname)/$(date +%Y%m%d).a
 
-for i in $(seq 1 20); do
-	for rank_node in 0 1; do
-		sudo limit_ranks_to_numa_node $rank_node
-		for j in $(seq 0 16); do
-			echo $i/20 $j/16
-			./make-size.sh $j
-			n_nops=$((j * 256))
-			if make -B NR_RANKS=$i NR_TASKLETS=1 BL=10 DPU_BINARY=\'\"bin/dpu_size\"\' NUMA=1; then
-				for l in $(seq 1 100); do
-					bin/host_code -c 0 -w 1 -e 0 -x 1 -i 65536 -N $n_nops -I $(size -A bin/dpu_size | awk '($1 == ".text") {print $2/8}') || true
-					bin/host_code -c 1 -w 1 -e 0 -x 1 -i 65536 -N $n_nops -I $(size -A bin/dpu_size | awk '($1 == ".text") {print $2/8}') || true
-				done
-			fi
+run_benchmark_nmc() {
+	local "$@"
+	sudo limit_ranks_to_numa_node ${numa_rank}
+	./make-size.sh ${size}
+	n_nops=$((size * 256))
+	if make -B NR_RANKS=${nr_ranks} NR_TASKLETS=1 BL=10 DPU_BINARY=\'\"bin/dpu_size\"\' NUMA=1; then
+		for l in $(seq 1 20); do
+			bin/host_code -c ${numa_cpu} -w 1 -e 0 -x 1 -i 65536 -N $n_nops -I $(size -A bin/dpu_size | awk '($1 == ".text") {print $2/8}')
 		done
-	done
+	fi
+	return $?
+}
 
-done
+export -f run_benchmark_nmc
 
-sudo limit_ranks_to_numa_node any
+(
 
-echo "Completed at $(date)"
+parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+	run_benchmark_nmc nr_ranks={nr_ranks} numa_rank={numa_rank} numa_cpu={numa_cpu} size={size} \
+	::: i $(seq 1 5) \
+	::: numa_rank 0 1 \
+	::: numa_cpu 0 1 \
+	::: nr_ranks $(seq 1 20) \
+	::: size $(seq 0 16) \
+
+parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+	run_benchmark_nmc nr_ranks={nr_ranks} numa_rank={numa_rank} numa_cpu={numa_cpu} size={size} \
+	::: i $(seq 1 5) \
+	::: numa_rank any \
+	::: numa_cpu 0 1 \
+	::: nr_ranks $(seq 21 40) \
+	::: size $(seq 0 16) \
+
+) >> ${fn}.txt

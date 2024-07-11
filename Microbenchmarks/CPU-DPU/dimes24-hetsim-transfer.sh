@@ -1,48 +1,44 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
-echo "prim-benchmarks CPU-DPU alloc (dfatool edition)"
-echo "Started at $(date)"
-echo "Revision $(git describe --always)"
+mkdir -p log/$(hostname)
+fn=log/$(hostname)/$(date +%Y%m%d).t
 
 ./make-size.sh 0
 
-for i in $(seq 1 20); do
-	for k in BROADCAST; do
-		# BROADCAST sends the same data to all DPUs, so data size must not exceed the amount of MRAM available on a single DPU (i.e., 64 MB)
-		for l in 4194304 6291456; do
-			make -B NR_RANKS=$i NR_TASKLETS=1 BL=10 TRANSFER=$k NUMA=1
-			for numa_rank in 0 1; do
-				sudo limit_ranks_to_numa_node $numa_rank
-				for numa_in in 0 1; do
-					for numa_out in 0 1; do
-						for numa_cpu in 0 1; do
-							bin/host_code -a $numa_in -b $numa_out -c $numa_cpu -w 0 -e 100 -x 1 -N 0 -I $(size -A bin/dpu_code | awk '($1 == ".text") {print $2/8}')  -i $l
-						done
-					done
-				done
-			done
-		done
-	done
+run_benchmark_nmc() {
+	local "$@"
+	sudo limit_ranks_to_numa_node ${numa_rank}
+	make -B NR_RANKS=${nr_ranks} NR_TASKLETS=1 BL=10 TRANSFER=PUSH NUMA=1
+	bin/host_code -a $numa_in -b $numa_out -c $numa_cpu -w 0 -e 20 -x 0 -N 0 -I $(size -A bin/dpu_code | awk '($1 == ".text") {print $2/8}') -i ${input_size}
+	return $?
+}
 
-	# utilize 32MiB / 50% of per-DPU MRAM capacity -- otherwise DRAM capacity per NUMA node is insufficient
-	for numa_rank in 0 1; do
-		sudo limit_ranks_to_numa_node $numa_rank
-		for numa_in in 0 1; do
-			for numa_out in 0 1; do
-				for numa_cpu in 0 1; do
-					make -B NR_RANKS=$i NR_TASKLETS=1 BL=10 TRANSFER=PUSH NUMA=1
-					bin/host_code -a $numa_in -b $numa_out -c $numa_cpu -w 0 -e 100 -x 0 -N 0 -I $(size -A bin/dpu_code | awk '($1 == ".text") {print $2/8}') -i 1
-					bin/host_code -a $numa_in -b $numa_out -c $numa_cpu -w 0 -e 100 -x 0 -N 0 -I $(size -A bin/dpu_code | awk '($1 == ".text") {print $2/8}') -i 4194304
-					make -B NR_RANKS=$i NR_TASKLETS=1 BL=10 TRANSFER=SERIAL NUMA=1
-					bin/host_code -a $numa_in -b $numa_out -c $numa_cpu -w 0 -e 100 -x 0 -N 0 -I $(size -A bin/dpu_code | awk '($1 == ".text") {print $2/8}') -i 1
-				done
-			done
-		done
-	done
-done
+export -f run_benchmark_nmc
 
-sudo limit_ranks_to_numa_node any
+# 16 MiB per DPU
 
-echo "Completed at $(date)"
+(
+
+parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+	run_benchmark_nmc nr_ranks={nr_ranks} numa_rank={numa_rank} numa_in={numa_in} numa_out={numa_out} numa_cpu={numa_cpu} input_size={input_size} \
+	::: i $(seq 1 5) \
+	::: numa_rank 0 1 \
+	::: numa_in 0 1 \
+	::: numa_out 0 1 \
+	::: numa_cpu 0 1 \
+	::: nr_ranks $(seq 1 20) \
+	::: input_size 1 2097152
+
+parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+	run_benchmark_nmc nr_ranks={nr_ranks} numa_rank={numa_rank} numa_in={numa_in} numa_out={numa_out} numa_cpu={numa_cpu} input_size={input_size} \
+	::: i $(seq 1 5) \
+	::: numa_rank any \
+	::: numa_in 0 1 \
+	::: numa_out 0 1 \
+	::: numa_cpu 0 1 \
+	::: nr_ranks $(seq 21 40) \
+	::: input_size 1 2097152
+
+) >> ${fn}.txt
