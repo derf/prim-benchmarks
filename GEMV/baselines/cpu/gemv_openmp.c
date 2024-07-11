@@ -139,7 +139,7 @@ int main(int argc, char *argv[])
             " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
             " | throughput_MBps=%f",
-            nr_threads, STR(T), rows * cols,
+            nr_threads, XSTR(T), rows * cols,
 #if NUMA
             numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
 #endif
