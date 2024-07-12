@@ -220,12 +220,12 @@ int main(int argc, char **argv) {
 #if NUMA
                 " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
-                " | throughput_MBps=%f",
+                " | latency_us=%f throughput_MBps=%f",
                 nr_threads, XSTR(T), input_size,
 #if NUMA
                 numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
 #endif
-                input_size * 3 * sizeof(T) / timer.time[0]);
+                timer.time[0], input_size * 3 * sizeof(T) / timer.time[0]);
             printf(" throughput_MOpps=%f",
                 input_size / timer.time[0]);
             printall(&timer, 0);
