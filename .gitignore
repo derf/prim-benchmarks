@@ -1,3 +1,5 @@
+bin
+
 log-paper-strong-full.txt
 log-paper-strong-rank.txt
 log-paper-weak.txt
@@ -13,6 +15,12 @@ BFS/baselines/cpu/bfs
 BS/baselines/cpu/bs_omp
 
 GEMV/baselines/cpu/gemv
+
+RED/baselines/cpu/red
+
+SCAN-RSS/baselines/cpu/scan
+
+SEL/baselines/cpu/sel
 
 TRNS/baselines/cpu/trns
 
