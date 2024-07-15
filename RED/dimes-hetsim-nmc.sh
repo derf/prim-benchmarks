@@ -47,7 +47,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 	./red -i 419430400 -w 0 -e 5 -t 8 -x 1 -a {ram} -c {cpu} \
 	::: cpu 0 1 \
 	::: ram 0 1 \
-	::: nr_threads 1 2 4 8 12 16 32
+	::: nr_threads 1 2 4 8 12 16
 
 echo "CPU multi-node (2/2)" >&2
 
@@ -55,7 +55,7 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	./red -i 419430400 -w 0 -e 5 -t 8 -x 1 -a {ram} -c {cpu} \
 	::: cpu -1 \
 	::: ram 0 1 \
-	::: nr_threads 48 64
+	::: nr_threads 24 32
 
 ) > ${fn}.txt
 

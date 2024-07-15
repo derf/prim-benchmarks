@@ -4,7 +4,7 @@ cd baselines/cpu
 make -B NUMA=1
 
 mkdir -p log/$(hostname)
-fn=log/$(hostname)/$(date +%Y%m%d)-baseline
+fn=log/$(hostname)/$(date +%Y%m%d)
 
 # upstream DPU version uses 419430400 * int64 == 3.125 GiB
 
@@ -21,7 +21,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 echo "CPU multi-node (2/2)" >&2
 
 parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
-	./red -i 419430400 -w 0 -e 5 -t 8 -x 1 -a {ram} -c {cpu} \
+	./red -i 419430400 -w 0 -e 40 -t 8 -x 1 -a {ram} -c {cpu} \
 	::: cpu -1 \
 	::: ram $(seq 0 15) \
 	::: nr_threads 32 48 64 96 128
