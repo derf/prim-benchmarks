@@ -4,6 +4,7 @@ mkdir -p log/$(hostname) baselines/cpu/log/$(hostname)
 fn=log/$(hostname)/$(date +%Y%m%d)
 
 # 2^28 elem == 2 GiB data (upstream version uses 1.875 GiB)
+# upstrem DPU and upstream CPU use uint64_t
 
 run_benchmark_nmc() {
 	local "$@"

@@ -33,6 +33,8 @@ int numa_node_cpu = -1;
 #define T uint64_t
 #endif
 
+volatile int total_count;
+
 // Params ---------------------------------------------------------------------
 typedef struct Params {
     char* dpu_type;
@@ -58,7 +60,7 @@ bool pred(const T x){
 }
 
 
-void  *create_test_file(unsigned int nr_elements) {
+void create_test_file(unsigned int nr_elements) {
     //srand(0);
 
 #if NUMA
@@ -88,7 +90,7 @@ void  *create_test_file(unsigned int nr_elements) {
     numa_free_nodemask(bitmask_all);
 #endif
 
-    for (int i = 0; i < nr_elements; i++) {
+    for (unsigned int i = 0; i < nr_elements; i++) {
         //A[i] = (unsigned int) (rand());
         A[i] = i+1;
     }
@@ -208,7 +210,6 @@ int main(int argc, char **argv) {
     input_params(argc, argv);
 
     const unsigned int file_size = p.input_size;
-    int total_count;
 
     // Create an input file with arbitrary data.
     create_test_file(file_size);
