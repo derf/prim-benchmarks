@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 mkdir -p log/$(hostname)
 fn=log/$(hostname)/$(date +%Y%m%d).t
 
@@ -9,6 +7,7 @@ fn=log/$(hostname)/$(date +%Y%m%d).t
 
 run_benchmark_nmc() {
 	local "$@"
+	set -e
 	sudo limit_ranks_to_numa_node ${numa_rank}
 	make -B NR_RANKS=${nr_ranks} NR_TASKLETS=1 BL=10 TRANSFER=PUSH NUMA=1
 	bin/host_code -a $numa_in -b $numa_out -c $numa_cpu -w 0 -e 20 -x 0 -N 0 -I $(size -A bin/dpu_code | awk '($1 == ".text") {print $2/8}') -i ${input_size}
