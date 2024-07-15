@@ -1,12 +1,11 @@
 #!/bin/bash
 
-set -e
-
 mkdir -p log/$(hostname)
 fn=log/$(hostname)/$(date +%Y%m%d).a
 
 run_benchmark_nmc() {
 	local "$@"
+	set -e
 	sudo limit_ranks_to_numa_node ${numa_rank}
 	./make-size.sh ${size}
 	n_nops=$((size * 256))
@@ -28,7 +27,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 	::: numa_rank 0 1 \
 	::: numa_cpu 0 1 \
 	::: nr_ranks $(seq 1 20) \
-	::: size $(seq 0 16) \
+	::: size $(seq 0 16)
 
 parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	run_benchmark_nmc nr_ranks={nr_ranks} numa_rank={numa_rank} numa_cpu={numa_cpu} size={size} \
@@ -36,6 +35,6 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	::: numa_rank any \
 	::: numa_cpu 0 1 \
 	::: nr_ranks $(seq 21 40) \
-	::: size $(seq 0 16) \
+	::: size $(seq 0 16)
 
 ) >> ${fn}.txt
