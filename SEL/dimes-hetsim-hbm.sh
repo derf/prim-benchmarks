@@ -12,7 +12,7 @@ fn=log/$(hostname)/$(date +%Y%m%d)
 (
 
 parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
-	./sel -a {ram} -b {ram} -c {cpu} -i {input_size} -t {nr_threads} -w 0 -e 40 \
+	./sel -a {ram} -b {ram} -c {cpu} -i {input_size} -t {nr_threads} -w 0 -e 5 \
 	::: nr_threads 1 2 4 8 12 16 \
 	::: cpu $(seq 0 7) \
 	::: ram $(seq 0 15) \
