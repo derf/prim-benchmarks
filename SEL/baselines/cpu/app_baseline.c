@@ -227,7 +227,7 @@ int main(int argc, char **argv) {
         nr_threads++;
 
         if (rep >= p.n_warmup) {
-            printf("[::] SEL | n_threads=%d e_type=%s n_elements=%d"
+            printf("[::] SEL-CPU | n_threads=%d e_type=%s n_elements=%d"
 #if NUMA
                 " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
