@@ -253,6 +253,7 @@ int main(int argc, char **argv) {
             A_local = A;
             B_local = B;
         }
+        stop(&timer, 2);
         mp_pages[0] = A_local;
         if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
             perror("move_pages(A_local)");
@@ -263,7 +264,6 @@ int main(int argc, char **argv) {
         else {
             numa_node_local = mp_status[0];
         }
-        stop(&timer, 2);
 #endif
 
         start(&timer, 0, 0);
