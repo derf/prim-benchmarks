@@ -4,7 +4,7 @@ cd baselines/cpu
 make -B NUMA=1
 
 mkdir -p log/$(hostname)
-fn=log/$(hostname)/$(date +%Y%m%d)
+fn=log/$(hostname)/dimes-hetsim-hbm
 
 # upstream uses 167772160 * 2 * int32 == 2.5 GiB input and 1.25 GiB output for DPU version
 
@@ -12,7 +12,7 @@ fn=log/$(hostname)/$(date +%Y%m%d)
 
 echo "single-node execution (1/2)" >&2
 
-parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
+parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 	./va -i {input_size} -a {ram} -b {ram} -c {cpu} -t {nr_threads} -w 0 -e 5 \
 	::: nr_threads 1 2 4 8 12 16 \
 	::: cpu $(seq 0 7) \
@@ -21,13 +21,11 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
 
 echo "multi-node execution (2/2)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --header : \
+parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	./va -i {input_size} -a {ram} -b {ram} -c {cpu} -t {nr_threads} -w 0 -e 40 \
 	::: nr_threads 32 48 64 96 128 \
 	::: cpu -1 \
 	::: ram $(seq 0 15) \
 	::: input_size 167772160
 
-) > ${fn}.txt
-
-xz -f -v -9 -M 800M ${fn}.txt
+) >> ${fn}.txt
