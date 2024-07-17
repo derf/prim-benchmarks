@@ -39,6 +39,7 @@ static T *B;
 static T *C;
 
 #if NUMA_MEMCPY
+int numa_node_local = -1;
 int numa_node_in_is_local = 0;
 static T *A_local;
 static T *B_local;
@@ -109,7 +110,7 @@ struct Params input_params(int argc, char **argv) {
 #endif
 
     int opt;
-    while((opt = getopt(argc, argv, "hi:w:e:x:t:a:b:c:")) >= 0) {
+    while((opt = getopt(argc, argv, "hi:w:e:x:t:a:b:c:C:")) >= 0) {
         switch(opt) {
         case 'h':
         usage();
@@ -123,11 +124,9 @@ struct Params input_params(int argc, char **argv) {
 #if NUMA
         case 'a': p.bitmask_in    = numa_parse_nodestring(optarg); break;
         case 'b': p.bitmask_out   = numa_parse_nodestring(optarg); break;
-#if NUMA_MEMCPY
-        case 'c': p.numa_node_cpu = atoi(optarg);
-                  p.bitmask_cpu   = numa_parse_nodestring(optarg); break;
-#else
         case 'c': p.numa_node_cpu = atoi(optarg); break;
+#if NUMA_MEMCPY
+        case 'C': p.bitmask_cpu   = numa_parse_nodestring(optarg); break;
 #endif // NUMA_MEMCPY
 #endif // NUMA
         default:
@@ -254,6 +253,16 @@ int main(int argc, char **argv) {
             A_local = A;
             B_local = B;
         }
+        mp_pages[0] = A_local;
+        if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+            perror("move_pages(A_local)");
+        }
+        else if (mp_status[0] < 0) {
+            printf("move_pages error: %d", mp_status[0]);
+        }
+        else {
+            numa_node_local = mp_status[0];
+        }
         stop(&timer, 2);
 #endif
 
@@ -278,10 +287,10 @@ int main(int argc, char **argv) {
         if (rep >= p.n_warmup) {
 #if NUMA_MEMCPY
             printf("[::] VA-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%d"
-                " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+                " numa_node_in=%d numa_node_local=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
                 " | throughput_MBps=%f",
                 nr_threads, XSTR(T), input_size,
-                numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
+                numa_node_in, numa_node_local, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
                 input_size * 3 * sizeof(T) / timer.time[0]);
             printf(" throughput_MOpps=%f",
                 input_size / timer.time[0]);
