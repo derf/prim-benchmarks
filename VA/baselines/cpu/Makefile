@@ -1,4 +1,5 @@
 NUMA ?= 0
+NUMA_MEMCPY ?= 0
 FLAGS =
 
 ifeq (${NUMA}, 1)
@@ -11,7 +12,7 @@ all: va
 TYPE ?= int32_t
 
 va: app_baseline.c
-	gcc -Wall -Wextra -pedantic -march=native -O2 -o va -fopenmp -DNUMA=${NUMA} -DT=${TYPE} app_baseline.c ${FLAGS}
+	gcc -Wall -Wextra -pedantic -march=native -O2 -o va -fopenmp -DNUMA=${NUMA} -DNUMA_MEMCPY=${NUMA_MEMCPY} -DT=${TYPE} app_baseline.c ${FLAGS}
 
 va_O0: app_baseline.c
 	gcc -o va_O0 -fopenmp app_baseline.c

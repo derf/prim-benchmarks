@@ -38,6 +38,12 @@ static T *A;
 static T *B;
 static T *C;
 
+#if NUMA_MEMCPY
+int numa_node_in_is_local = 0;
+static T *A_local;
+static T *B_local;
+#endif
+
 /**
 * @brief compute output in the host
 */
@@ -45,7 +51,11 @@ static void vector_addition_host(unsigned int nr_elements, int t) {
     omp_set_num_threads(t);
     #pragma omp parallel for
     for (int i = 0; i < nr_elements; i++) {
+#if NUMA_MEMCPY
+        C[i] = A_local[i] + B_local[i];
+#else
         C[i] = A[i] + B[i];
+#endif
     }
 }
 
@@ -60,6 +70,9 @@ typedef struct Params {
     struct bitmask* bitmask_in;
     struct bitmask* bitmask_out;
     int numa_node_cpu;
+#endif
+#if NUMA_MEMCPY
+    struct bitmask* bitmask_cpu;
 #endif
 }Params;
 
@@ -89,7 +102,10 @@ struct Params input_params(int argc, char **argv) {
 #if NUMA
     p.bitmask_in     = NULL;
     p.bitmask_out    = NULL;
-    p.numa_node_cpu = -1;
+    p.numa_node_cpu  = -1;
+#endif
+#if NUMA_MEMCPY
+    p.bitmask_cpu    = NULL;
 #endif
 
     int opt;
@@ -107,8 +123,13 @@ struct Params input_params(int argc, char **argv) {
 #if NUMA
         case 'a': p.bitmask_in    = numa_parse_nodestring(optarg); break;
         case 'b': p.bitmask_out   = numa_parse_nodestring(optarg); break;
+#if NUMA_MEMCPY
+        case 'c': p.numa_node_cpu = atoi(optarg);
+                  p.bitmask_cpu   = numa_parse_nodestring(optarg); break;
+#else
         case 'c': p.numa_node_cpu = atoi(optarg); break;
-#endif
+#endif // NUMA_MEMCPY
+#endif // NUMA
         default:
             fprintf(stderr, "\nUnrecognized option!\n");
             usage();
@@ -165,11 +186,18 @@ int main(int argc, char **argv) {
     }
 
 #if NUMA
+#if NUMA_MEMCPY
+    if (p.bitmask_cpu) {
+        numa_set_membind(p.bitmask_cpu);
+        numa_free_nodemask(p.bitmask_cpu);
+    }
+#else
     struct bitmask *bitmask_all = numa_allocate_nodemask();
     numa_bitmask_setall(bitmask_all);
     numa_set_membind(bitmask_all);
     numa_free_nodemask(bitmask_all);
-#endif
+#endif // NUMA_MEMCPY
+#endif // NUMA
 
 #if NUMA
     mp_pages[0] = A;
@@ -203,12 +231,44 @@ int main(int argc, char **argv) {
     }
 #endif
 
+#if NUMA_MEMCPY
+    numa_node_in_is_local = ((numa_node_cpu == numa_node_in) || (numa_node_cpu + 8 == numa_node_in)) * 1;
+#endif
+
     Timer timer;
 
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
+
+#if NUMA_MEMCPY
+        start(&timer, 1, 0);
+        if (!numa_node_in_is_local) {
+            A_local = (T*) numa_alloc(input_size * sizeof(T));
+            B_local = (T*) numa_alloc(input_size * sizeof(T));
+        }
+        stop(&timer, 1);
+        start(&timer, 2, 0);
+        if (!numa_node_in_is_local) {
+            memcpy(A_local, A, input_size * sizeof(T));
+            memcpy(B_local, B, input_size * sizeof(T));
+        } else {
+            A_local = A;
+            B_local = B;
+        }
+        stop(&timer, 2);
+#endif
+
         start(&timer, 0, 0);
         vector_addition_host(input_size, p.n_threads);
         stop(&timer, 0);
+
+#if NUMA_MEMCPY
+        start(&timer, 3, 0);
+        if (!numa_node_in_is_local) {
+            numa_free(A_local, input_size * sizeof(T));
+            numa_free(B_local, input_size * sizeof(T));
+        }
+        stop(&timer, 3);
+#endif
 
         unsigned int nr_threads = 0;
 #pragma omp parallel
@@ -216,6 +276,19 @@ int main(int argc, char **argv) {
         nr_threads++;
 
         if (rep >= p.n_warmup) {
+#if NUMA_MEMCPY
+            printf("[::] VA-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%d"
+                " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+                " | throughput_MBps=%f",
+                nr_threads, XSTR(T), input_size,
+                numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
+                input_size * 3 * sizeof(T) / timer.time[0]);
+            printf(" throughput_MOpps=%f",
+                input_size / timer.time[0]);
+            printf(" latency_kernel_us=%f latency_alloc_us=%f latency_memcpy_us=%f latency_free_us=%f latency_total_us=%f\n",
+                timer.time[0], timer.time[1], timer.time[2], timer.time[3],
+                timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3]);
+#else
             printf("[::] VA-CPU | n_threads=%d e_type=%s n_elements=%d"
 #if NUMA
                 " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
@@ -228,7 +301,9 @@ int main(int argc, char **argv) {
                 input_size * 3 * sizeof(T) / timer.time[0]);
             printf(" throughput_MOpps=%f",
                 input_size / timer.time[0]);
-            printall(&timer, 0);
+            printf(" latency_us=%f\n",
+                timer.time[0]);
+#endif // NUMA_MEMCPY
         }
     }
 
