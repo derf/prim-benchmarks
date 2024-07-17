@@ -33,6 +33,7 @@
 # 
 
 NUMA ?= 0
+NUMA_MEMCPY ?= 0
 FLAGS =
 
 ifeq (${NUMA}, 1)
@@ -40,7 +41,7 @@ ifeq (${NUMA}, 1)
 endif
 
 CXX=g++
-CXX_FLAGS=-std=c++11 -Wall -Wextra -pedantic -DNUMA=${NUMA}
+CXX_FLAGS=-std=c++11 -Wall -Wextra -pedantic -DNUMA=${NUMA} -DNUMA_MEMCPY=${NUMA_MEMCPY}
 
 LIB=-L/usr/lib/ -lm -pthread
 
