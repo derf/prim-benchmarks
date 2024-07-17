@@ -288,13 +288,13 @@ int main(int argc, char **argv) {
         for(int i = 0; i < N_; i++){
             std::thread main_thread_3(run_cpu_threads_100, h_in_out + i * M_ * n * m, h_finished + i * M_ * n, h_head + i, M_, n, m, p.n_threads); //M_ * n);
             main_thread_3.join();
-		}
+        }
         // end timer
         if(rep >= p.n_warmup)
             timer.stop("Step 3");
 
         if (rep >= p.n_warmup) {
-            printf("[::] TRNS CPU | n_threads=%d e_type=%s n_elements=%d"
+            printf("[::] TRNS-CPU | n_threads=%d e_type=%s n_elements=%d"
 #if NUMA
                 " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
