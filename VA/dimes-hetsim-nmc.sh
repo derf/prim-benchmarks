@@ -40,17 +40,17 @@ make -B NUMA=1
 
 (
 
-echo "CPU single-node operation (1/4)" >&2
+echo "CPU single-node operation (1/3)" >&2
 
 parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 	./va -i {input_size} -a {ram_in} -b {ram_out} -c {cpu} -t {nr_threads} -w 0 -e 40 \
 	::: ram_in 0 1 \
-	:::      cpu 0 1 \
-	:::+ ram_out 0 1 \
+	::: ram_out 0 1 \
+	::: cpu 0 1 \
 	::: nr_threads 1 2 4 8 12 16 \
 	::: input_size 167772160
 
-echo "CPU multi-node operation (2/4)" >&2
+echo "CPU multi-node operation (2/3)" >&2
 
 parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	./va -i {input_size} -a {ram_in} -b {ram_out} -c {cpu} -t {nr_threads} -w 0 -e 40 \
@@ -66,7 +66,7 @@ make -B NUMA=1 NUMA_MEMCPY=1
 
 (
 
-echo "CPU single-node operation with setup cost" >&2
+echo "CPU single-node operation with setup cost, cpu/out on same node (3/3)" >&2
 
 parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
 	./va -i {input_size} -a {ram} -b {ram_out} -c {cpu} -C {cpu} -t {nr_threads} -w 0 -e 40 \
