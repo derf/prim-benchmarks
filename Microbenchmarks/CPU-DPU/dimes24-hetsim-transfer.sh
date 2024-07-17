@@ -10,7 +10,7 @@ run_benchmark_nmc() {
 	set -e
 	sudo limit_ranks_to_numa_node ${numa_rank}
 	make -B NR_RANKS=${nr_ranks} NR_TASKLETS=1 BL=10 TRANSFER=PUSH NUMA=1
-	bin/host_code -a $numa_in -b $numa_out -c $numa_cpu -w 0 -e 20 -x 0 -N 0 -I $(size -A bin/dpu_code | awk '($1 == ".text") {print $2/8}') -i ${input_size}
+	bin/host_code -a $numa_in -b $numa_out -c $numa_cpu -w 0 -e 5 -x 0 -N 0 -I $(size -A bin/dpu_code | awk '($1 == ".text") {print $2/8}') -i ${input_size}
 	return $?
 }
 
@@ -22,7 +22,7 @@ export -f run_benchmark_nmc
 
 parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 	run_benchmark_nmc nr_ranks={nr_ranks} numa_rank={numa_rank} numa_in={numa_in} numa_out={numa_out} numa_cpu={numa_cpu} input_size={input_size} \
-	::: i $(seq 1 5) \
+	::: i $(seq 1 10) \
 	::: numa_rank 0 1 \
 	::: numa_in 0 1 \
 	::: numa_out 0 1 \
@@ -32,7 +32,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 
 parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	run_benchmark_nmc nr_ranks={nr_ranks} numa_rank={numa_rank} numa_in={numa_in} numa_out={numa_out} numa_cpu={numa_cpu} input_size={input_size} \
-	::: i $(seq 1 5) \
+	::: i $(seq 1 10) \
 	::: numa_rank any \
 	::: numa_in 0 1 \
 	::: numa_out 0 1 \
