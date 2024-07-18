@@ -1,7 +1,7 @@
 #!/bin/bash
 
 mkdir -p log/$(hostname) baselines/cpu/log/$(hostname)
-fn=log/$(hostname)/$(date +%Y%m%d)
+fn=log/$(hostname)/dimes-hetsim-nmc
 
 # Args: -m m -n n -o M_ -p N_
 #
@@ -30,11 +30,10 @@ fn=log/$(hostname)/$(date +%Y%m%d)
 
 run_benchmark_nmc() {
 	local "$@"
+	set -e
 	sudo limit_ranks_to_numa_node ${numa_rank}
-	if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} WITH_ALLOC_OVERHEAD=1 WITH_LOAD_OVERHEAD=1 WITH_FREE_OVERHEAD=1; then
-		bin/host_code -w 0 -e 40 -p ${p} -o 2048 -m 16 -n 8 -x 1
-	fi
-	return $?
+	make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} WITH_ALLOC_OVERHEAD=1 WITH_LOAD_OVERHEAD=1 WITH_FREE_OVERHEAD=1
+	bin/host_code -w 0 -e 40 -p ${p} -o 2048 -m 16 -n 8 -x 1
 }
 
 export -f run_benchmark_nmc
@@ -43,35 +42,33 @@ export -f run_benchmark_nmc
 
 echo "NMC single-node operation (1/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
+parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 	run_benchmark_nmc p={nr_dpus} nr_dpus={nr_dpus} nr_tasklets=16 input_size={input_size} numa_rank={numa_rank} \
 	::: numa_rank 0 1 \
 	::: nr_dpus 64 128 256 512 768 1024
 
 echo "NMC multi-node operation (2/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --header : \
+parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	run_benchmark_nmc p={nr_dpus} nr_dpus={nr_dpus} nr_tasklets=16 input_size={input_size} numa_rank={numa_rank} \
 	::: numa_rank any \
 	::: nr_dpus 1536 2048 2304
 
 echo "NMC single-node operation (3/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.3.joblog --header : \
+parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
 	run_benchmark_nmc p=2048 nr_dpus={nr_dpus} nr_tasklets=16 input_size={input_size} numa_rank={numa_rank} \
 	::: numa_rank 0 1 \
 	::: nr_dpus 64 128 256 512 768 1024
 
 echo "NMC multi-node operation (4/4)" >&2
 
-parallel -j1 --eta --joblog ${fn}.4.joblog --header : \
+parallel -j1 --eta --joblog ${fn}.4.joblog --resume --header : \
 	run_benchmark_nmc p=2048 nr_dpus={nr_dpus} nr_tasklets=16 input_size={input_size} numa_rank={numa_rank} \
 	::: numa_rank any \
 	::: nr_dpus 1536 2048 2304
 
-) > ${fn}.txt
-
-xz -f -v -9 -M 800M ${fn}.txt
+) >> ${fn}.txt
 
 cd baselines/cpu
 make -B NUMA=1
@@ -80,8 +77,8 @@ make -B NUMA=1
 
 echo "CPU single-node operation (1/2)" >&2
 
-parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
-	./trns -w 0 -r 40 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -b {ram} -c {cpu} \
+parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+	./trns -w 0 -r 40 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} \
 	::: p 64 128 256 512 768 1024 1536 2048 2304 \
 	::: ram 0 1 \
 	::: cpu 0 1 \
@@ -89,13 +86,26 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
 
 echo "CPU multi-node operation (2/2)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --header : \
-	./trns -w 0 -r 40 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -b {ram} -c {cpu} \
+parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+	./trns -w 0 -r 40 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} \
 	::: p 64 128 256 512 768 1024 1536 2048 2304 \
 	::: ram 0 1 \
 	::: cpu -1 \
 	::: nr_threads 24 32
 
-) > ${fn}.txt
+) >> ${fn}.txt
 
-xz -f -v -9 -M 800M ${fn}.txt
+make -B NUMA=1 NUMA_MEMCPY=1
+
+(
+
+echo "CPU single-node operation with setup cost, cpu/out on same node (3/3)" >&2
+
+parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
+	./trns -w 0 -r 40 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} -C {cpu} \
+	::: ram 0 1 \
+	::: cpu 0 1 \
+	::: nr_threads 1 2 4 8 12 16 \
+	::: input_size 167772160
+
+) >> ${fn}.txt
