@@ -1,10 +1,6 @@
 void allocate_dense(size_t rows,size_t  cols, T*** dense) {
 
 #if NUMA
-    if (bitmask_in) {
-        numa_set_membind(bitmask_in);
-        numa_free_nodemask(bitmask_in);
-    }
   *dense = numa_alloc(sizeof(void*)*rows);
   **dense = numa_alloc(sizeof(T)*rows*cols);
 #else

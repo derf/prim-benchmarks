@@ -2,13 +2,13 @@
 #include <stdio.h>
 #include "../../support/timer.h"
 
-#if NUMA
-#include <numaif.h>
-#include <numa.h>
-
 #ifndef T
 #define T double
 #endif
+
+#if NUMA
+#include <numaif.h>
+#include <numa.h>
 
 struct bitmask* bitmask_in;
 struct bitmask* bitmask_out;
@@ -69,6 +69,12 @@ int main(int argc, char *argv[])
 #endif
 
     allocate_dense(rows, cols, &A);
+
+#if NUMA
+    if (bitmask_in) {
+        numa_free_nodemask(bitmask_in);
+    }
+#endif
 
     make_hilbert_mat(rows,cols, &A);
 
