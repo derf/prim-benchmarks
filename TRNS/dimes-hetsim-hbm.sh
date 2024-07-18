@@ -1,10 +1,9 @@
 #!/bin/sh
 
 cd baselines/cpu
-make -B NUMA=1
 
 mkdir -p log/$(hostname)
-fn=log/$(hostname)/$(date +%Y%m%d)
+fn=log/$(hostname)/dimes-hetsim-hbm
 
 # Args: -m m -n n -o M_ -p N_
 #
@@ -33,24 +32,37 @@ fn=log/$(hostname)/$(date +%Y%m%d)
 
 (
 
-echo "CPU single-node operation (1/2)" >&2
+make -B NUMA=1 NUMA_MEMCPY=1
 
-parallel -j1 --eta --joblog ${fn}.1.joblog --header : \
-	./trns -w 0 -r 5 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -b {ram} -c {cpu} \
+echo "CPU single-node operation with setup cost, cpu/out on same node (1/3)" >&2
+
+parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+	./trns -w 0 -r 5 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} -C {ram_local} \
+	::: p 64 128 256 512 768 1024 1536 2048 2304 \
+	::: nr_threads 1 2 4 8 12 16 \
+	::: ram $(seq 0 15) \
+	:::        cpu $(seq 0 7) $(seq 0 7) \
+	:::+ ram_local $(seq 0 15) \
+	::: input_size 167772160
+
+make -B NUMA=1
+
+echo "CPU single-node operation (2/3)" >&2
+
+parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+	./trns -w 0 -r 5 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} \
 	::: p 64 128 256 512 768 1024 1536 2048 2304 \
 	::: ram $(seq 0 15) \
 	::: cpu $(seq 0 7) \
 	::: nr_threads 1 2 4 8 12 16
 
-echo "CPU multi-node operation (1/2)" >&2
+echo "CPU multi-node operation (3/3)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --header : \
-	./trns -w 0 -r 40 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -b {ram} -c {cpu} \
+parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+	./trns -w 0 -r 40 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} \
 	::: p 64 128 256 512 768 1024 1536 2048 2304 \
 	::: ram $(seq 0 15) \
 	::: cpu -1 \
 	::: nr_threads 32 48 64 96 128
 
-) > ${fn}.txt
-
-xz -f -v -9 -M 800M ${fn}.txt
+) >> ${fn}.txt
