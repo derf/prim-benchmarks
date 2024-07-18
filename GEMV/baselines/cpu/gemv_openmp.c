@@ -142,7 +142,7 @@ int main(int argc, char *argv[])
 #endif
 
     Timer timer;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 40; i++) {
 
 #pragma omp parallel
         {
