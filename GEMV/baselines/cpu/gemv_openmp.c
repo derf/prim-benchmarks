@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
 #if NUMA_MEMCPY
         start(&timer, 3, 0);
         if (!numa_node_in_is_local) {
-            numa_free(x_local, sizeof(T) * rows);
+            numa_free(x_local, sizeof(T) * cols);
             numa_free(*A_local, sizeof(T) * rows * cols);
             numa_free(A_local, sizeof(void*) * rows);
         }
