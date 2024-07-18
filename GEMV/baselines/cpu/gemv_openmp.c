@@ -165,6 +165,13 @@ int main(int argc, char *argv[])
         }
         stop(&timer, 1);
 
+        if (x_local == NULL) {
+            return 1;
+        }
+        if (A_local == NULL) {
+            return 1;
+        }
+
         start(&timer, 2, 0);
         if (!numa_node_in_is_local) {
             //for (size_t i=0; i < rows; i++ ) {
