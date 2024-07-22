@@ -39,6 +39,7 @@ static T *B;
 static T *C;
 
 #if NUMA_MEMCPY
+int numa_node_cpu_memcpy = -1;
 int numa_node_local = -1;
 int numa_node_in_is_local = 0;
 static T *A_local;
@@ -73,6 +74,7 @@ typedef struct Params {
     int numa_node_cpu;
 #endif
 #if NUMA_MEMCPY
+    int numa_node_cpu_memcpy;
     struct bitmask* bitmask_cpu;
 #endif
 }Params;
@@ -106,11 +108,12 @@ struct Params input_params(int argc, char **argv) {
     p.numa_node_cpu  = -1;
 #endif
 #if NUMA_MEMCPY
+    p.numa_node_cpu_memcpy  = -1;
     p.bitmask_cpu    = NULL;
 #endif
 
     int opt;
-    while((opt = getopt(argc, argv, "hi:w:e:x:t:a:b:c:C:")) >= 0) {
+    while((opt = getopt(argc, argv, "hi:w:e:x:t:a:b:c:C:M:")) >= 0) {
         switch(opt) {
         case 'h':
         usage();
@@ -127,6 +130,7 @@ struct Params input_params(int argc, char **argv) {
         case 'c': p.numa_node_cpu = atoi(optarg); break;
 #if NUMA_MEMCPY
         case 'C': p.bitmask_cpu   = numa_parse_nodestring(optarg); break;
+        case 'M': p.numa_node_cpu_memcpy = atoi(optarg); break;
 #endif // NUMA_MEMCPY
 #endif // NUMA
         default:
@@ -222,8 +226,8 @@ int main(int argc, char **argv) {
     }
 
     numa_node_cpu = p.numa_node_cpu;
-    if (numa_node_cpu != -1) {
-        if (numa_run_on_node(numa_node_cpu) == -1) {
+    if (p.numa_node_cpu != -1) {
+        if (numa_run_on_node(p.numa_node_cpu) == -1) {
             perror("numa_run_on_node");
             numa_node_cpu = -1;
         }
@@ -239,12 +243,21 @@ int main(int argc, char **argv) {
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
 #if NUMA_MEMCPY
+        numa_node_cpu_memcpy = p.numa_node_cpu_memcpy;
         start(&timer, 1, 0);
         if (!numa_node_in_is_local) {
             A_local = (T*) numa_alloc(input_size * sizeof(T));
             B_local = (T*) numa_alloc(input_size * sizeof(T));
         }
         stop(&timer, 1);
+        if (!numa_node_in_is_local) {
+            if (p.numa_node_cpu_memcpy != -1) {
+                if (numa_run_on_node(p.numa_node_cpu_memcpy) == -1) {
+                    perror("numa_run_on_node");
+                    numa_node_cpu_memcpy = -1;
+                }
+            }
+        }
         start(&timer, 2, 0);
         if (!numa_node_in_is_local) {
             memcpy(A_local, A, input_size * sizeof(T));
@@ -254,6 +267,12 @@ int main(int argc, char **argv) {
             B_local = B;
         }
         stop(&timer, 2);
+        if (p.numa_node_cpu != -1) {
+            if (numa_run_on_node(p.numa_node_cpu) == -1) {
+                perror("numa_run_on_node");
+                numa_node_cpu = -1;
+            }
+        }
         mp_pages[0] = A_local;
         if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
             perror("move_pages(A_local)");
@@ -287,10 +306,10 @@ int main(int argc, char **argv) {
         if (rep >= p.n_warmup) {
 #if NUMA_MEMCPY
             printf("[::] VA-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%d"
-                " numa_node_in=%d numa_node_local=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+                " numa_node_in=%d numa_node_local=%d numa_node_out=%d numa_node_cpu=%d numa_node_cpu_memcpy=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
                 " | throughput_MBps=%f",
                 nr_threads, XSTR(T), input_size,
-                numa_node_in, numa_node_local, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
+                numa_node_in, numa_node_local, numa_node_out, numa_node_cpu, numa_node_cpu_memcpy, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
                 input_size * 3 * sizeof(T) / timer.time[0]);
             printf(" throughput_MOpps=%f",
                 input_size / timer.time[0]);
