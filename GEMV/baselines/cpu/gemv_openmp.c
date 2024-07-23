@@ -23,6 +23,7 @@ int numa_node_cpu = -1;
 
 #if NUMA_MEMCPY
 struct bitmask* bitmask_cpu;
+int numa_node_cpu_memcpy = -1;
 int numa_node_local = -1;
 int numa_node_in_is_local = 0;
 #endif
@@ -54,6 +55,7 @@ int main(int argc, char *argv[])
     numa_node_cpu = atoi(argv[3]);
 #if NUMA_MEMCPY
     bitmask_cpu   = numa_parse_nodestring(argv[4]);
+    numa_node_cpu_memcpy = atoi(argv[5]);
 #endif // NUMA_MEMCPY
 #else
     (void) argv;
@@ -142,7 +144,7 @@ int main(int argc, char *argv[])
 #endif
 
     Timer timer;
-    for (int i = 0; i < 40; i++) {
+    for (int i = 0; i < 20; i++) {
 
 #pragma omp parallel
         {
@@ -172,6 +174,15 @@ int main(int argc, char *argv[])
             return 1;
         }
 
+        if (!numa_node_in_is_local) {
+            if (numa_node_cpu_memcpy != -1) {
+                if (numa_run_on_node(numa_node_cpu_memcpy) == -1) {
+                    perror("numa_run_on_node");
+                    numa_node_cpu_memcpy = -1;
+                }
+            }
+        }
+
         start(&timer, 2, 0);
         if (!numa_node_in_is_local) {
             //for (size_t i=0; i < rows; i++ ) {
@@ -184,6 +195,13 @@ int main(int argc, char *argv[])
             x_local = x;
         }
         stop(&timer, 2);
+
+        if (numa_node_cpu != -1) {
+            if (numa_run_on_node(numa_node_cpu) == -1) {
+                perror("numa_run_on_node");
+                numa_node_cpu = -1;
+            }
+        }
 
         mp_pages[0] = A_local;
         if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
@@ -218,10 +236,10 @@ int main(int argc, char *argv[])
 
 #if NUMA_MEMCPY
         printf("[::] GEMV-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%ld"
-            " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_node_local=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+            " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_node_local=%d numa_node_cpu_memcpy=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
             " | throughput_MBps=%f throughput_MOpps=%f",
             nr_threads, XSTR(T), rows * cols,
-            numa_node_in, numa_node_out, numa_node_cpu, numa_node_local, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
+            numa_node_in, numa_node_out, numa_node_cpu, numa_node_local, numa_node_cpu_memcpy, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
             rows * cols * sizeof(T) / timer.time[0],
             rows * cols / timer.time[0]);
         printf(" latency_kernel_us=%f latency_alloc_us=%f latency_memcpy_us=%f latency_free_us=%f latency_total_us=%f\n",
