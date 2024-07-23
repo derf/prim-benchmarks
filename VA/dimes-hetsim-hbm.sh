@@ -11,7 +11,7 @@ fn=log/$(hostname)/dimes-hetsim-hbm
 
 make -B NUMA=1 NUMA_MEMCPY=1
 
-echo "CPU single-node operation with setup cost, memcpy node == input node, cpu node == output node (1/4)" >&2
+echo "CPU single-node operation with setup cost, memcpy node == input node, cpu node == output node (1/3)" >&2
 
 parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 	./va -i {input_size} -a {ram_in} -b {ram_out} -c {cpu} -C {ram_local} -M {cpu_memcpy} -t {nr_threads} -w 0 -e 20 \
@@ -25,7 +25,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 
 make -B NUMA=1
 
-echo "single-node execution, cpu/out on same node (2/4)" >&2
+echo "single-node execution, cpu/out on same node (2/3)" >&2
 
 parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	./va -i {input_size} -a {ram_in} -b {ram_out} -c {cpu} -t {nr_threads} -w 0 -e 5 \
@@ -35,19 +35,9 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	:::+ ram_out $(seq 0 15) \
 	::: input_size 167772160
 
-echo "single-node execution, in/out on same node (3/4)" >&2
+echo "multi-node execution (3/3)" >&2
 
 parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
-	./va -i {input_size} -a {ram_in} -b {ram_out} -c {cpu} -t {nr_threads} -w 0 -e 5 \
-	::: nr_threads 1 2 4 8 12 16 \
-	::: cpu $(seq 0 7) \
-	:::   ram_in $(seq 0 15) \
-	:::+ ram_out $(seq 0 15) \
-	::: input_size 167772160
-
-echo "multi-node execution (4/4)" >&2
-
-parallel -j1 --eta --joblog ${fn}.4.joblog --resume --header : \
 	./va -i {input_size} -a {ram_in} -b {ram_out} -c {cpu} -t {nr_threads} -w 0 -e 20 \
 	::: nr_threads 32 48 64 96 128 \
 	::: cpu -1 \
