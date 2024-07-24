@@ -1,7 +1,7 @@
 #!/bin/bash
 
 mkdir -p log/$(hostname)
-fn=log/$(hostname)/$(date +%Y%m%d).t
+fn=log/$(hostname)/dimes-hetsim-transfer
 
 ./make-size.sh 0
 
@@ -16,7 +16,9 @@ run_benchmark_nmc() {
 
 export -f run_benchmark_nmc
 
-# 16 MiB per DPU
+# The benchmark allocates 3 * 64 * nr_ranks * 8B * input_size (one array for input, one array for output).
+# With 1048576 elements (8 MiB per DPU), this gives a maximum allocation of 60 GiB, which will fit comfortably into system memory (128 GiB).
+# With 2097152 elements (16 MiB per DPU), we may encounter OoM conditions, since the UPMEM SDK also allocates some memory.
 
 (
 
@@ -28,16 +30,16 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 	::: numa_out 0 1 \
 	::: numa_cpu 0 1 \
 	::: nr_ranks $(seq 1 20) \
-	::: input_size 1 2097152
+	::: input_size 1 1048576
 
 parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	run_benchmark_nmc nr_ranks={nr_ranks} numa_rank={numa_rank} numa_in={numa_in} numa_out={numa_out} numa_cpu={numa_cpu} input_size={input_size} \
 	::: i $(seq 1 10) \
 	::: numa_rank any \
-	::: numa_in 0 1 \
-	::: numa_out 0 1 \
+	::: numa_in all \
+	::: numa_out all \
 	::: numa_cpu 0 1 \
 	::: nr_ranks $(seq 21 40) \
-	::: input_size 1 2097152
+	::: input_size 1 1048576
 
 ) >> ${fn}.txt
