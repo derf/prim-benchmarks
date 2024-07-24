@@ -32,7 +32,7 @@ int mp_status[1];
 int mp_nodes[1];
 int numa_node_in = -1;
 int numa_node_out = -1;
-int numa_node_rank = -1;
+int numa_node_rank = -2;
 int numa_node_cpu = -1;
 #endif
 
@@ -185,15 +185,18 @@ int main(int argc, char **argv) {
 
 
 #if NUMA
-    int prev_rank_id = -1;
-    int rank_id = -1;
     DPU_FOREACH (dpu_set, dpu) {
-        rank_id = dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) & DPU_TARGET_MASK;
-        numa_node_rank = dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)));
+        if ((numa_node_rank != -2) && numa_node_rank != dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)))) {
+            numa_node_rank = -1;
+        } else {
+            numa_node_rank = dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)));
+        }
+        /*
         if (rank_id != prev_rank_id) {
             printf("/dev/dpu_rank%d @ NUMA node %d\n", rank_id, numa_node_rank);
             prev_rank_id = rank_id;
         }
+        */
 /*
         printf("DPU @ rank %d slice.member %d.%d\n",
             rank_id,
@@ -209,7 +212,7 @@ int main(int argc, char **argv) {
     read_input(A, B, input_size);
 
     //printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
-    printf("[::] NMC reconfiguration | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%lu e_mode=%s"
+    printf("[::] NMC-reconfiguration | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%lu e_mode=%s"
 #if NUMA
         " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_node_rank=%d"
 #endif
@@ -282,15 +285,15 @@ int main(int argc, char **argv) {
             stop(&timer, 3);
 
         if (rep >= p.n_warmup) {
-            printf("[::] transfer UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%lu n_elements_per_dpu=%lu e_mode=%s"
+            printf("[::] NMC-transfer | n_dpus=%d n_ranks=%d n_tasklets=%d n_nops=%d n_instr=%d e_type=%s n_elements=%lu n_elements_per_dpu=%lu e_mode=%s"
 #if NUMA
                 " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_node_rank=%d"
 #endif
                 " | latency_dram_mram_ns=%lu latency_mram_dram_ns=%lu throughput_dram_mram_Bps=%f throughput_mram_dram_Bps=%f",
 #ifdef BROADCAST
-                nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_size, transfer_mode,
+                nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, input_size, transfer_mode,
 #else
-                nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, transfer_size / nr_of_dpus, transfer_mode,
+                nr_of_dpus, nr_of_ranks, NR_TASKLETS, p.n_nops, p.n_instr, XSTR(T), transfer_size, input_size_dpu, transfer_mode,
 #endif
 #if NUMA
                 numa_node_in, numa_node_out, numa_node_cpu, numa_node_rank,
