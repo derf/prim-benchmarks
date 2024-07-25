@@ -3,6 +3,8 @@
 mkdir -p log/$(hostname) baselines/cpu/log/$(hostname)
 fn=log/$(hostname)/dimes-hetsim-nmc
 
+source /opt/upmem/upmem-2024.1.0-Linux-x86_64/upmem_env.sh
+
 # Args: -m m -n n -o M_ -p N_
 #
 # Input: (M_ * m) × (N_ * n) matrix
