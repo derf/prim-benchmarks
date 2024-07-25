@@ -59,6 +59,7 @@ int numa_node_cpu = -1;
 #endif
 
 #if NUMA_MEMCPY
+int numa_node_cpu_memcpy = -1;
 int numa_node_local = -1;
 int numa_node_in_is_local = 0;
 #endif
@@ -79,6 +80,7 @@ struct Params {
     int numa_node_cpu;
 #endif
 #if NUMA_MEMCPY
+    int numa_node_cpu_memcpy;
     struct bitmask* bitmask_cpu;
 #endif
 
@@ -95,10 +97,11 @@ struct Params {
         numa_node_cpu = -1;
 #endif
 #if NUMA_MEMCPY
+        numa_node_cpu_memcpy  = -1;
         bitmask_cpu    = NULL;
 #endif
         int opt;
-        while((opt = getopt(argc, argv, "ht:w:r:m:n:o:p:a:c:C:")) >= 0) {
+        while((opt = getopt(argc, argv, "ht:w:r:m:n:o:p:a:c:C:M:")) >= 0) {
             switch(opt) {
             case 'h':
                 usage();
@@ -116,6 +119,7 @@ struct Params {
             case 'c': numa_node_cpu = atoi(optarg); break;
 #if NUMA_MEMCPY
             case 'C': bitmask_cpu   = numa_parse_nodestring(optarg); break;
+            case 'M': numa_node_cpu_memcpy = atoi(optarg); break;
 #endif // NUMA_MEMCPY
 #endif // NUMA
             default:
@@ -256,6 +260,7 @@ int main(int argc, char **argv) {
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
 #if NUMA_MEMCPY
+        numa_node_cpu_memcpy = p.numa_node_cpu_memcpy;
         if(rep >= p.n_warmup)
             timer.start("local alloc");
         if (!numa_node_in_is_local) {
@@ -264,6 +269,15 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             timer.stop("local alloc");
 
+        if (!numa_node_in_is_local) {
+            if (p.numa_node_cpu_memcpy != -1) {
+                if (numa_run_on_node(p.numa_node_cpu_memcpy) == -1) {
+                    perror("numa_run_on_node");
+                    numa_node_cpu_memcpy = -1;
+                }
+            }
+        }
+
         if(rep >= p.n_warmup)
             timer.start("memcpy");
         if (!numa_node_in_is_local) {
@@ -271,6 +285,13 @@ int main(int argc, char **argv) {
         }
         if(rep >= p.n_warmup)
             timer.stop("memcpy");
+
+        if (p.numa_node_cpu != -1) {
+            if (numa_run_on_node(p.numa_node_cpu) == -1) {
+                perror("numa_run_on_node");
+                numa_node_cpu = -1;
+            }
+        }
 
         mp_pages[0] = h_local;
         if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
@@ -344,10 +365,10 @@ int main(int argc, char **argv) {
         if (rep >= p.n_warmup) {
 #if NUMA_MEMCPY
             printf("[::] TRNS-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%d"
-                " numa_node_inout=%d numa_node_cpu=%d numa_distance_inout_cpu=%d"
+                " numa_node_inout=%d numa_node_cpu=%d numa_node_cpu_memcpy=%d numa_distance_inout_cpu=%d"
                 " | throughput_MBps=%f",
                 p.n_threads, XSTR(T), in_size,
-                numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu),
+                numa_node_in, numa_node_cpu, numa_node_cpu_memcpy, numa_distance(numa_node_in, numa_node_cpu),
                 in_size * sizeof(T) / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));
             printf(" throughput_MOpps=%f",
                 in_size / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));

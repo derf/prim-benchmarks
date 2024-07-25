@@ -34,22 +34,23 @@ fn=log/$(hostname)/dimes-hetsim-hbm
 
 make -B NUMA=1 NUMA_MEMCPY=1
 
-echo "CPU single-node operation with setup cost, cpu/out on same node (1/3)" >&2
+echo "CPU single-node operation with setup cost, memcpy node == input node, cpu node == output node (1/3)" >&2
 
 parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
-	./trns -w 0 -r 5 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} -C {ram_local} \
+	./trns -w 0 -r 5 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram_in} -c {cpu} -C {ram_local} -M {cpu_memcpy} \
 	::: p 64 128 256 512 768 1024 1536 2048 2304 \
 	::: nr_threads 1 2 4 8 12 16 \
-	::: ram $(seq 0 15) \
-	:::        cpu $(seq 0 7) $(seq 0 7) \
-	:::+ ram_local $(seq 0 15) \
+	:::      ram_in $(seq 0 15) \
+	:::+ cpu_memcpy $(seq 0 7) $(seq 0 7) \
+	:::   ram_local $(seq 0 15) \
+	:::+        cpu $(seq 0 7) $(seq 0 7) \
 	::: input_size 167772160
 
 make -B NUMA=1
 
 echo "CPU single-node operation (2/3)" >&2
 
-parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	./trns -w 0 -r 5 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} \
 	::: p 64 128 256 512 768 1024 1536 2048 2304 \
 	::: ram $(seq 0 15) \
@@ -58,7 +59,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 
 echo "CPU multi-node operation (3/3)" >&2
 
-parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
+parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
 	./trns -w 0 -r 40 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} \
 	::: p 64 128 256 512 768 1024 1536 2048 2304 \
 	::: ram $(seq 0 15) \
