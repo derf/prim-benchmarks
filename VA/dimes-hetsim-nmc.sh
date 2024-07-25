@@ -3,6 +3,8 @@
 mkdir -p log/$(hostname) baselines/cpu/log/$(hostname)
 fn=log/$(hostname)/dimes-hetsim-nmc
 
+source /opt/upmem/upmem-2024.1.0-Linux-x86_64/upmem_env.sh
+
 # upstream uses 167772160 * 2 * int32 == 2.5 GiB input and 1.25 GiB output for DPU version
 
 run_benchmark_nmc() {
