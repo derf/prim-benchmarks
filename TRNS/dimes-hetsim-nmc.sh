@@ -9,9 +9,9 @@ source /opt/upmem/upmem-2024.1.0-Linux-x86_64/upmem_env.sh
 #
 # Input: (M_ * m) × (N_ * n) matrix
 # Output: (N_* n) × (M_ * m) matrix
-# Step 1: transpose (M_ * m) × N_ matrix that consits of tiles of size n
+# Step 1: transpose (M_ * m) × N_ matrix that consists of tiles of size n
 #   CPU version: explicit
-#   DPU version: implicit (appropriate write operations to DPUs)
+#   DPU version: implicit (M_ * m write operations of #DPUs * n elements to DPUs)
 # Step 2: transpose m × n matrix; this happens N_ * M_ times.
 #   DPU version: Each tasklet transposes a single m × n matrix / tile.
 #   (16 × 8 tile takes up 1 KiB WRAM)
