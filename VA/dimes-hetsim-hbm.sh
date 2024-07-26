@@ -14,7 +14,7 @@ make -B NUMA=1 NUMA_MEMCPY=1
 echo "CPU single-node operation with setup cost, memcpy node == input node, cpu node == output node (1/3)" >&2
 
 parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
-	./va -i {input_size} -a {ram_in} -b {ram_out} -c {cpu} -C {ram_local} -M {cpu_memcpy} -t {nr_threads} -w 0 -e 20 \
+	./va -i {input_size} -a {ram_in} -b {ram_out} -c {cpu} -C {ram_local} -M {cpu_memcpy} -t {nr_threads} -w 0 -e 5 \
 	::: nr_threads 1 2 4 8 12 16 \
 	:::      ram_in $(seq 0 15) \
 	:::+ cpu_memcpy $(seq 0 7) $(seq 0 7) \
