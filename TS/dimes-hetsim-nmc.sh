@@ -5,7 +5,7 @@ fn=log/$(hostname)/$(date +%Y%m%d)
 
 # Upstream DPU version uses ts_size = 33554432 elements and query_length = 256 with int32_t data
 # Upstream CPU version uses inputs/randomlist33M.txt with 33618177 elements and query_length = 256 with double
-# This benchmark uses int32 and 33554432 elements for both.
+# This benchmark uses int32 and 2²⁵ == 33554432 elements for both.
 
 run_benchmark_nmc() {
 	local "$@"

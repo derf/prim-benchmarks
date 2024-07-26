@@ -15,12 +15,12 @@ echo "Started at $(date)"
 echo "Revision $(git describe --always)"
 
 # 256 and 512 are not part of upstream
-for nr_dpus in 512 256 1 4 16 64; do
+for nr_dpus in 1 4 16 64; do
 	for nr_tasklets in 1 2 4 8 16; do
 		echo
 		# upstream code did not respect $BL in the makefile and used 256B (BL=8) instead.
 		# BL=10 appears to be slightly faster.
-		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=10; then
+		if make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} BL=8; then
 			i=$(( nr_dpus * 524288 ))
 			timeout --foreground -k 1m 30m bin/ts_host -w 0 -e 100 -n $i || true
 		fi
