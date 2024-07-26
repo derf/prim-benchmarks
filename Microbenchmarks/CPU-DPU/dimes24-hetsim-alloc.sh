@@ -1,7 +1,9 @@
 #!/bin/bash
 
 mkdir -p log/$(hostname)
-fn=log/$(hostname)/$(date +%Y%m%d).a
+fn=log/$(hostname)/dimes-hetsim-alloc
+
+source /opt/upmem/upmem-2024.1.0-Linux-x86_64/upmem_env.sh
 
 run_benchmark_nmc() {
 	local "$@"

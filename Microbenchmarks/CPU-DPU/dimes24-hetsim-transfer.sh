@@ -3,6 +3,8 @@
 mkdir -p log/$(hostname)
 fn=log/$(hostname)/dimes-hetsim-transfer
 
+source /opt/upmem/upmem-2024.1.0-Linux-x86_64/upmem_env.sh
+
 ./make-size.sh 0
 
 run_benchmark_nmc() {
