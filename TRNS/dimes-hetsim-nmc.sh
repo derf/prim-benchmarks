@@ -80,7 +80,7 @@ make -B NUMA=1
 echo "CPU single-node operation (1/2)" >&2
 
 parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
-	./trns -w 0 -r 40 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} \
+	./trns -w 0 -r 5 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} \
 	::: p 64 128 256 512 768 1024 1536 2048 2304 \
 	::: ram 0 1 \
 	::: cpu 0 1 \
@@ -89,7 +89,7 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 echo "CPU multi-node operation (2/2)" >&2
 
 parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
-	./trns -w 0 -r 40 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} \
+	./trns -w 0 -r 5 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} \
 	::: p 64 128 256 512 768 1024 1536 2048 2304 \
 	::: ram 0 1 \
 	::: cpu -1 \
@@ -104,10 +104,10 @@ make -B NUMA=1 NUMA_MEMCPY=1
 echo "CPU single-node operation with setup cost, cpu/out on same node (3/3)" >&2
 
 parallel -j1 --eta --joblog ${fn}.3.joblog --resume --header : \
-	./trns -w 0 -r 40 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} -C {cpu} \
+	./trns -w 0 -r 5 -p {p} -o 2048 -m 16 -n 8 -t {nr_threads} -a {ram} -c {cpu} -C {cpu} -M {ram} \
+	::: p 64 128 256 512 768 1024 1536 2048 2304 \
 	::: ram 0 1 \
 	::: cpu 0 1 \
-	::: nr_threads 1 2 4 8 12 16 \
-	::: input_size 167772160
+	::: nr_threads 1 2 4 8 12 16
 
 ) >> ${fn}.txt
