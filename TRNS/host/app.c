@@ -131,7 +131,6 @@ int main(int argc, char **argv) {
                 DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
                 stop(&timer, 2);
                 DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
-                active_dpus_before = active_dpus;
             } else if (first_round){
                 start(&timer, 1, 0);
                 DPU_ASSERT(dpu_alloc(active_dpus, NULL, &dpu_set));
@@ -142,6 +141,7 @@ int main(int argc, char **argv) {
                 DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
                 DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
             }
+            active_dpus_before = active_dpus;
 
             if(rep >= p.n_warmup) {
                 start(&timer, 3, !first_round);
