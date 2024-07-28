@@ -81,6 +81,7 @@ int main_kernel2() {
 #endif
     if (tasklet_id == 0){ // Initialize once the cycle counter
         mem_reset(); // Reset the heap
+        curr_tile = 0;
     }
     // Barrier
     barrier_wait(&my_barrier);
