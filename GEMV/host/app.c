@@ -95,7 +95,7 @@ int main(int argc, char **argv) {
     timer.time[1] = 0; // load
 #endif
 #if !WITH_FREE_OVERHEAD
-    timer.time[6] = 0; // free
+    timer.time[8] = 0; // free
 #endif
 
 #if ENERGY
@@ -222,19 +222,34 @@ int main(int argc, char **argv) {
 
 		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0, sizeof(dpu_arguments_t), DPU_XFER_DEFAULT));
 
+		if(rep >= p.n_warmup) {
+			stop(&timer, 3);
+		}
+		if (rep >= p.n_warmup) {
+			start(&timer, 6, 0);
+		}
+
 		// Copy input array and vector
 		i = 0;
 		DPU_FOREACH(dpu_set, dpu, i) {
 			DPU_ASSERT(dpu_prepare_xfer(dpu, A + dpu_info[i].prev_rows_dpu * n_size));
 		}
 		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, 0, max_rows_per_dpu * n_size_pad * sizeof(T), DPU_XFER_DEFAULT));
+
+		if(rep >= p.n_warmup) {
+			stop(&timer, 6);
+		}
+		if (rep >= p.n_warmup) {
+			start(&timer, 7, 0);
+		}
+
 		DPU_FOREACH(dpu_set, dpu, i) {
 			DPU_ASSERT(dpu_prepare_xfer(dpu, B));
 		}
 		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, max_rows_per_dpu * n_size_pad * sizeof(T) , n_size_pad * sizeof(T), DPU_XFER_DEFAULT));
 
 		if (rep >= p.n_warmup) {
-			stop(&timer, 3);
+			stop(&timer, 7);
 		}
 
 		// Run kernel on DPUs
@@ -276,13 +291,13 @@ int main(int argc, char **argv) {
 #if WITH_ALLOC_OVERHEAD
 #if WITH_FREE_OVERHEAD
 		if(rep >= p.n_warmup) {
-			start(&timer, 6, 0);
+			start(&timer, 8, 0);
 		}
 #endif
 		DPU_ASSERT(dpu_free(dpu_set));
 #if WITH_FREE_OVERHEAD
 		if(rep >= p.n_warmup) {
-			stop(&timer, 6);
+			stop(&timer, 8);
 		}
 #endif
 #endif
@@ -314,26 +329,31 @@ int main(int argc, char **argv) {
 					timer.time[0],
 					timer.time[1],
 					timer.time[2],
-					timer.time[3],
+					timer.time[3] + timer.time[6] + timer.time[7],
 					timer.time[4],
 					timer.time[5],
-					timer.time[6]);
+					timer.time[8]);
+				printf(" latency_write1_us=%f latency_write2_us=%f latency_write3_us=%f",
+						timer.time[3],
+						timer.time[6],
+						timer.time[7]
+					);
 				printf(" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
 					n_size * m_size * sizeof(T) / timer.time[2],
 					n_size * m_size * sizeof(T) / (timer.time[4]),
-					n_size * m_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
+					n_size * m_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5] + timer.time[8]));
 				printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
-					n_size * m_size * sizeof(T) / (timer.time[3] + timer.time[4] + timer.time[5]),
-					n_size * m_size * sizeof(T) / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
-					n_size * m_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
+					n_size * m_size * sizeof(T) / (timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]),
+					n_size * m_size * sizeof(T) / (timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]),
+					n_size * m_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]));
 				printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
 					n_size * m_size / timer.time[2],
 					n_size * m_size / (timer.time[4]),
-					n_size * m_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
+					n_size * m_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5] + timer.time[8]));
 				printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
-					n_size * m_size / (timer.time[3] + timer.time[4] + timer.time[5]),
-					n_size * m_size / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
-					n_size * m_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
+					n_size * m_size / (timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]),
+					n_size * m_size / (timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]),
+					n_size * m_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]));
 			}
 		} else {
 			printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
