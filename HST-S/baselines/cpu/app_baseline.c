@@ -35,6 +35,12 @@ int numa_node_out = -1;
 int numa_node_cpu = -1;
 #endif
 
+#if NUMA_MEMCPY
+int numa_node_cpu_memcpy = -1;
+int numa_node_local = -1;
+int numa_node_in_is_local = 0;
+#endif
+
 
 #include "../../support/common.h"
 #include "../../support/timer.h"
@@ -44,6 +50,7 @@ int numa_node_cpu = -1;
 
 // Pointer declaration
 static T* A;
+static T *A_local;
 static unsigned int* histo_host;
 
 typedef struct Params {
@@ -58,6 +65,10 @@ typedef struct Params {
     struct bitmask* bitmask_in;
     struct bitmask* bitmask_out;
     int numa_node_cpu;
+#endif
+#if NUMA_MEMCPY
+    int numa_node_cpu_memcpy;
+    struct bitmask* bitmask_cpu;
 #endif
 }Params;
 
@@ -150,9 +161,13 @@ struct Params input_params(int argc, char **argv) {
     p.bitmask_out    = NULL;
     p.numa_node_cpu = -1;
 #endif
+#if NUMA_MEMCPY
+    p.numa_node_cpu_memcpy  = -1;
+    p.bitmask_cpu    = NULL;
+#endif
 
     int opt;
-    while((opt = getopt(argc, argv, "hi:b:w:e:f:x:t:A:B:C:")) >= 0) {
+    while((opt = getopt(argc, argv, "hi:b:w:e:f:x:t:A:B:C:D:M:")) >= 0) {
         switch(opt) {
         case 'h':
         usage();
@@ -169,7 +184,11 @@ struct Params input_params(int argc, char **argv) {
         case 'A': p.bitmask_in    = numa_parse_nodestring(optarg); break;
         case 'B': p.bitmask_out   = numa_parse_nodestring(optarg); break;
         case 'C': p.numa_node_cpu = atoi(optarg); break;
-#endif
+#if NUMA_MEMCPY
+        case 'D': p.bitmask_cpu   = numa_parse_nodestring(optarg); break;
+        case 'M': p.numa_node_cpu_memcpy = atoi(optarg); break;
+#endif // NUMA_MEMCPY
+#endif // NUMA
         default:
             fprintf(stderr, "\nUnrecognized option!\n");
             usage();
@@ -207,6 +226,9 @@ int main(int argc, char **argv) {
     A = malloc(input_size * sizeof(T));
 #endif
 
+    // Create an input file with arbitrary data.
+    read_input(A, p);
+
 #if NUMA
     if (p.bitmask_out) {
         numa_set_membind(p.bitmask_out);
@@ -230,14 +252,18 @@ int main(int argc, char **argv) {
     }
 
 #if NUMA
+#if NUMA_MEMCPY
+    if (p.bitmask_cpu) {
+        numa_set_membind(p.bitmask_cpu);
+        numa_free_nodemask(p.bitmask_cpu);
+    }
+#else
     struct bitmask *bitmask_all = numa_allocate_nodemask();
     numa_bitmask_setall(bitmask_all);
     numa_set_membind(bitmask_all);
     numa_free_nodemask(bitmask_all);
-#endif
-
-    // Create an input file with arbitrary data.
-    read_input(A, p);
+#endif // NUMA_MEMCPY
+#endif // NUMA
 
 #if NUMA
     mp_pages[0] = A;
@@ -271,23 +297,91 @@ int main(int argc, char **argv) {
     }
 #endif
 
+#if NUMA_MEMCPY
+    numa_node_in_is_local = ((numa_node_cpu == numa_node_in) || (numa_node_cpu + 8 == numa_node_in)) * 1;
+#endif
+
     Timer timer;
+
+#if NUMA_MEMCPY
+    numa_node_cpu_memcpy = p.numa_node_cpu_memcpy;
+    start(&timer, 1, 0);
+    if (!numa_node_in_is_local) {
+        A_local = (T*) numa_alloc(input_size * sizeof(T));
+    }
+    stop(&timer, 1);
+    if (!numa_node_in_is_local) {
+        if (p.numa_node_cpu_memcpy != -1) {
+            if (numa_run_on_node(p.numa_node_cpu_memcpy) == -1) {
+                perror("numa_run_on_node");
+                numa_node_cpu_memcpy = -1;
+            }
+        }
+    }
+    start(&timer, 2, 0);
+    if (!numa_node_in_is_local) {
+        memcpy(A_local, A, input_size * sizeof(T));
+    } else {
+        A_local = A;
+    }
+    stop(&timer, 2);
+    if (p.numa_node_cpu != -1) {
+        if (numa_run_on_node(p.numa_node_cpu) == -1) {
+            perror("numa_run_on_node");
+            numa_node_cpu = -1;
+        }
+    }
+    mp_pages[0] = A_local;
+    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+        perror("move_pages(A_local)");
+    }
+    else if (mp_status[0] < 0) {
+        printf("move_pages error: %d", mp_status[0]);
+    }
+    else {
+        numa_node_local = mp_status[0];
+    }
+#else
+    A_local = A;
+#endif
+
     start(&timer, 0, 0);
 
-	if(!p.exp)
-            memset(histo_host, 0, nr_of_dpus * p.bins * sizeof(unsigned int));
+    if(!p.exp)
+        memset(histo_host, 0, nr_of_dpus * p.bins * sizeof(unsigned int));
     else
-            memset(histo_host, 0, p.bins * sizeof(unsigned int));
+        memset(histo_host, 0, p.bins * sizeof(unsigned int));
 
-    histogram_host(histo_host, A, p.bins, input_size, p.exp, nr_of_dpus, p.n_threads);
+    histogram_host(histo_host, A_local, p.bins, input_size, p.exp, nr_of_dpus, p.n_threads);
 
     stop(&timer, 0);
+
+#if NUMA_MEMCPY
+    start(&timer, 3, 0);
+    if (!numa_node_in_is_local) {
+        numa_free(A_local, input_size * sizeof(T));
+    }
+    stop(&timer, 3);
+#endif
 
     unsigned int nr_threads = 0;
 #pragma omp parallel
 #pragma omp atomic
     nr_threads++;
 
+#if NUMA_MEMCPY
+    printf("[::] HST-S-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%d n_bins=%d"
+        " numa_node_in=%d numa_node_local=%d numa_node_out=%d numa_node_cpu=%d numa_node_cpu_memcpy=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+        " | throughput_MBps=%f",
+        nr_threads, XSTR(T), input_size, p.exp ? p.bins : p.bins * nr_of_dpus,
+        numa_node_in, numa_node_local, numa_node_out, numa_node_cpu, numa_node_cpu_memcpy, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
+        input_size * sizeof(T) / timer.time[0]);
+    printf(" throughput_MOpps=%f",
+        input_size / timer.time[0]);
+    printf(" latency_kernel_us=%f latency_alloc_us=%f latency_memcpy_us=%f latency_free_us=%f latency_total_us=%f\n",
+        timer.time[0], timer.time[1], timer.time[2], timer.time[3],
+        timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3]);
+#else
     printf("[::] HST-S-CPU | n_threads=%d e_type=%s n_elements=%d n_bins=%d"
 #if NUMA
         " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
@@ -298,9 +392,9 @@ int main(int argc, char **argv) {
         numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
 #endif
         input_size * sizeof(T) / timer.time[0]);
-    printf(" throughput_MOpps=%f",
-        input_size / timer.time[0]);
-    printall(&timer, 0);
+    printf(" throughput_MOpps=%f latency_us=%f\n",
+        input_size / timer.time[0], timer.time[0]);
+#endif // NUMA_MEMCPY
 
 #if NUMA
     numa_free(A, input_size * sizeof(T));
