@@ -1,7 +1,54 @@
-This is an improved and extended version of the PrIM benchmarks by Gómez-Luna
-et al. Let's call it **PrIME**: Processing-in-memory Benchmarks, Extended.
+# PrIM (Processing-In-Memory Benchmarks) Extended
+
+This is an improved and extended version of the PrIM benchmark suite originally developed for UPMEM PIM (near-memory computing / processing-in-memory) evaluation by by Gómez-Luna et al.
+Its benchmarks support **NUMA**-aware **HBM** (high-bandwidth memory), **DRAM**, and **UPMEM PIM** (near-memory computing / processing-in-memory) evaluation.
+
+It has been used in the following publications.
+
+**B. Friesel**, M. Lütke Dreimann, and O. Spinczyk. [A Full-System Perspective on UPMEM Performance](https://ess.cs.uos.de/static/papers/Friesel-2023-DIMES.pdf). In *Proceedings of the 1st Workshop on Disruptive Memory Systems*, DIMES '23, pages 1–7, 2023. Association for Computing Machinery.
+[DOI: 10.1145/3609308.3625266](http://dx.doi.org/10.1145/3609308.3625266)
+|
+[Presentation Slides](https://ess.cs.uos.de/static/papers/Friesel-2023-DIMES-Slides.pdf)
+
+```
+@inproceedings{friesel2023dimes,
+author = {Friesel, Birte and L{\"u}tke Dreimann, Marcel and Spinczyk, Olaf},
+title = {{A Full-System Perspective on UPMEM Performance}},
+year = {2023},
+month = 10,
+isbn = {979-8-4007-0300-3},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+doi = {10.1145/3609308.3625266},
+booktitle = {Proceedings of the 1st Workshop on Disruptive Memory Systems},
+pages = {1--7},
+numpages = {7},
+location = {Koblenz, Germany},
+series = {DIMES '23}
+}
+```
+
+**B. Friesel**, M. Lütke Dreimann, and O. Spinczyk. Performance Models for Task-based Scheduling with Disruptive Memory Technologies. In *Proceedings of the 2nd Workshop on Disruptive Memory Systems*, DIMES '24, 2024. Association for Computing Machinery. to appear.
+
+```
+@inproceedings{friesel2024dimes,
+author = {Friesel, Birte and L{\"u}tke Dreimann, Marcel and Spinczyk, Olaf},
+title = {Performance Models for Task-based Scheduling with Disruptive Memory Technologies},
+year = {2024},
+month = 11,
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+booktitle = {Proceedings of the 2nd Workshop on Disruptive Memory Systems},
+location = {Austin, TX, USA},
+series = {DIMES '24},
+category = {ESS, SMAUG},
+note = {to appear}
+}
+```
 
 The original README follows.
+
+---
 
 # PrIM (Processing-In-Memory Benchmarks)
 
