@@ -1,6 +1,6 @@
 # PrIM (Processing-In-Memory Benchmarks) Extended
 
-This is an improved and extended version of the PrIM benchmark suite originally developed for UPMEM PIM (near-memory computing / processing-in-memory) evaluation by by Gómez-Luna et al.
+This is an improved and extended version of the PrIM benchmark suite originally developed for UPMEM PIM (near-memory computing / processing-in-memory) evaluation by Gómez-Luna et al.
 Its benchmarks support **NUMA**-aware **HBM** (high-bandwidth memory), **DRAM**, and **UPMEM PIM** (near-memory computing / processing-in-memory) evaluation.
 
 It has been used in the following publications.
