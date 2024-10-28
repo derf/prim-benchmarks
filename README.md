@@ -50,6 +50,10 @@ note = {to appear}
 }
 ```
 
+Up-to-date source code is available on the following mirrors:
+* [GitHub](https://github.com/derf/prim-benchmarks)
+* [ess.cs.uos.de](https://ess.cs.uos.de/git/software/smaug/prim-benchmarks)
+
 The original README follows.
 
 ---
