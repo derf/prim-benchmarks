@@ -7,7 +7,9 @@ The extension adds
 * a new **COUNT** benchmark, and
 * numerous bugfixes.
 
-It has been used in the following publications.
+Pleace cite *friesel2024dimes* for NUMA-specific benchmarks, *friesel2023dimes* for setup cost and data transfer overhead benchmarks, and *gomez2022benchmarking* for everything else.
+
+The benchmarks in this repository have been used in the following publications.
 
 **B. Friesel**, M. Lütke Dreimann, and O. Spinczyk. [A Full-System Perspective on UPMEM Performance](https://ess.cs.uos.de/static/papers/Friesel-2023-DIMES.pdf). In *Proceedings of the 1st Workshop on Disruptive Memory Systems*, DIMES '23, pages 1–7, 2023. Association for Computing Machinery.
 [DOI: 10.1145/3609308.3625266](http://dx.doi.org/10.1145/3609308.3625266)
