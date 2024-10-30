@@ -34,7 +34,8 @@ series = {DIMES '23}
 }
 ```
 
-**B. Friesel**, M. Lütke Dreimann, and O. Spinczyk. Performance Models for Task-based Scheduling with Disruptive Memory Technologies. In *Proceedings of the 2nd Workshop on Disruptive Memory Systems*, DIMES '24, 2024. Association for Computing Machinery. to appear.
+**B. Friesel**, M. Lütke Dreimann, and O. Spinczyk. [Performance Models for Task-based Scheduling with Disruptive Memory Technologies](https://ess.cs.uos.de/static/papers/Friesel-2024-DIMES.pdf). In *Proceedings of the 2nd Workshop on Disruptive Memory Systems*, DIMES '24, 2024. Association for Computing Machinery.
+[DOI: 10.1145/3698783.3699376](http://dx.doi.org/10.1145/3698783.3699376])
 
 ```
 @inproceedings{friesel2024dimes,
