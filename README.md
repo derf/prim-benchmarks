@@ -57,6 +57,38 @@ Up-to-date source code is available on the following mirrors:
 * [GitHub](https://github.com/derf/prim-benchmarks)
 * [ess.cs.uos.de](https://ess.cs.uos.de/git/software/smaug/prim-benchmarks)
 
+## Benchmark status
+
+The following benchmark adjustments have been made:
+
+* B (significant bugfixes)
+* D (dfatool-compatible output of benchmark metrics)
+* E (efficiency improvements; may affect input/output format)
+* L (detailed latency report, including DPU allocation overhead etc.)
+* N (NUMA placement specification for input/output data and compute)
+
+CPU and DPU benchmarks in this repository have been adjusted as follows:
+
+* BFS: DL
+* BS: DLN
+* COUNT: DLN (new benchmark, based on SEL)
+* GEMV: DLN
+* HST-L: D
+* HST-S: DLN
+* MLP: –
+* NW: –
+* RED: DLN
+* SCAN-SSA: D
+* SCAN-RSS: DLN
+* SEL: DLN
+* SpMV: DL
+* TRNS: BDLN
+* TS: DLN
+* UNI: DL
+* VA: DLN
+
+GPU versions are un-changed.
+
 The original README follows.
 
 ---
