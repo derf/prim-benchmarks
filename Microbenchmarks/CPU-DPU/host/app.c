@@ -78,18 +78,15 @@ int main(int argc, char **argv) {
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
 
-    char ntpp[24];
-
     // Timer declaration
     Timer timer;
 
-    snprintf(ntpp, 24, "nrThreadPerPool=%d", p.n_threads);
     // Allocate DPUs and load binary
     start(&timer, 4, 0);
 #if NR_DPUS
-    DPU_ASSERT(dpu_alloc(NR_DPUS, ntpp, &dpu_set));
+    DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
 #elif NR_RANKS
-    DPU_ASSERT(dpu_alloc_ranks(NR_RANKS, ntpp, &dpu_set));
+    DPU_ASSERT(dpu_alloc_ranks(NR_RANKS, NULL, &dpu_set));
 #else
 #error "NR_DPUS o NR_RANKS must be set"
 #endif

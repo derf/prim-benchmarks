@@ -35,7 +35,6 @@ static void usage() {
         "\n"
         "\nBenchmark-specific options:"
         "\n    -i <I>    input size (default=8K elements)"
-        "\n    -n <N>    number of threads per pool (default=8)"
         "\n    -N <N>    number of nops in dpu task (default=0)"
         "\n    -I <N>    number of instructions in dpu binary (default=0)"
         "\n    -a <spec> allocate input data on specified NUMA node(s)"
