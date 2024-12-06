@@ -4,7 +4,7 @@ all: uni
 TYPE ?= int64_t
 
 uni: app_baseline.c
-	gcc -O2 -o uni -fopenmp -DT=${TYPE} app_baseline.c
+	gcc -Wall -Wextra -pedantic -march=native -O2 -o uni -fopenmp -DT=${TYPE} app_baseline.c
 
 uni_O0: app_baseline.c
 	gcc -o uni_O0 -fopenmp app_baseline.c

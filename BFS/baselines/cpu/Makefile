@@ -2,7 +2,7 @@
 all: bfs
 
 bfs: app.c
-	gcc -O2 -o bfs -fopenmp app.c
+	gcc -Wall -Wextra -pedantic -march=native -O2 -o bfs -fopenmp app.c
 
 bfs_O0: app.c
 	gcc -o bfs_O0 -fopenmp app.c

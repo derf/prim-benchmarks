@@ -1,7 +1,7 @@
 all: spmv
 
 spmv: app.c
-	gcc -O2 -o spmv -fopenmp app.c
+	gcc -Wall -Wextra -pedantic -march=native -O2 -o spmv -fopenmp app.c
 
 spmv_O0: app.c
 	gcc -o spmv_O0 -fopenmp app.c
