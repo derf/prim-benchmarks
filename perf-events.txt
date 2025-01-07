@@ -1,0 +1,44 @@
+cache-misses # NMPO
+cache-references
+
+cpu-cycles # NMPO
+instructions # NMPO
+
+page-faults
+
+mem-loads
+mem-loads-aux
+mem-stores
+
+branch-misses # NMPO
+branch-instructions # NMPO
+branch-load-misses # NMPO
+branch-loads # NMPO
+
+l1d_pend_miss.pending # mccalpin2023hpc <https://link.springer.com/chapter/10.1007/978-3-031-40843-4_30>
+l1d_pend_miss.pending_cycles
+
+offcore_requests.all_requests
+offcore_requests.data_rd
+offcore_requests.demand_data_rd
+
+offcore_requests_outstanding.data_rd # mccalpin2023hpc
+offcore_requests_outstanding.cycles_with_data_rd
+offcore_requests_outstanding.cycles_with_demand_data_rd
+offcore_requests_outstanding.demand_data_rd # mccalpin2023hpc
+
+L1-dcache-loads # NMPO
+L1-dcache-load-misses # NMPO
+L1-dcache-stores # NMPO
+L1-icache-load-misses # NMPO
+
+LLC-loads # NMPO
+LLC-load-misses
+LLC-stores # NMPO
+LLC-store-misses # NMPO
+
+l2_lines_out.useless_hwpf
+l2_lines_out.non_silent
+l2_lines_out.silent
+l2_request.all
+l2_request.miss
