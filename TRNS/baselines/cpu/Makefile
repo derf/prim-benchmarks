@@ -32,16 +32,23 @@
 #  THE SOFTWARE.
 # 
 
-NUMA ?= 0
-NUMA_MEMCPY ?= 0
-FLAGS =
+native ?= 1
+numa ?= 0
+numa_memcpy ?= 0
 
-ifeq (${NUMA}, 1)
+CFLAGS =
+LDFLAGS =
+
+ifeq (${native}, 1)
+	CFLAGS += -march=native
+endif
+
+ifeq (${numa}, 1)
 	FLAGS += -lnuma
 endif
 
 CXX=g++
-CXX_FLAGS=-std=c++11 -Wall -Wextra -pedantic -DNUMA=${NUMA} -DNUMA_MEMCPY=${NUMA_MEMCPY}
+CXX_FLAGS=-std=c++11 -Wall -Wextra -pedantic -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy}
 
 LIB=-L/usr/lib/ -lm -pthread
 
@@ -52,7 +59,7 @@ EXE=trns
 all: trns
 
 trns: ${SRC}
-	$(CXX) -O2 $(CXX_FLAGS) $(SRC) $(LIB) -o $(EXE) $(FLAGS)
+	$(CXX) -O3 $(CXX_FLAGS) ${CFLAGS} $(SRC) $(LIB) -o $(EXE) ${LDFLAGS}
 
 trns_O0: ${SRC}
 	$(CXX) $(CXX_FLAGS) $(SRC) $(LIB) -o $(EXE)_O0

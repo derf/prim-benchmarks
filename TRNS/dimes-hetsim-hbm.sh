@@ -32,7 +32,7 @@ fn=log/$(hostname)/dimes-hetsim-hbm
 
 (
 
-make -B NUMA=1 NUMA_MEMCPY=1
+make -B numa=1 numa_memcpy=1
 
 echo "CPU single-node operation with setup cost, memcpy node == input node, cpu node == output node (1/3)" >&2
 
@@ -43,10 +43,9 @@ parallel -j1 --eta --joblog ${fn}.1.joblog --resume --header : \
 	:::      ram_in $(seq 0 15) \
 	:::+ cpu_memcpy $(seq 0 7) $(seq 0 7) \
 	:::   ram_local $(seq 0 15) \
-	:::+        cpu $(seq 0 7) $(seq 0 7) \
-	::: input_size 167772160
+	:::+        cpu $(seq 0 7) $(seq 0 7)
 
-make -B NUMA=1
+make -B numa=1
 
 echo "CPU single-node operation (2/3)" >&2
 

@@ -73,7 +73,7 @@ parallel -j1 --eta --joblog ${fn}.4.joblog --resume --header : \
 ) >> ${fn}.txt
 
 cd baselines/cpu
-make -B NUMA=1
+make -B numa=1
 
 (
 
@@ -97,7 +97,7 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 
 ) >> ${fn}.txt
 
-make -B NUMA=1 NUMA_MEMCPY=1
+make -B numa=1 numa_memcpy=1
 
 (
 
