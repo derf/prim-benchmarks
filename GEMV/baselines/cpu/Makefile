@@ -1,17 +1,24 @@
-NUMA ?= 0
-NUMA_MEMCPY ?= 0
-FLAGS =
+native ?= 1
+numa ?= 0
+numa_memcpy ?= 0
+
+CFLAGS =
+LDFLAGS =
 TYPE ?= double
 
-ifeq (${NUMA}, 1)
-	FLAGS += -lnuma
+ifeq (${native}, 1)
+	CFLAGS += -march=native
+endif
+
+ifeq (${numa}, 1)
+	LDFLAGS += -lnuma
 endif
 
 .PHONY: all
 all: gemv
 
 gemv: gemv_openmp.c
-	gcc -ggdb -Wall -Wextra -pedantic -march=native -O2 -o gemv -fopenmp -DNUMA=${NUMA} -DNUMA_MEMCPY=${NUMA_MEMCPY} -DT=${TYPE} -DTYPE_${TYPE} gemv_openmp.c ${FLAGS}
+	gcc -ggdb -Wall -Wextra -pedantic ${CFLAGS} -O3 -o gemv -fopenmp -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DT=${TYPE} -DTYPE_${TYPE} gemv_openmp.c ${LDFLAGS}
 
 gemv_O0: gemv_openmp.c
 	gcc -o gemv_O0 -fopenmp gemv_openmp.c
