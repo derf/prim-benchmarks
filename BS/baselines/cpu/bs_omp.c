@@ -45,7 +45,7 @@ void create_test_file(DTYPE * input, uint64_t  nr_elements, DTYPE * querys, uint
 
   for(uint64_t i = 0; i < n_querys; i++)
   {
-	querys[i] = input[rand() % (nr_elements - 2)];
+	querys[i] = input[rand() % nr_elements];
   }
 }
 
