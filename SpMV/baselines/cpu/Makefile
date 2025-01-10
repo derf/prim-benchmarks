@@ -1,7 +1,15 @@
+native ?= 1
+
+CFLAGS =
+
+ifeq (${native}, 1)
+	CFLAGS += -march=native
+endif
+
 all: spmv
 
 spmv: app.c
-	gcc -Wall -Wextra -pedantic -march=native -O2 -o spmv -fopenmp app.c
+	gcc -Wall -Wextra -pedantic ${CFLAGS} -O3 -o spmv -fopenmp app.c
 
 spmv_O0: app.c
 	gcc -o spmv_O0 -fopenmp app.c
