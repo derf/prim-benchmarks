@@ -3,6 +3,8 @@
 mkdir -p log/$(hostname) baselines/cpu/log/$(hostname)
 fn=log/$(hostname)/dimes-hetsim-nmc
 
+source /opt/upmem/upmem-2024.1.0-Linux-x86_64/upmem_env.sh
+
 # upstream DPU version uses 2048576 * uint64 ≈ 16 MiB (DPU max: 64 MiB)
 # upstream DPU version uses 2 queries
 input_size_upstream=2048576
@@ -10,6 +12,8 @@ num_queries_upstream=2
 # here: 32 MiB and 1048576 queries
 input_size_dpu=$(perl -E 'say 2 ** 22')
 num_queries_dpu=1048576
+
+# Make sure that num_queries > input_size!
 
 run_benchmark_nmc() {
 	local "$@"
@@ -69,7 +73,7 @@ cd baselines/cpu
 
 (
 
-make -B NUMA=1 NUMA_MEMCPY=1
+make -B numa=1 numa_memcpy=1
 
 echo "CPU single-node upstream-ref with memcpy, copy node == input node (1/6)" >&2
 
@@ -97,7 +101,7 @@ parallel -j1 --eta --joblog ${fn}.2.joblog --resume --header : \
 	:::+      cpu 0 1 \
 	::: nr_threads 1 2 4 8 12 16
 
-make -B NUMA=1
+make -B numa=1
 
 echo "CPU single-node upstream-ref (3/6)" >&2
 

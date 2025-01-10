@@ -1,16 +1,23 @@
-NUMA ?= 0
-NUMA_MEMCPY ?= 0
-FLAGS =
+native ?= 1
+numa ?= 0
+numa_memcpy ?= 0
 
-ifeq (${NUMA}, 1)
-	FLAGS += -lnuma
+CFLAGS =
+LDFLAGS =
+
+ifeq (${native}, 1)
+	CFLAGS += -march=native
+endif
+
+ifeq (${numa}, 1)
+	LDFLAGS += -lnuma
 endif
 
 .PHONY: all
 all: bs_omp
 
 bs_omp: bs_omp.c
-	gcc -Wall -Wextra -pedantic -march=native -O2 -DNUMA=${NUMA} -DNUMA_MEMCPY=${NUMA_MEMCPY} bs_omp.c -o bs_omp -fopenmp ${FLAGS}
+	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} bs_omp.c -o bs_omp -fopenmp ${LDFLAGS}
 
 bs_omp_O0: bs_omp.c
 	gcc bs_omp.c -o bs_omp_O0 -fopenmp

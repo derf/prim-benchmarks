@@ -1,7 +1,7 @@
 #!/bin/bash
 
 cd baselines/cpu
-make -B NUMA=1
+make -B numa=1
 
 mkdir -p log/$(hostname)
 fn=log/$(hostname)/dimes-hetsim-hbm
