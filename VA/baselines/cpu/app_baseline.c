@@ -55,10 +55,10 @@ static T *B_local;
 /**
 * @brief compute output in the host
 */
-static void vector_addition_host(unsigned int nr_elements, int t) {
+static void vector_addition_host(unsigned long nr_elements, int t) {
     omp_set_num_threads(t);
     #pragma omp parallel for
-    for (int i = 0; i < nr_elements; i++) {
+    for (long i = 0; i < nr_elements; i++) {
 #if NUMA_MEMCPY
         C[i] = A_local[i] + B_local[i];
 #else
@@ -69,7 +69,7 @@ static void vector_addition_host(unsigned int nr_elements, int t) {
 
 // Params ---------------------------------------------------------------------
 typedef struct Params {
-    int   input_size;
+    long  input_size;
     int   n_warmup;
     int   n_reps;
     int   exp;
@@ -125,7 +125,7 @@ struct Params input_params(int argc, char **argv) {
         usage();
         exit(0);
         break;
-        case 'i': p.input_size    = atoi(optarg); break;
+        case 'i': p.input_size    = atol(optarg); break;
         case 'w': p.n_warmup      = atoi(optarg); break;
         case 'e': p.n_reps        = atoi(optarg); break;
         case 'x': p.exp           = atoi(optarg); break;
@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
 
     struct Params p = input_params(argc, argv);
 
-    const unsigned int input_size = p.exp == 0 ? p.input_size * p.n_threads : p.input_size;
+    const unsigned long input_size = p.exp == 0 ? p.input_size * p.n_threads : p.input_size;
 
     // Create an input file with arbitrary data.
     /**
@@ -189,7 +189,7 @@ int main(int argc, char **argv) {
     C = (T*) malloc(input_size * sizeof(T));
 #endif
 
-    for (unsigned int i = 0; i < input_size; i++) {
+    for (unsigned long i = 0; i < input_size; i++) {
         A[i] = (T) (rand());
         B[i] = (T) (rand());
     }
@@ -320,7 +320,7 @@ int main(int argc, char **argv) {
 
         if (rep >= p.n_warmup) {
 #if NUMA_MEMCPY
-            printf("[::] VA-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%d"
+            printf("[::] VA-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%ld"
                 " numa_node_in=%d numa_node_local=%d numa_node_out=%d numa_node_cpu=%d numa_node_cpu_memcpy=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
                 " | throughput_MBps=%f",
                 nr_threads, XSTR(T), input_size,
@@ -332,7 +332,7 @@ int main(int argc, char **argv) {
                 timer.time[0], timer.time[1], timer.time[2], timer.time[3],
                 timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3]);
 #else
-            printf("[::] VA-CPU | n_threads=%d e_type=%s n_elements=%d"
+            printf("[::] VA-CPU | n_threads=%d e_type=%s n_elements=%ld"
 #if NUMA
                 " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
