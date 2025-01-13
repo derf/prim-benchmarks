@@ -13,7 +13,13 @@
 #include <stdint.h>
 
 #include <omp.h>
+
+#if WITH_BENCHMARK
 #include "../../support/timer.h"
+#else
+#define start(...)
+#define stop(...)
+#endif
 
 #if NUMA
 #include <numaif.h>
@@ -238,7 +244,15 @@ int main(int argc, char **argv) {
     numa_node_in_is_local = ((numa_node_cpu == numa_node_in) || (numa_node_cpu + 8 == numa_node_in)) * 1;
 #endif
 
+#if WITH_BENCHMARK
     Timer timer;
+#endif
+
+#if NOP_SYNC
+    for(int rep = 0; rep < 200000; rep++) {
+        asm volatile("nop" ::);
+    }
+#endif
 
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
@@ -298,6 +312,7 @@ int main(int argc, char **argv) {
         stop(&timer, 3);
 #endif
 
+#if WITH_BENCHMARK
         unsigned int nr_threads = 0;
 #pragma omp parallel
 #pragma omp atomic
@@ -333,7 +348,14 @@ int main(int argc, char **argv) {
                 timer.time[0]);
 #endif // NUMA_MEMCPY
         }
+#endif // WITH_BENCHMARK
     }
+
+#if NOP_SYNC
+    for(int rep = 0; rep < 200000; rep++) {
+        asm volatile("nop" ::);
+    }
+#endif
 
 #if NUMA
     numa_free(A, input_size * sizeof(T));
