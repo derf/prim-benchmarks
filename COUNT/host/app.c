@@ -76,17 +76,17 @@ int main(int argc, char **argv) {
     // Allocate DPUs and load binary
 #if !WITH_ALLOC_OVERHEAD
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
-    timer.time[0] = 0; // alloc
+    timer.time[TMR_ALLOC] = 0; // alloc
 #endif
 #if !WITH_LOAD_OVERHEAD
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
     DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
     assert(nr_of_dpus == NR_DPUS);
-    timer.time[1] = 0; // load
+    timer.time[TMR_LOAD] = 0; // load
 #endif
 #if !WITH_FREE_OVERHEAD
-    timer.time[6] = 0; // free
+    timer.time[TMR_FREE] = 0; // free
 #endif
 
 #if ENERGY
@@ -122,20 +122,20 @@ int main(int argc, char **argv) {
 
 #if WITH_ALLOC_OVERHEAD
         if(rep >= p.n_warmup) {
-            start(&timer, 0, 0);
+            start(&timer, TMR_ALLOC, 0);
         }
         DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
         if(rep >= p.n_warmup) {
-            stop(&timer, 0);
+            stop(&timer, TMR_ALLOC);
         }
 #endif
 #if WITH_LOAD_OVERHEAD
         if(rep >= p.n_warmup) {
-            start(&timer, 1, 0);
+            start(&timer, TMR_LOAD, 0);
         }
         DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
         if(rep >= p.n_warmup) {
-            stop(&timer, 1);
+            stop(&timer, TMR_LOAD);
         }
         DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
         DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
@@ -161,14 +161,14 @@ int main(int argc, char **argv) {
 
         // Compute output on CPU (performance comparison and verification purposes)
         if(rep >= p.n_warmup)
-            start(&timer, 2, 0);
+            start(&timer, TMR_CPU, 0);
         total_count = count_host(A, input_size);
         if(rep >= p.n_warmup)
-            stop(&timer, 2);
+            stop(&timer, TMR_CPU);
 
         printf("Load input data\n");
         if(rep >= p.n_warmup)
-            start(&timer, 3, 0);
+            start(&timer, TMR_WRITE, 0);
         // Input arguments
         const unsigned int input_size_dpu = input_size_dpu_round;
         unsigned int kernel = 0;
@@ -184,19 +184,19 @@ int main(int argc, char **argv) {
         }
         DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, 0, input_size_dpu * sizeof(T), DPU_XFER_DEFAULT));
         if(rep >= p.n_warmup)
-            stop(&timer, 3);
+            stop(&timer, TMR_WRITE);
 
         printf("Run program on DPU(s) \n");
         // Run DPU kernel
         if(rep >= p.n_warmup) {
-            start(&timer, 4, 0);
+            start(&timer, TMR_KERNEL, 0);
             #if ENERGY
             DPU_ASSERT(dpu_probe_start(&probe));
             #endif
         }
         DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
         if(rep >= p.n_warmup) {
-            stop(&timer, 4);
+            stop(&timer, TMR_KERNEL);
             #if ENERGY
             DPU_ASSERT(dpu_probe_stop(&probe));
             #endif
@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
         accum = 0;
 
         if(rep >= p.n_warmup)
-		    start(&timer, 5, 0);
+		    start(&timer, TMR_READ, 0);
         // PARALLEL RETRIEVE TRANSFER
 
         DPU_FOREACH(dpu_set, dpu, i) {
@@ -240,20 +240,20 @@ int main(int argc, char **argv) {
             accum += results[i].t_count;
         }
         if(rep >= p.n_warmup)
-            stop(&timer, 5);
+            stop(&timer, TMR_READ);
 
         i = 0;
 
 #if WITH_ALLOC_OVERHEAD
 #if WITH_FREE_OVERHEAD
         if(rep >= p.n_warmup) {
-            start(&timer, 8, 0);
+            start(&timer, TMR_FREE, 0);
         }
 #endif
         DPU_ASSERT(dpu_free(dpu_set));
 #if WITH_FREE_OVERHEAD
         if(rep >= p.n_warmup) {
-            stop(&timer, 8);
+            stop(&timer, TMR_FREE);
         }
 #endif
 #endif

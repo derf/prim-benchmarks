@@ -12,7 +12,13 @@
 #include <assert.h>
 #include <stdint.h>
 #include <omp.h>
+
+#if WITH_BENCHMARK
 #include "../../support/timer.h"
+#else
+#define start(...)
+#define stop(...)
+#endif
 
 #if NUMA
 #include <numaif.h>
@@ -186,13 +192,22 @@ int main(int argc, char **argv) {
     // Create an input file with arbitrary data.
     create_test_file(file_size);
 
+#if WITH_BENCHMARK
     Timer timer;
+#endif
+
+#if NOP_SYNC
+    for(int rep = 0; rep < 200000; rep++) {
+        asm volatile("nop" ::);
+    }
+#endif
 
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
         start(&timer, 0, 0);
         total_count = count_host(file_size, p.n_threads);
         stop(&timer, 0);
 
+#if WITH_BENCHMARK
         unsigned int nr_threads = 0;
 #pragma omp parallel
 #pragma omp atomic
@@ -213,7 +228,14 @@ int main(int argc, char **argv) {
                 file_size / timer.time[0]);
             printall(&timer, 0);
         }
+#endif // WITH_BENCHMARK
     }
+
+#if NOP_SYNC
+    for(int rep = 0; rep < 200000; rep++) {
+        asm volatile("nop" ::);
+    }
+#endif
 
 #if NUMA
     numa_free(A, file_size * sizeof(T));
