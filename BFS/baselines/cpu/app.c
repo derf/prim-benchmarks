@@ -8,11 +8,29 @@
 
 #include <omp.h>
 
+#if NUMA
+#include <numaif.h>
+#include <numa.h>
+
+void* mp_pages[1];
+int mp_status[1];
+int mp_nodes[1];
+struct bitmask* bitmask_in;
+int numa_node_in = -1;
+int numa_node_cpu = -1;
+#endif
+
 #include "../../support/common.h"
 #include "../../support/graph.h"
 #include "../../support/params.h"
-#include "../../support/timer.h"
 #include "../../support/utils.h"
+
+#if WITH_BENCHMARK
+#include "../../support/timer.h"
+#else
+#define startTimer(...)
+#define stopTimer(...)
+#endif
 
 int main(int argc, char** argv) {
 
@@ -24,8 +42,9 @@ int main(int argc, char** argv) {
     struct COOGraph cooGraph = readCOOGraph(p.fileName);
     PRINT_INFO(p.verbosity >= 1, "    Graph has %d nodes and %d edges", cooGraph.numNodes, cooGraph.numEdges);
 
-
+#if WITH_BENCHMARK
     Timer timer;
+#endif
     for(int rep = 0; rep < 100; rep++) {
 
         struct CSRGraph csrGraph = coo2csr(cooGraph);
@@ -42,6 +61,12 @@ int main(int argc, char** argv) {
         uint32_t* buffer2 = (uint32_t*) malloc(csrGraph.numNodes*sizeof(uint32_t));
         uint32_t* prevFrontier = buffer1;
         uint32_t* currFrontier = buffer2;
+
+#if NOP_SYNC
+        for(int rep = 0; rep < 200000; rep++) {
+            asm volatile("nop" ::);
+        }
+#endif
 
         // Calculating result on CPU
         startTimer(&timer, 0, 0);
@@ -85,6 +110,12 @@ int main(int argc, char** argv) {
     
         }
         stopTimer(&timer, 0);
+
+#if NOP_SYNC
+        for(int rep = 0; rep < 200000; rep++) {
+            asm volatile("nop" ::);
+        }
+#endif
 
         freeCSRGraph(csrGraph);
         free(buffer1);
@@ -135,6 +166,7 @@ int main(int argc, char** argv) {
         }
         stopTimer(&timer, 1);
 
+#if WITH_BENCHMARK
         unsigned int nr_threads = 0;
 #pragma omp parallel
 #pragma omp atomic
@@ -158,8 +190,11 @@ int main(int argc, char** argv) {
             printf(" throughput_seq_MOpps=%f throughput_MOpps=%f",
                 csrGraph.numNodes / timer.time[1],
                 csrGraph.numNodes / timer.time[0]);
-            printAll(&timer, 1);
+            printf(" latency_us=%f latency_seq_us=%f\n",
+                timer.time[0],
+                timer.time[1]);
         }
+#endif // WITH_BENCHMARK
 
         freeCSRGraph(csrGraph);
         free(nodeLevel);
