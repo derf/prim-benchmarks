@@ -34,33 +34,38 @@
  */
 
 #include <sys/time.h>
+typedef struct Timer {
+	struct timeval startTime[7];
+	struct timeval stopTime[7];
+	double time[7];
+} Timer;
 
-typedef struct Timer{
-
-    struct timeval startTime[7];
-    struct timeval stopTime[7];
-    double         time[7];
-
-}Timer;
-
-void start(Timer *timer, int i, int rep) {
-    if(rep == 0) {
-        timer->time[i] = 0.0;
-    }
-    gettimeofday(&timer->startTime[i], NULL);
+void start(Timer *timer, int i, int rep)
+{
+	if (rep == 0) {
+		timer->time[i] = 0.0;
+	}
+	gettimeofday(&timer->startTime[i], NULL);
 }
 
-void stop(Timer *timer, int i) {
-    gettimeofday(&timer->stopTime[i], NULL);
-    timer->time[i] += (timer->stopTime[i].tv_sec - timer->startTime[i].tv_sec) * 1000000.0 +
-                      (timer->stopTime[i].tv_usec - timer->startTime[i].tv_usec);
+void stop(Timer *timer, int i)
+{
+	gettimeofday(&timer->stopTime[i], NULL);
+	timer->time[i] +=
+	    (timer->stopTime[i].tv_sec -
+	     timer->startTime[i].tv_sec) * 1000000.0 +
+	    (timer->stopTime[i].tv_usec - timer->startTime[i].tv_usec);
 }
 
-void print(Timer *timer, int i, int REP) { printf("%f\t", timer->time[i] / (1000 * REP)); }
+void print(Timer *timer, int i, int REP)
+{
+	printf("%f\t", timer->time[i] / (1000 * REP));
+}
 
-void printall(Timer *timer, int maxt) {
-    for (int i = 0; i <= maxt; i++) {
-        printf(" timer%d_us=%f", i, timer->time[i]);
-    }
-    printf("\n");
+void printall(Timer *timer, int maxt)
+{
+	for (int i = 0; i <= maxt; i++) {
+		printf(" timer%d_us=%f", i, timer->time[i]);
+	}
+	printf("\n");
 }

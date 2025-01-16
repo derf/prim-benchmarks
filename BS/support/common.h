@@ -38,7 +38,7 @@ typedef struct {
 
 // Structures used by both the host and the dpu to communicate information
 typedef struct {
-    DTYPE found;
+	DTYPE found;
 } dpu_results_t;
 
 #ifndef ENERGY
