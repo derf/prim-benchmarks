@@ -33,69 +33,69 @@
 #define DPU_BINARY "./bin/gemv_dpu"
 #endif
 
-static T* A;
-static T* B;
-static T* C;
-static T* C_dpu;
+static T *A;
+static T *B;
+static T *C;
+static T *C_dpu;
 
 // Create input arrays
-static void init_data(T* A, T* B, unsigned int m_size, unsigned int n_size) {
+static void init_data(T *A, T *B, unsigned int m_size, unsigned int n_size)
+{
 	srand(0);
 
-	for (unsigned int i = 0; i < m_size * n_size; i++)
-	{
-		A[i] = (unsigned int) (rand()%50);
+	for (unsigned int i = 0; i < m_size * n_size; i++) {
+		A[i] = (unsigned int)(rand() % 50);
 	}
 
-	for (unsigned int i = 0; i < n_size; i++)
-	{
-		B[i] = (unsigned int) (rand()%50);
+	for (unsigned int i = 0; i < n_size; i++) {
+		B[i] = (unsigned int)(rand() % 50);
 	}
 }
 
 // Compute output in the host
-static void gemv_host(T* C, T* A, T* B, unsigned int m_size, unsigned int n_size) {
-	for (unsigned int i = 0; i < m_size; i++)
-	{
+static void gemv_host(T *C, T *A, T *B, unsigned int m_size,
+		      unsigned int n_size)
+{
+	for (unsigned int i = 0; i < m_size; i++) {
 		C[i] = 0;
 	}
 
 	for (unsigned int m = 0; m < m_size; m++) {
-		for (unsigned int n = 0; n < n_size; n++)
-		{
+		for (unsigned int n = 0; n < n_size; n++) {
 			C[m] += A[m * n_size + n] * B[n];
 		}
 	}
 }
 
 // Main of the Host Application
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
 
 	struct Params p = input_params(argc, argv);
 
 	struct dpu_set_t dpu_set, dpu;
 	uint32_t nr_of_dpus;
-    uint32_t nr_of_ranks;
+	uint32_t nr_of_ranks;
 
 	// Timer
 	Timer timer;
 
-    int numa_node_rank = -2;
+	int numa_node_rank = -2;
 
-    // Allocate DPUs and load binary
+	// Allocate DPUs and load binary
 #if !WITH_ALLOC_OVERHEAD
-    DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
-    timer.time[0] = 0; // alloc
+	DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+	timer.time[0] = 0;	// alloc
 #endif
 #if !WITH_LOAD_OVERHEAD
-    DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
-    DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
-    DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
-    assert(nr_of_dpus == NR_DPUS);
-    timer.time[1] = 0; // load
+	DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
+	DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+	DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
+	assert(nr_of_dpus == NR_DPUS);
+	timer.time[1] = 0;	// load
 #endif
 #if !WITH_FREE_OVERHEAD
-    timer.time[8] = 0; // free
+	timer.time[8] = 0;	// free
 #endif
 
 #if ENERGY
@@ -108,12 +108,13 @@ int main(int argc, char **argv) {
 	unsigned int n_size = p.n_size;
 
 	// Initialize help data
-	dpu_info = (struct dpu_info_t *) malloc(NR_DPUS * sizeof(struct dpu_info_t));
-	dpu_arguments_t *input_args = (dpu_arguments_t *) malloc(NR_DPUS * sizeof(dpu_arguments_t));
+	dpu_info =
+	    (struct dpu_info_t *)malloc(NR_DPUS * sizeof(struct dpu_info_t));
+	dpu_arguments_t *input_args =
+	    (dpu_arguments_t *) malloc(NR_DPUS * sizeof(dpu_arguments_t));
 	uint32_t max_rows_per_dpu = 0;
 	uint32_t n_size_pad = n_size;
-	if(n_size % 2 == 1)
-	{
+	if (n_size % 2 == 1) {
 		n_size_pad++;
 	}
 
@@ -127,7 +128,10 @@ int main(int argc, char **argv) {
 			rows_per_dpu++;
 		if (rest_rows > 0) {
 			if (i >= rest_rows)
-				prev_rows_dpu = rest_rows * (chunks + 1) + (i - rest_rows) * chunks;
+				prev_rows_dpu =
+				    rest_rows * (chunks + 1) + (i -
+								rest_rows) *
+				    chunks;
 			else
 				prev_rows_dpu = i * (chunks + 1);
 		} else {
@@ -136,7 +140,7 @@ int main(int argc, char **argv) {
 
 		// Keep max rows for parallel transfers
 		uint32_t rows_per_dpu_pad = rows_per_dpu;
-		if (rows_per_dpu_pad % 2 == 1) // 4-byte elements
+		if (rows_per_dpu_pad % 2 == 1)	// 4-byte elements
 			rows_per_dpu_pad++;
 		if (rows_per_dpu_pad > max_rows_per_dpu)
 			max_rows_per_dpu = rows_per_dpu_pad;
@@ -163,20 +167,20 @@ int main(int argc, char **argv) {
 	for (unsigned int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
 #if WITH_ALLOC_OVERHEAD
-		if(rep >= p.n_warmup) {
+		if (rep >= p.n_warmup) {
 			start(&timer, 0, 0);
 		}
 		DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
-		if(rep >= p.n_warmup) {
+		if (rep >= p.n_warmup) {
 			stop(&timer, 0);
 		}
 #endif
 #if WITH_LOAD_OVERHEAD
-		if(rep >= p.n_warmup) {
+		if (rep >= p.n_warmup) {
 			start(&timer, 1, 0);
 		}
 		DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
-		if(rep >= p.n_warmup) {
+		if (rep >= p.n_warmup) {
 			stop(&timer, 1);
 		}
 		DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
@@ -186,26 +190,33 @@ int main(int argc, char **argv) {
 
 		// int prev_rank_id = -1;
 		int rank_id = -1;
-		DPU_FOREACH (dpu_set, dpu) {
-			rank_id = dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) & DPU_TARGET_MASK;
-			if ((numa_node_rank != -2) && numa_node_rank != dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)))) {
+		DPU_FOREACH(dpu_set, dpu) {
+			rank_id =
+			    dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) &
+			    DPU_TARGET_MASK;
+			if ((numa_node_rank != -2)
+			    && numa_node_rank !=
+			    dpu_get_rank_numa_node(dpu_get_rank
+						   (dpu_from_set(dpu)))) {
 				numa_node_rank = -1;
 			} else {
-				numa_node_rank = dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)));
+				numa_node_rank =
+				    dpu_get_rank_numa_node(dpu_get_rank
+							   (dpu_from_set(dpu)));
 			}
 			/*
-			if (rank_id != prev_rank_id) {
-				printf("/dev/dpu_rank%d @ NUMA node %d\n", rank_id, numa_node_rank);
-				prev_rank_id = rank_id;
-			}
-			*/
+			   if (rank_id != prev_rank_id) {
+			   printf("/dev/dpu_rank%d @ NUMA node %d\n", rank_id, numa_node_rank);
+			   prev_rank_id = rank_id;
+			   }
+			 */
 		}
 
-		if(rep >= p.n_warmup) {
+		if (rep >= p.n_warmup) {
 			start(&timer, 2, 0);
 		}
 		gemv_host(C, A, B, m_size, n_size);
-		if(rep >= p.n_warmup) {
+		if (rep >= p.n_warmup) {
 			stop(&timer, 2);
 		}
 		if (rep >= p.n_warmup) {
@@ -220,23 +231,30 @@ int main(int argc, char **argv) {
 			DPU_ASSERT(dpu_prepare_xfer(dpu, input_args + i));
 		}
 
-		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0, sizeof(dpu_arguments_t), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer
+			   (dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0,
+			    sizeof(dpu_arguments_t), DPU_XFER_DEFAULT));
 
-		if(rep >= p.n_warmup) {
+		if (rep >= p.n_warmup) {
 			stop(&timer, 3);
 		}
 		if (rep >= p.n_warmup) {
 			start(&timer, 6, 0);
 		}
-
 		// Copy input array and vector
 		i = 0;
 		DPU_FOREACH(dpu_set, dpu, i) {
-			DPU_ASSERT(dpu_prepare_xfer(dpu, A + dpu_info[i].prev_rows_dpu * n_size));
+			DPU_ASSERT(dpu_prepare_xfer
+				   (dpu,
+				    A + dpu_info[i].prev_rows_dpu * n_size));
 		}
-		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, 0, max_rows_per_dpu * n_size_pad * sizeof(T), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer
+			   (dpu_set, DPU_XFER_TO_DPU,
+			    DPU_MRAM_HEAP_POINTER_NAME, 0,
+			    max_rows_per_dpu * n_size_pad * sizeof(T),
+			    DPU_XFER_DEFAULT));
 
-		if(rep >= p.n_warmup) {
+		if (rep >= p.n_warmup) {
 			stop(&timer, 6);
 		}
 		if (rep >= p.n_warmup) {
@@ -246,12 +264,15 @@ int main(int argc, char **argv) {
 		DPU_FOREACH(dpu_set, dpu, i) {
 			DPU_ASSERT(dpu_prepare_xfer(dpu, B));
 		}
-		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, DPU_MRAM_HEAP_POINTER_NAME, max_rows_per_dpu * n_size_pad * sizeof(T) , n_size_pad * sizeof(T), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer
+			   (dpu_set, DPU_XFER_TO_DPU,
+			    DPU_MRAM_HEAP_POINTER_NAME,
+			    max_rows_per_dpu * n_size_pad * sizeof(T),
+			    n_size_pad * sizeof(T), DPU_XFER_DEFAULT));
 
 		if (rep >= p.n_warmup) {
 			stop(&timer, 7);
 		}
-
 		// Run kernel on DPUs
 		if (rep >= p.n_warmup) {
 			start(&timer, 4, 0);
@@ -280,89 +301,140 @@ int main(int argc, char **argv) {
 			start(&timer, 5, 0);
 		i = 0;
 		DPU_FOREACH(dpu_set, dpu, i) {
-			DPU_ASSERT(dpu_prepare_xfer(dpu, C_dpu + i * max_rows_per_dpu));
+			DPU_ASSERT(dpu_prepare_xfer
+				   (dpu, C_dpu + i * max_rows_per_dpu));
 		}
-		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, DPU_MRAM_HEAP_POINTER_NAME, max_rows_per_dpu * n_size_pad * sizeof(T) + n_size_pad * sizeof(T), max_rows_per_dpu * sizeof(T), DPU_XFER_DEFAULT));
-		if(rep >= p.n_warmup) {
+		DPU_ASSERT(dpu_push_xfer
+			   (dpu_set, DPU_XFER_FROM_DPU,
+			    DPU_MRAM_HEAP_POINTER_NAME,
+			    max_rows_per_dpu * n_size_pad * sizeof(T) +
+			    n_size_pad * sizeof(T),
+			    max_rows_per_dpu * sizeof(T), DPU_XFER_DEFAULT));
+		if (rep >= p.n_warmup) {
 			stop(&timer, 5);
 		}
 
-
 #if WITH_ALLOC_OVERHEAD
 #if WITH_FREE_OVERHEAD
-		if(rep >= p.n_warmup) {
+		if (rep >= p.n_warmup) {
 			start(&timer, 8, 0);
 		}
 #endif
 		DPU_ASSERT(dpu_free(dpu_set));
 #if WITH_FREE_OVERHEAD
-		if(rep >= p.n_warmup) {
+		if (rep >= p.n_warmup) {
 			stop(&timer, 8);
 		}
 #endif
 #endif
 
-
 		// Check output
 		bool status = true;
-		unsigned int n,j;
+		unsigned int n, j;
 		i = 0;
 		for (n = 0; n < NR_DPUS; n++) {
 			for (j = 0; j < dpu_info[n].rows_per_dpu; j++) {
-				if(C[i] != C_dpu[n * max_rows_per_dpu + j]) {
+				if (C[i] != C_dpu[n * max_rows_per_dpu + j]) {
 					status = false;
 #if PRINT
-		//			printf("%d: %d -- %d\n", i, C[i], C_dpu[n * max_rows_per_dpu + j]);
+					//                      printf("%d: %d -- %d\n", i, C[i], C_dpu[n * max_rows_per_dpu + j]);
 #endif
 				}
 				i++;
 			}
 		}
 		if (status) {
-			printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
+			printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET
+			       "] Outputs are equal\n");
 			if (rep >= p.n_warmup) {
-				printf("[::] GEMV-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d",
-					NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T), BLOCK_SIZE, n_size * m_size);
-				printf(" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d numa_node_rank=%d ",
-					WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD, numa_node_rank);
-				printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
-					timer.time[0],
-					timer.time[1],
-					timer.time[2],
-					timer.time[3] + timer.time[6] + timer.time[7],
-					timer.time[4],
-					timer.time[5],
-					timer.time[8]);
-				printf(" latency_write1_us=%f latency_write2_us=%f latency_write3_us=%f",
-						timer.time[3],
-						timer.time[6],
-						timer.time[7]
-					);
-				printf(" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
-					n_size * m_size * sizeof(T) / timer.time[2],
-					n_size * m_size * sizeof(T) / (timer.time[4]),
-					n_size * m_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5] + timer.time[8]));
-				printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
-					n_size * m_size * sizeof(T) / (timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]),
-					n_size * m_size * sizeof(T) / (timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]),
-					n_size * m_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]));
-				printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
-					n_size * m_size / timer.time[2],
-					n_size * m_size / (timer.time[4]),
-					n_size * m_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5] + timer.time[8]));
-				printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
-					n_size * m_size / (timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]),
-					n_size * m_size / (timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]),
-					n_size * m_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]));
+				printf
+				    ("[::] GEMV-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d",
+				     NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T),
+				     BLOCK_SIZE, n_size * m_size);
+				printf
+				    (" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d numa_node_rank=%d ",
+				     WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD,
+				     WITH_FREE_OVERHEAD, numa_node_rank);
+				printf
+				    ("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
+				     timer.time[0], timer.time[1],
+				     timer.time[2],
+				     timer.time[3] + timer.time[6] +
+				     timer.time[7], timer.time[4],
+				     timer.time[5], timer.time[8]);
+				printf
+				    (" latency_write1_us=%f latency_write2_us=%f latency_write3_us=%f",
+				     timer.time[3], timer.time[6], timer.time[7]
+				    );
+				printf
+				    (" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
+				     n_size * m_size * sizeof(T) /
+				     timer.time[2],
+				     n_size * m_size * sizeof(T) /
+				     (timer.time[4]),
+				     n_size * m_size * sizeof(T) /
+				     (timer.time[0] + timer.time[1] +
+				      timer.time[3] + timer.time[6] +
+				      timer.time[7] + timer.time[4] +
+				      timer.time[5] + timer.time[8]));
+				printf
+				    (" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
+				     n_size * m_size * sizeof(T) /
+				     (timer.time[3] + timer.time[6] +
+				      timer.time[7] + timer.time[4] +
+				      timer.time[5]),
+				     n_size * m_size * sizeof(T) /
+				     (timer.time[1] + timer.time[3] +
+				      timer.time[6] + timer.time[7] +
+				      timer.time[4] + timer.time[5]),
+				     n_size * m_size * sizeof(T) /
+				     (timer.time[0] + timer.time[1] +
+				      timer.time[3] + timer.time[6] +
+				      timer.time[7] + timer.time[4] +
+				      timer.time[5]));
+				printf
+				    (" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
+				     n_size * m_size / timer.time[2],
+				     n_size * m_size / (timer.time[4]),
+				     n_size * m_size / (timer.time[0] +
+							timer.time[1] +
+							timer.time[3] +
+							timer.time[6] +
+							timer.time[7] +
+							timer.time[4] +
+							timer.time[5] +
+							timer.time[8]));
+				printf
+				    (" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
+				     n_size * m_size / (timer.time[3] +
+							timer.time[6] +
+							timer.time[7] +
+							timer.time[4] +
+							timer.time[5]),
+				     n_size * m_size / (timer.time[1] +
+							timer.time[3] +
+							timer.time[6] +
+							timer.time[7] +
+							timer.time[4] +
+							timer.time[5]),
+				     n_size * m_size / (timer.time[0] +
+							timer.time[1] +
+							timer.time[3] +
+							timer.time[6] +
+							timer.time[7] +
+							timer.time[4] +
+							timer.time[5]));
 			}
 		} else {
-			printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
+			printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET
+			       "] Outputs differ!\n");
 		}
 
 	}
 #if ENERGY
 	double acc_energy, avg_energy, acc_time, avg_time;
-	DPU_ASSERT(dpu_probe_get(&probe, DPU_ENERGY, DPU_ACCUMULATE, &acc_energy));
+	DPU_ASSERT(dpu_probe_get
+		   (&probe, DPU_ENERGY, DPU_ACCUMULATE, &acc_energy));
 	DPU_ASSERT(dpu_probe_get(&probe, DPU_ENERGY, DPU_AVERAGE, &avg_energy));
 	DPU_ASSERT(dpu_probe_get(&probe, DPU_TIME, DPU_ACCUMULATE, &acc_time));
 	DPU_ASSERT(dpu_probe_get(&probe, DPU_TIME, DPU_AVERAGE, &avg_time));
@@ -370,15 +442,15 @@ int main(int argc, char **argv) {
 
 	// Print timing results
 	/*
-	printf("CPU Version Time (ms): ");
-	print(&timer, 0, 1);
-	printf("CPU-DPU Time (ms): ");
-	print(&timer, 1, p.n_reps);
-	printf("DPU Kernel Time (ms): ");
-	print(&timer, 2, p.n_reps);
-	printf("DPU-CPU Time (ms): ");
-	print(&timer, 3, p.n_reps);
-	*/
+	   printf("CPU Version Time (ms): ");
+	   print(&timer, 0, 1);
+	   printf("CPU-DPU Time (ms): ");
+	   print(&timer, 1, p.n_reps);
+	   printf("DPU Kernel Time (ms): ");
+	   print(&timer, 2, p.n_reps);
+	   printf("DPU-CPU Time (ms): ");
+	   print(&timer, 3, p.n_reps);
+	 */
 
 #if ENERGY
 	printf("Energy (J): %f J\t", avg_energy);

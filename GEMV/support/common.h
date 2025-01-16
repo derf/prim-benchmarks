@@ -3,17 +3,17 @@
 
 // Structures used by both the host and the dpu to communicate information 
 typedef struct {
-    uint32_t n_size;
-    uint32_t n_size_pad;
-    uint32_t nr_rows;
-    uint32_t max_rows;
+	uint32_t n_size;
+	uint32_t n_size_pad;
+	uint32_t nr_rows;
+	uint32_t max_rows;
 } dpu_arguments_t;
 
 // Specific information for each DPU
 struct dpu_info_t {
-    uint32_t rows_per_dpu;
-    uint32_t rows_per_dpu_pad;
-    uint32_t prev_rows_dpu;
+	uint32_t rows_per_dpu;
+	uint32_t rows_per_dpu_pad;
+	uint32_t prev_rows_dpu;
 };
 struct dpu_info_t *dpu_info;
 
