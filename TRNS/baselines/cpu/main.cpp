@@ -36,8 +36,17 @@
 #include "support/setup.h"
 #include "kernel.h"
 #include "support/common.h"
-#include "support/timer.h"
 #include "support/verify.h"
+
+#if WITH_BENCHMARK
+#include "support/timer.h"
+#else
+#include <string>
+struct Timer {
+    inline void start(std::string name) {(void)name;}
+    inline void stop(std::string name) {(void)name;}
+};
+#endif
 
 #include <unistd.h>
 #include <thread>
@@ -362,6 +371,7 @@ int main(int argc, char **argv) {
             timer.stop("free");
 #endif
 
+#if WITH_BENCHMARK
         if (rep >= p.n_warmup) {
 #if NUMA_MEMCPY
             printf("[::] TRNS-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%d"
@@ -396,10 +406,8 @@ int main(int argc, char **argv) {
                 timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3"));
 #endif // NUMA_MEMCPY
         }
+#endif // WITH_BENCHMARK
     }
-    //timer.print("Step 1", p.n_reps);
-    //timer.print("Step 2", p.n_reps);
-    //timer.print("Step 3", p.n_reps);
 
     // Verify answer
     //verify(h_local, h_in_backup, M_ * m, N_ * n, 1);
