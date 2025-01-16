@@ -3,11 +3,11 @@
 
 // Structures used by both the host and the dpu to communicate information
 typedef struct {
-    uint32_t size;
-    uint32_t transfer_size;
+	uint32_t size;
+	uint32_t transfer_size;
 	enum kernels {
-	    kernel1 = 0,
-	    nr_kernels = 1,
+		kernel1 = 0,
+		nr_kernels = 1,
 	} kernel;
 } dpu_arguments_t;
 
@@ -24,34 +24,34 @@ typedef struct {
 // Data type
 #ifdef UINT32
 #define T uint32_t
-#define DIV 2 // Shift right to divide by sizeof(T)
+#define DIV 2			// Shift right to divide by sizeof(T)
 #elif UINT64
 #define T uint64_t
-#define DIV 3 // Shift right to divide by sizeof(T)
+#define DIV 3			// Shift right to divide by sizeof(T)
 #elif INT32
 #define T int32_t
-#define DIV 2 // Shift right to divide by sizeof(T)
+#define DIV 2			// Shift right to divide by sizeof(T)
 #elif INT64
 #define T int64_t
-#define DIV 3 // Shift right to divide by sizeof(T)
+#define DIV 3			// Shift right to divide by sizeof(T)
 #elif FLOAT
 #define T float
-#define DIV 2 // Shift right to divide by sizeof(T)
+#define DIV 2			// Shift right to divide by sizeof(T)
 #elif DOUBLE
 #define T double
-#define DIV 3 // Shift right to divide by sizeof(T)
+#define DIV 3			// Shift right to divide by sizeof(T)
 #elif CHAR
 #define T char
-#define DIV 0 // Shift right to divide by sizeof(T)
+#define DIV 0			// Shift right to divide by sizeof(T)
 #elif SHORT
 #define T short
-#define DIV 1 // Shift right to divide by sizeof(T)
+#define DIV 1			// Shift right to divide by sizeof(T)
 #endif
 
 #ifndef ENERGY
 #define ENERGY 0
 #endif
-#define PRINT 0 
+#define PRINT 0
 
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
