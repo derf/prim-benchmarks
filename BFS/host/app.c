@@ -43,12 +43,35 @@ int main(int argc, char** argv) {
     double tenergy=0;
     #endif
 
+    printf("WITH_ALLOC_OVERHEAD=%d WITH_LOAD_OVERHEAD=%d WITH_FREE_OVERHEAD=%d\n", WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
+
     // Allocate DPUs and load binary
     struct dpu_set_t dpu_set, dpu;
-    uint32_t numDPUs;
+    uint32_t numDPUs, numRanks;
+
+#if WITH_ALLOC_OVERHEAD
+    startTimer(&timer, 0, 0);
+#endif
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+#if WITH_ALLOC_OVERHEAD
+    stopTimer(&timer, 0);
+#else
+    timer.time[0] = 0;
+#endif
+
+#if WITH_LOAD_OVERHEAD
+    startTimer(&timer, 1, 0);
+#endif
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
+#if WITH_LOAD_OVERHEAD
+    stopTimer(&timer, 0);
+#else
+    timer.time[1] = 0;
+#endif
+
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &numDPUs));
+    DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &numRanks));
+    assert(NR_DPUS == numDPUs);
     PRINT_INFO(p.verbosity >= 1, "Allocated %d DPU(s)", numDPUs);
 
     // Initialize BFS data structures
@@ -130,23 +153,23 @@ int main(int argc, char** argv) {
 
             // Send data to DPU
             PRINT_INFO(p.verbosity >= 2, "        Copying data to DPU");
-            startTimer(&timer, 0, t0ini++);
+            startTimer(&timer, 2, t0ini++);
             copyToDPU(dpu, (uint8_t*)dpuNodePtrs_h, dpuNodePtrs_m, (dpuNumNodes + 1)*sizeof(uint32_t));
             copyToDPU(dpu, (uint8_t*)dpuNeighborIdxs_h, dpuNeighborIdxs_m, dpuNumNeighbors*sizeof(uint32_t));
             copyToDPU(dpu, (uint8_t*)dpuNodeLevel_h, dpuNodeLevel_m, dpuNumNodes*sizeof(uint32_t));
             copyToDPU(dpu, (uint8_t*)visited, dpuVisited_m, numNodes/64*sizeof(uint64_t));
             copyToDPU(dpu, (uint8_t*)nextFrontier, dpuNextFrontier_m, numNodes/64*sizeof(uint64_t));
             // NOTE: No need to copy current frontier because it is written before being read
-            stopTimer(&timer, 0);
+            stopTimer(&timer, 2);
             //loadTime += getElapsedTime(timer);
 
         }
 
         // Send parameters to DPU
         PRINT_INFO(p.verbosity >= 2, "        Copying parameters to DPU");
-        startTimer(&timer, 1, t1ini++);
+        startTimer(&timer, 2, t1ini++);
         copyToDPU(dpu, (uint8_t*)&dpuParams[dpuIdx], dpuParams_m[dpuIdx], sizeof(struct DPUParams));
-        stopTimer(&timer, 1);
+        stopTimer(&timer, 2);
         //loadTime += getElapsedTime(timer);
 
         ++dpuIdx;
@@ -164,9 +187,9 @@ int main(int argc, char** argv) {
 	#endif
         // Run all DPUs
         PRINT_INFO(p.verbosity >= 1, "    Booting DPUs");
-        startTimer(&timer, 2, t2ini++);
+        startTimer(&timer, 3, t2ini++);
         DPU_ASSERT(dpu_launch(dpu_set, DPU_SYNCHRONOUS));
-        stopTimer(&timer, 2);
+        stopTimer(&timer, 3);
         //dpuTime += getElapsedTime(timer);
 	#if ENERGY
     	DPU_ASSERT(dpu_probe_stop(&probe));
@@ -178,7 +201,7 @@ int main(int argc, char** argv) {
 
 
         // Copy back next frontier from all DPUs and compute their union as the current frontier
-        startTimer(&timer, 3, t3ini++);
+        startTimer(&timer, 4, t3ini++);
         dpuIdx = 0;
         DPU_FOREACH (dpu_set, dpu) {
             uint32_t dpuNumNodes = dpuParams[dpuIdx].dpuNumNodes;
@@ -218,14 +241,14 @@ int main(int argc, char** argv) {
                 }
             }
         }
-        stopTimer(&timer, 3);
+        stopTimer(&timer, 4);
         //hostTime += getElapsedTime(timer);
 
     }
 
     // Copy back node levels
     PRINT_INFO(p.verbosity >= 1, "Copying back the result");
-    startTimer(&timer, 4, 0);
+    startTimer(&timer, 5, 0);
     dpuIdx = 0;
     DPU_FOREACH (dpu_set, dpu) {
         uint32_t dpuNumNodes = dpuParams[dpuIdx].dpuNumNodes;
@@ -235,7 +258,7 @@ int main(int argc, char** argv) {
         }
         ++dpuIdx;
     }
-    stopTimer(&timer, 4);
+    stopTimer(&timer, 5);
     //retrieveTime += getElapsedTime(timer);
     //if(p.verbosity == 0) PRINT("CPU-DPU Time(ms): %f    DPU Kernel Time (ms): %f    Inter-DPU Time (ms): %f    DPU-CPU Time (ms): %f", loadTime*1e3, dpuTime*1e3, hostTime*1e3, retrieveTime*1e3);
 
@@ -246,6 +269,7 @@ int main(int argc, char** argv) {
     setBit(nextFrontier[0], 0); // Initialize frontier to first node
     nextFrontierEmpty = 0;
     level = 1;
+    startTimer(&timer, 6, 0);
     while(!nextFrontierEmpty) {
         // Update current frontier and visited list based on the next frontier from the previous iteration
         for(uint32_t nodeTileIdx = 0; nodeTileIdx < numNodes/64; ++nodeTileIdx) {
@@ -285,6 +309,17 @@ int main(int argc, char** argv) {
         }
         ++level;
     }
+    stopTimer(&timer, 6);
+
+#if WITH_FREE_OVERHEAD
+    startTimer(&timer, 7);
+#endif
+    DPU_ASSERT(dpu_free(dpu_set));
+#if WITH_FREE_OVERHEAD
+    stopTimer(&timer, 7);
+#else
+    timer.time[7] = 0;
+#endif
 
     // Verify the result
     PRINT_INFO(p.verbosity >= 1, "Verifying the result");
@@ -297,7 +332,7 @@ int main(int argc, char** argv) {
     }
 
     if (status) {
-        printf("[::] BFS NMC | n_dpus=%d n_tasklets=%d e_type=%s n_elements=%d "
+        printf("[::] BFS-UMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%d "
             "| throughput_pim_MBps=%f throughput_MBps=%f",
             numDPUs, NR_TASKLETS, "uint32_t", numNodes,
             numNodes * sizeof(uint32_t) / (timer.time[2] + timer.time[3]),
@@ -305,7 +340,8 @@ int main(int argc, char** argv) {
         printf(" throughput_pim_MOpps=%f throughput_MOpps=%f",
             numNodes / (timer.time[2] + timer.time[3]),
             numNodes / (timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4]));
-        printAll(&timer, 4);
+        printf(" latency_alloc_us=%f latency_load_us=%f latency_write_us=%f latency_kernel_us=%f latency_sync_us=%f latency_read_us=%f latency_cpu_us=%f latency_free_us=%f\n",
+            timer.time[0], timer.time[1], timer.time[2], timer.time[3], timer.time[4], timer.time[5], timer.time[6], timer.time[7]);
     }
 
     // Display DPU Logs
