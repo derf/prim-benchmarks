@@ -3,15 +3,15 @@
 
 // Structures used by both the host and the dpu to communicate information 
 typedef struct {
-    uint32_t size;
+	uint32_t size;
 	enum kernels {
-	    kernel1 = 0,
-	    nr_kernels = 1,
+		kernel1 = 0,
+		nr_kernels = 1,
 	} kernel;
 } dpu_arguments_t;
 
 typedef struct {
-    uint32_t t_count;
+	uint32_t t_count;
 } dpu_results_t;
 
 // Transfer size between MRAM and WRAM
@@ -26,11 +26,12 @@ typedef struct {
 
 // Data type
 #define T uint64_t
-#define REGS (BLOCK_SIZE >> 3) // 64 bits
+#define REGS (BLOCK_SIZE >> 3)	// 64 bits
 
 // Sample predicate
-bool pred(const T x){
-  return (x % 2) == 0;
+bool pred(const T x)
+{
+	return (x % 2) == 0;
 }
 
 #ifndef ENERGY
