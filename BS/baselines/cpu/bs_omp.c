@@ -7,7 +7,13 @@
 #include <assert.h>
 #include <time.h>
 #include <stdint.h>
+
+#if WITH_BENCHMARK
 #include "timer.h"
+#else
+#define start(...)
+#define stop(...)
+#endif
 
 #if NUMA
 #include <numaif.h>
@@ -92,7 +98,9 @@ uint64_t binarySearch(DTYPE * input, uint64_t input_size, DTYPE* querys, unsigne
   */
   int main(int argc, char **argv) {
     (void)argc;
+#if WITH_BENCHMARK
     Timer timer;
+#endif
     uint64_t input_size = atol(argv[1]);
     uint64_t n_querys = atol(argv[2]);
 #if NUMA
@@ -205,6 +213,12 @@ uint64_t binarySearch(DTYPE * input, uint64_t input_size, DTYPE* querys, unsigne
     }
 #endif
 
+#if NOP_SYNC
+    for(int rep = 0; rep < 200000; rep++) {
+        asm volatile("nop" ::);
+    }
+#endif
+
     start(&timer, 0, 0);
 #if NUMA_MEMCPY
     result_host = binarySearch(input_local, input_size - 1, querys_local, n_querys);
@@ -212,6 +226,12 @@ uint64_t binarySearch(DTYPE * input, uint64_t input_size, DTYPE* querys, unsigne
     result_host = binarySearch(input, input_size - 1, querys, n_querys);
 #endif
     stop(&timer, 0);
+
+#if NOP_SYNC
+    for(int rep = 0; rep < 200000; rep++) {
+        asm volatile("nop" ::);
+    }
+#endif
 
 #if NUMA_MEMCPY
     start(&timer, 3, 0);
@@ -222,12 +242,13 @@ uint64_t binarySearch(DTYPE * input, uint64_t input_size, DTYPE* querys, unsigne
     stop(&timer, 3);
 #endif
 
+    int status = (result_host);
+#if WITH_BENCHMARK
     unsigned int nr_threads = 0;
 #pragma omp parallel
 #pragma omp atomic
     nr_threads++;
 
-    int status = (result_host);
     if (status) {
 #if NUMA_MEMCPY
         printf("[::] BS-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%lu"
@@ -256,6 +277,7 @@ uint64_t binarySearch(DTYPE * input, uint64_t input_size, DTYPE* querys, unsigne
     } else {
         printf("[ERROR]\n");
     }
+#endif // WITH_BENCHMARK
 
 #if NUMA
     numa_free(input, input_size * sizeof(DTYPE));
