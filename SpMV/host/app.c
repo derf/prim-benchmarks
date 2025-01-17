@@ -232,7 +232,7 @@ int main(int argc, char** argv) {
             // coomatrix / csrmatrix use uint32_t indexes and float values, so all 32bit
             csrMatrix.numNonzeros / (dpuTime * 1e6),
             csrMatrix.numNonzeros / ((allocTime + loadTime + writeTime + dpuTime + readTime + freeTime) * 1e6));
-        printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f",
+        printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
             csrMatrix.numNonzeros / ((writeTime + dpuTime + readTime) * 1e6),
             csrMatrix.numNonzeros / ((loadTime + writeTime + dpuTime + readTime) * 1e6),
             csrMatrix.numNonzeros / ((allocTime + loadTime + writeTime + dpuTime + readTime) * 1e6));
