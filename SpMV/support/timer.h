@@ -6,22 +6,25 @@
 #include <sys/time.h>
 
 typedef struct Timer {
-    struct timeval startTime;
-    struct timeval endTime;
+	struct timeval startTime;
+	struct timeval endTime;
 } Timer;
 
-static void startTimer(Timer* timer) {
-    gettimeofday(&(timer->startTime), NULL);
+static void startTimer(Timer *timer)
+{
+	gettimeofday(&(timer->startTime), NULL);
 }
 
-static void stopTimer(Timer* timer) {
-    gettimeofday(&(timer->endTime), NULL);
+static void stopTimer(Timer *timer)
+{
+	gettimeofday(&(timer->endTime), NULL);
 }
 
-static double getElapsedTime(Timer timer) {
-    return ((double) ((timer.endTime.tv_sec - timer.startTime.tv_sec)
-                   + (timer.endTime.tv_usec - timer.startTime.tv_usec)/1.0e6));
+static double getElapsedTime(Timer timer)
+{
+	return ((double)((timer.endTime.tv_sec - timer.startTime.tv_sec)
+			 + (timer.endTime.tv_usec -
+			    timer.startTime.tv_usec) / 1.0e6));
 }
 
 #endif
-
