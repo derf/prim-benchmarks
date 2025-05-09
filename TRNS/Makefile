@@ -6,8 +6,10 @@ COMMON_INCLUDES := support
 HOST_SOURCES := $(wildcard host/*.c)
 DPU_SOURCES := $(wildcard dpu/*.c)
 
+dfatool_timing ?= 1
+
 COMMON_FLAGS := -Wall -Wextra -g -I${COMMON_INCLUDES}
-HOST_FLAGS := ${COMMON_FLAGS} -std=c11 -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DENERGY=${ENERGY}
+HOST_FLAGS := ${COMMON_FLAGS} -std=c11 -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DENERGY=${ENERGY} -DDFATOOL_TIMING=${dfatool_timing}
 DPU_FLAGS := ${COMMON_FLAGS} -O2 -DNR_TASKLETS=${NR_TASKLETS}
 
 QUIET = @

@@ -313,35 +313,35 @@ int main(int argc, char **argv) {
                  * timer 8: run DPU program (second kernel)
                  * timer 9: read transposed matrix
                  */
-                printf("[::] TRNS-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%lu numa_node_rank=%d ",
+                dfatool_printf("[::] TRNS-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%lu numa_node_rank=%d ",
                     NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T), input_size, numa_node_rank);
-                printf("| latency_cpu_us=%f latency_realloc_us=%f latency_load_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f",
+                dfatool_printf("| latency_cpu_us=%f latency_realloc_us=%f latency_load_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f",
                     timer.time[0], // CPU
                     timer.time[1], // free + alloc
                     timer.time[2], // load
                     timer.time[3] + timer.time[4] + timer.time[5] + timer.time[7], // write
                     timer.time[6] + timer.time[8], // kernel
                     timer.time[9]); // read
-                printf(" latency_write1_us=%f latency_write2_us=%f latency_write3_us=%f latency_write4_us=%f latency_kernel1_us=%f latency_kernel2_us=%f",
+                dfatool_printf(" latency_write1_us=%f latency_write2_us=%f latency_write3_us=%f latency_write4_us=%f latency_kernel1_us=%f latency_kernel2_us=%f",
                     timer.time[3],
                     timer.time[4],
                     timer.time[5],
                     timer.time[7],
                     timer.time[6],
                     timer.time[8]);
-                printf(" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
+                dfatool_printf(" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
                     input_size * sizeof(T) / timer.time[0],
                     input_size * sizeof(T) / (timer.time[6] + timer.time[8]),
                     input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7] + timer.time[8] + timer.time[9]));
-                printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
+                dfatool_printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
                     input_size *  sizeof(T) / (timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7] + timer.time[8] + timer.time[9]),
                     input_size *  sizeof(T) / (timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7] + timer.time[8] + timer.time[9]),
                     input_size *  sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7] + timer.time[8] + timer.time[9]));
-                printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
+                dfatool_printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
                     input_size / timer.time[0],
                     input_size / (timer.time[6] + timer.time[8]),
                     input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7] + timer.time[8] + timer.time[9]));
-                printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
+                dfatool_printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
                     input_size / (timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7] + timer.time[8] + timer.time[9]),
                     input_size / (timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7] + timer.time[8] + timer.time[9]),
                     input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6] + timer.time[7] + timer.time[8] + timer.time[9]));
