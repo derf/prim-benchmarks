@@ -7,8 +7,24 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+
+#if ASPECTC
+extern "C" {
+#endif
+
 #include <dpu.h>
 #include <dpu_log.h>
+#include <dpu_management.h>
+#include <dpu_target_macros.h>
+
+#if ENERGY
+#include <dpu_probe.h>
+#endif
+
+#if ASPECTC
+}
+#endif
+
 #include <unistd.h>
 #include <getopt.h>
 #include <assert.h>
@@ -26,17 +42,13 @@
 #define DPU_BINARY "./bin/dpu_code"
 #endif
 
-#if ENERGY
-#include <dpu_probe.h>
-#endif
-
-#include <dpu_management.h>
-#include <dpu_target_macros.h>
-
 // Pointer declaration
 static T* A_host;
 static T* A_backup;
 static T* A_result;
+
+struct Params p;
+unsigned int kernel = 0;
 
 // Create input arrays
 static void read_input(T* A, unsigned int nr_elements) {
@@ -65,7 +77,7 @@ static void trns_host(T* input, unsigned int A, unsigned int B, unsigned int b){
 // Main of the Host Application
 int main(int argc, char **argv) {
 
-    struct Params p = input_params(argc, argv);
+    p = input_params(argc, argv);
 
     struct dpu_set_t dpu_set, dpu;
     uint32_t nr_of_dpus;
@@ -84,10 +96,10 @@ int main(int argc, char **argv) {
     N_ = p.exp == 0 ? N_ * NR_DPUS : N_;
 
     // Input/output allocation
-    A_host = malloc(M_ * m * N_ * n * sizeof(T));
-    A_backup = malloc(M_ * m * N_ * n * sizeof(T));
-    A_result = malloc(M_ * m * N_ * n * sizeof(T));
-    T* done_host = malloc(M_ * n); // Host array to reset done array of step 3
+    A_host = (T*)malloc(M_ * m * N_ * n * sizeof(T));
+    A_backup = (T*)malloc(M_ * m * N_ * n * sizeof(T));
+    A_result = (T*)malloc(M_ * m * N_ * n * sizeof(T));
+    T* done_host = (T*)malloc(M_ * n); // Host array to reset done array of step 3
     memset(done_host, 0, M_ * n);
 
     // Create an input file with arbitrary data
@@ -131,6 +143,7 @@ int main(int argc, char **argv) {
                 DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
                 stop(&timer, 2);
                 DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+                DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
             } else if (first_round){
                 start(&timer, 1, 0);
                 DPU_ASSERT(dpu_alloc(active_dpus, NULL, &dpu_set));
@@ -174,8 +187,8 @@ int main(int argc, char **argv) {
                 start(&timer, 5, !first_round);
             }
 
-            unsigned int kernel = 0;
-            dpu_arguments_t input_arguments = {m, n, M_, kernel};
+            kernel = 0;
+            dpu_arguments_t input_arguments = {m, n, M_, (enum kernels)kernel};
             // transfer control instructions to DPUs (run first program part)
             DPU_FOREACH(dpu_set, dpu, i) {
                 DPU_ASSERT(dpu_prepare_xfer(dpu, &input_arguments));
@@ -215,7 +228,7 @@ int main(int argc, char **argv) {
                 start(&timer, 7, !first_round);
             }
             kernel = 1;
-            dpu_arguments_t input_arguments2 = {m, n, M_, kernel};
+            dpu_arguments_t input_arguments2 = {m, n, M_, (enum kernels)kernel};
             DPU_FOREACH(dpu_set, dpu, i) {
                 DPU_ASSERT(dpu_prepare_xfer(dpu, &input_arguments2));
             }
@@ -299,7 +312,9 @@ int main(int argc, char **argv) {
         }
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
+#if DFATOOL_TIMING
             unsigned long input_size = M_ * m * N_ * n;
+#endif
             if (rep >= p.n_warmup) {
                 /*
                  * timer 0: CPU version

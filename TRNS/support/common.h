@@ -14,16 +14,18 @@
 // Data type
 #define T int64_t
 
+enum kernels {
+	kernel1 = 0,
+	kernel2 = 1,
+	nr_kernels = 2,
+};
+
 // Structures used by both the host and the dpu to communicate information 
 typedef struct {
     uint32_t m;
     uint32_t n;
     uint32_t M_;
-	enum kernels {
-	    kernel1 = 0,
-	    kernel2 = 1,
-	    nr_kernels = 2,
-	} kernel;
+	enum kernels kernel;
 } dpu_arguments_t;
 
 #ifndef ENERGY
