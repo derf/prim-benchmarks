@@ -3,6 +3,7 @@ bin
 log-paper-strong-full.txt
 log-paper-strong-rank.txt
 log-paper-weak.txt
+*~
 *-O0.txt
 *-O2.txt
 *-explore.txt

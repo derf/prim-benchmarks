@@ -3,7 +3,7 @@
 This is an improved and extended version of the PrIM benchmark suite originally developed for **UPMEM PIM** (near-memory computing / processing-in-memory) evaluation by Gómez-Luna et al.
 The extension adds
 
-* support for **NUMA**-aware **HBM** (high-bandwidth memory) and **DRAM** benchmarks,
+* support for **NUMA**-aware **UPMEM**, **CXL** (Compute eXpress Link), **HBM** (high-bandwidth memory), and **DRAM** benchmarks,
 * a new **COUNT** benchmark, and
 * numerous bugfixes.
 
@@ -61,6 +61,7 @@ Up-to-date source code is available on the following mirrors:
 
 The following benchmark adjustments have been made:
 
+* A (AspectC++ support, including DFA trace generation)
 * B (significant bugfixes)
 * D (dfatool-compatible output of benchmark metrics)
 * E (efficiency improvements; may affect input/output format)
@@ -82,10 +83,10 @@ CPU and DPU benchmarks in this repository have been adjusted as follows:
 * SCAN-RSS: DLN
 * SEL: DLN
 * SpMV: DL
-* TRNS: BDLN
+* TRNS: ABDLN
 * TS: DLN
 * UNI: DL
-* VA: DLN
+* VA: ADLN
 
 GPU versions are un-changed.
 
