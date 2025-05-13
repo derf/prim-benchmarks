@@ -21,7 +21,7 @@ static void usage() {
         "\n    -h        help"
         "\n    -w <W>    # of untimed warmup iterations (default=1)"
         "\n    -e <E>    # of timed repetition iterations (default=3)"
-        "\n    -x <X>    Weak (0) or strong (1) scaling (default=0)"
+        "\n    -x <X>    Weak (0) or strong (1) scaling (default=1)"
         "\n"
         "\nBenchmark-specific options:"
         "\n    -m <I>    m (default=16 elements)"
@@ -39,7 +39,7 @@ struct Params input_params(int argc, char **argv) {
     p.n             = 8;
     p.n_warmup      = 1;
     p.n_reps        = 3;
-    p.exp           = 0;
+    p.exp           = 1;
 
     int opt;
     while((opt = getopt(argc, argv, "hw:e:x:m:n:o:p:")) >= 0) {

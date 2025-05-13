@@ -35,7 +35,7 @@ run_benchmark_nmc() {
 	set -e
 	sudo limit_ranks_to_numa_node ${numa_rank}
 	make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} dfatool_timing=0 aspectc=1 aspectc_timing=1
-	bin/host_code -w 0 -e 40 -p ${p} -o 2048 -m 16 -n 8 -x 1
+	bin/host_code -w 0 -e 40 -p ${p} -o 2048 -m 16 -n 8
 }
 
 export -f run_benchmark_nmc

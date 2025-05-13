@@ -30,9 +30,9 @@ extern "C" {
 #include <assert.h>
 #include <math.h>
 
-#include "../support/common.h"
-#include "../support/timer.h"
-#include "../support/params.h"
+#include "common.h"
+#include "timer.h"
+#include "params.h"
 
 #define XSTR(x) STR(x)
 #define STR(x) #x

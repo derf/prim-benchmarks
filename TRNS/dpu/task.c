@@ -12,7 +12,7 @@
 #include <mutex.h>
 #include <barrier.h>
 
-#include "../support/common.h"
+#include "common.h"
 
 __host dpu_arguments_t DPU_INPUT_ARGUMENTS;
 
