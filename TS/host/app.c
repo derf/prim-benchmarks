@@ -7,8 +7,18 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+
+#if ASPECTC
+extern "C" {
+#endif
+
 #include <dpu.h>
 #include <dpu_log.h>
+
+#if ASPECTC
+}
+#endif
+
 #include <unistd.h>
 #include <getopt.h>
 #include <assert.h>
@@ -86,26 +96,26 @@ static void compute_ts_statistics(unsigned int timeSeriesLength,
 				  unsigned int ProfileLength,
 				  unsigned int queryLength)
 {
-	double *ACumSum = malloc(sizeof(double) * timeSeriesLength);
+	double *ACumSum = (double*)malloc(sizeof(double) * timeSeriesLength);
 	ACumSum[0] = tSeries[0];
 	for (uint64_t i = 1; i < timeSeriesLength; i++)
 		ACumSum[i] = tSeries[i] + ACumSum[i - 1];
-	double *ASqCumSum = malloc(sizeof(double) * timeSeriesLength);
+	double *ASqCumSum = (double*)malloc(sizeof(double) * timeSeriesLength);
 	ASqCumSum[0] = tSeries[0] * tSeries[0];
 	for (uint64_t i = 1; i < timeSeriesLength; i++)
 		ASqCumSum[i] = tSeries[i] * tSeries[i] + ASqCumSum[i - 1];
-	double *ASum = malloc(sizeof(double) * ProfileLength);
+	double *ASum = (double*)malloc(sizeof(double) * ProfileLength);
 	ASum[0] = ACumSum[queryLength - 1];
 	for (uint64_t i = 0; i < timeSeriesLength - queryLength; i++)
 		ASum[i + 1] = ACumSum[queryLength + i] - ACumSum[i];
-	double *ASumSq = malloc(sizeof(double) * ProfileLength);
+	double *ASumSq = (double*)malloc(sizeof(double) * ProfileLength);
 	ASumSq[0] = ASqCumSum[queryLength - 1];
 	for (uint64_t i = 0; i < timeSeriesLength - queryLength; i++)
 		ASumSq[i + 1] = ASqCumSum[queryLength + i] - ASqCumSum[i];
-	double *AMean_tmp = malloc(sizeof(double) * ProfileLength);
+	double *AMean_tmp = (double*)malloc(sizeof(double) * ProfileLength);
 	for (uint64_t i = 0; i < ProfileLength; i++)
 		AMean_tmp[i] = ASum[i] / queryLength;
-	double *ASigmaSq = malloc(sizeof(double) * ProfileLength);
+	double *ASigmaSq = (double*)malloc(sizeof(double) * ProfileLength);
 	for (uint64_t i = 0; i < ProfileLength; i++)
 		ASigmaSq[i] = ASumSq[i] / queryLength - AMean[i] * AMean[i];
 	for (uint64_t i = 0; i < ProfileLength; i++) {
@@ -136,17 +146,23 @@ int main(int argc, char **argv)
 	// Allocate DPUs and load binary
 #if !WITH_ALLOC_OVERHEAD
 	DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+#if DFATOOL_TIMING
 	timer.time[0] = 0;	// alloc
+#endif
 #endif
 #if !WITH_LOAD_OVERHEAD
 	DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
 	DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
 	DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
 	assert(nr_of_dpus == NR_DPUS);
+#if DFATOOL_TIMING
 	timer.time[1] = 0;	// load
 #endif
+#endif
 #if !WITH_FREE_OVERHEAD
+#if DFATOOL_TIMING
 	timer.time[6] = 0;	// free
+#endif
 #endif
 
 #if ENERGY
@@ -195,8 +211,8 @@ int main(int argc, char **argv)
 
 	unsigned int kernel = 0;
 	dpu_arguments_t input_arguments =
-	    { ts_size, query_length, query_mean, query_std, slice_per_dpu, 0,
-		kernel
+	    { (uint32_t)ts_size, query_length, query_mean, query_std, slice_per_dpu, 0,
+		(enum kernels) kernel
 	};
 	uint32_t mem_offset;
 
@@ -400,22 +416,22 @@ int main(int argc, char **argv)
 			printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET
 			       "] results are equal\n");
 			if (rep >= p.n_warmup) {
-				printf
+				dfatool_printf
 				    ("[::] TS UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%lu",
 				     NR_DPUS, nr_of_ranks, NR_TASKLETS,
 				     XSTR(DTYPE), BLOCK_SIZE, ts_size);
-				printf
+				dfatool_printf
 				    (" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d ",
 				     WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD,
 				     WITH_FREE_OVERHEAD);
-				printf("| latency_alloc_us=%f latency_load_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f latency_cpu_us=%f ", timer.time[0],	// alloc
+				dfatool_printf("| latency_alloc_us=%f latency_load_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f latency_cpu_us=%f ", timer.time[0],	// alloc
 				       timer.time[1],	// load
 				       timer.time[2],	// write
 				       timer.time[3],	// kernel
 				       timer.time[4],	// read
 				       timer.time[5],	// free
 				       timer.time[6]);	// CPU
-				printf
+				dfatool_printf
 				    (" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
 				     ts_size * sizeof(DTYPE) / timer.time[6],
 				     ts_size * sizeof(DTYPE) / (timer.time[3]),
@@ -425,7 +441,7 @@ int main(int argc, char **argv)
 								timer.time[3] +
 								timer.time[4] +
 								timer.time[5]));
-				printf
+				dfatool_printf
 				    (" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
 				     ts_size * sizeof(DTYPE) / (timer.time[2] +
 								timer.time[3] +
@@ -439,14 +455,14 @@ int main(int argc, char **argv)
 								timer.time[2] +
 								timer.time[3] +
 								timer.time[4]));
-				printf
+				dfatool_printf
 				    (" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
 				     ts_size / timer.time[6],
 				     ts_size / (timer.time[3]),
 				     ts_size / (timer.time[0] + timer.time[1] +
 						timer.time[2] + timer.time[3] +
 						timer.time[4] + timer.time[5]));
-				printf
+				dfatool_printf
 				    (" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
 				     ts_size / (timer.time[2] + timer.time[3] +
 						timer.time[4]),

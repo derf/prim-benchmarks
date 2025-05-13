@@ -1,0 +1,25 @@
+#pragma once
+
+#include <sys/time.h>
+#include "dfatool_host_dpu.ah"
+
+aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
+
+	DfatoolHostTiming() {
+		element_size = sizeof(DTYPE);
+	}
+
+	advice call("% input_params(...)") : after() {
+		Params* p = tjp->result();
+		input_size = p->input_size_n;
+		printf("[>>] TS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+	}
+
+	advice call("% streamp(...)") : before() {
+		printf("[--] TS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+	}
+
+	advice execution("% main(...)") : after() {
+		printf("[<<] TS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+	}
+};

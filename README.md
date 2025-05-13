@@ -84,7 +84,7 @@ CPU and DPU benchmarks in this repository have been adjusted as follows:
 * SEL: DLN
 * SpMV: DL
 * TRNS: ABDLN
-* TS: DLN
+* TS: ADLN
 * UNI: DL
 * VA: ADLN
 

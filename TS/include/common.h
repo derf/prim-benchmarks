@@ -14,6 +14,11 @@
 #define DTYPE int32_t
 #define DTYPE_MAX INT32_MAX
 
+enum kernels {
+	kernel1 = 0,
+	nr_kernels = 1,
+} kernel;
+
 typedef struct {
 	uint32_t ts_length;
 	uint32_t query_length;
@@ -21,10 +26,7 @@ typedef struct {
 	DTYPE query_std;
 	uint32_t slice_per_dpu;
 	int32_t exclusion_zone;
-	enum kernels {
-		kernel1 = 0,
-		nr_kernels = 1,
-	} kernel;
+	enum kernels kernel;
 } dpu_arguments_t;
 
 typedef struct {
