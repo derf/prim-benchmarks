@@ -4,7 +4,7 @@
 #include "common.h"
 
 typedef struct Params {
-	unsigned int input_size;
+	unsigned long int input_size;
 	int n_warmup;
 	int n_reps;
 	int exp;
@@ -41,7 +41,7 @@ struct Params input_params(int argc, char **argv)
 			exit(0);
 			break;
 		case 'i':
-			p.input_size = atoi(optarg);
+			p.input_size = atol(optarg);
 			break;
 		case 'w':
 			p.n_warmup = atoi(optarg);

@@ -35,6 +35,8 @@
 
 #include <sys/time.h>
 
+#if DFATOOL_TIMING
+
 typedef struct Timer {
 
 	struct timeval startTime[7];
@@ -42,6 +44,8 @@ typedef struct Timer {
 	double time[7];
 
 } Timer;
+
+#define dfatool_printf(fmt, ...) do { printf(fmt, __VA_ARGS__); } while (0)
 
 void start(Timer *timer, int i, int rep)
 {
@@ -60,15 +64,23 @@ void stop(Timer *timer, int i)
 	    (timer->stopTime[i].tv_usec - timer->startTime[i].tv_usec);
 }
 
-void print(Timer *timer, int i, int REP)
+#else
+
+#define dfatool_printf(fmt, ...) do {} while (0)
+
+typedef int Timer;
+
+void start(Timer *timer, int i, int rep)
 {
-	printf("Time (ms): %f\t", timer->time[i] / (1000 * REP));
+	(void)timer;
+	(void)i;
+	(void)rep;
 }
 
-void printall(Timer *timer, int maxt)
+void stop(Timer *timer, int i)
 {
-	for (int i = 0; i <= maxt; i++) {
-		printf(" timer%d_us=%f", i, timer->time[i]);
-	}
-	printf("\n");
+	(void)timer;
+	(void)i;
 }
+
+#endif

@@ -1,14 +1,20 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
+enum kernels {
+	kernel1 = 0,
+	nr_kernels = 1,
+};
+
 // Structures used by both the host and the dpu to communicate information
 typedef struct {
+	/*
+	 * Size per DPU cannot exceed 32 bit, as each DPU only has 64 MiB of memory
+	 * (i.e., only needs 26 bit for addressing).
+	 */
 	uint32_t size;
 	uint32_t transfer_size;
-	enum kernels {
-		kernel1 = 0,
-		nr_kernels = 1,
-	} kernel;
+	enum kernels kernel;
 } dpu_arguments_t;
 
 // Transfer size between MRAM and WRAM
