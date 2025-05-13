@@ -10,7 +10,7 @@
 #include <barrier.h>
 #include <seqread.h>
 
-#include "../support/common.h"
+#include "common.h"
 
 #define roundup(n, m) ((n / m) * m + m)
 

@@ -8,25 +8,33 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <dpu.h>
-#include <dpu_log.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <assert.h>
+
+#if ASPECTC
+extern "C" {
+#endif
+
+#include <dpu.h>
+#include <dpu_log.h>
+#include <dpu_management.h>
+#include <dpu_target_macros.h>
 
 #if ENERGY
 #include <dpu_probe.h>
 #endif
 
-#include <dpu_management.h>
-#include <dpu_target_macros.h>
+#if ASPECTC
+}
+#endif
 
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
-#include "../support/common.h"
-#include "../support/timer.h"
-#include "../support/params.h"
+#include "common.h"
+#include "timer.h"
+#include "params.h"
 
 // Define the DPU Binary path as DPU_BINARY here
 #ifndef DPU_BINARY
@@ -37,6 +45,8 @@ static T *A;
 static T *B;
 static T *C;
 static T *C_dpu;
+
+unsigned int kernel = 0;
 
 // Create input arrays
 static void init_data(T *A, T *B, unsigned int m_size, unsigned int n_size)
@@ -85,17 +95,23 @@ int main(int argc, char **argv)
 	// Allocate DPUs and load binary
 #if !WITH_ALLOC_OVERHEAD
 	DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+#if DFATOOL_TIMING
 	timer.time[0] = 0;	// alloc
+#endif
 #endif
 #if !WITH_LOAD_OVERHEAD
 	DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
 	DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
 	DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
 	assert(nr_of_dpus == NR_DPUS);
+#if DFATOOL_TIMING
 	timer.time[1] = 0;	// load
 #endif
+#endif
 #if !WITH_FREE_OVERHEAD
+#if DFATOOL_TIMING
 	timer.time[8] = 0;	// free
+#endif
 #endif
 
 #if ENERGY
@@ -155,10 +171,10 @@ int main(int argc, char **argv)
 		input_args[i].nr_rows = rows_per_dpu;
 	}
 
-	A = malloc(max_rows_per_dpu * NR_DPUS * n_size_pad * sizeof(T));
-	B = malloc(n_size_pad * sizeof(T));
-	C = malloc(max_rows_per_dpu * NR_DPUS * sizeof(T));
-	C_dpu = malloc(max_rows_per_dpu * NR_DPUS * sizeof(T));
+	A = (T*)malloc(max_rows_per_dpu * NR_DPUS * n_size_pad * sizeof(T));
+	B = (T*)malloc(n_size_pad * sizeof(T));
+	C = (T*)malloc(max_rows_per_dpu * NR_DPUS * sizeof(T));
+	C_dpu = (T*)malloc(max_rows_per_dpu * NR_DPUS * sizeof(T));
 
 	// Initialize data with arbitrary data
 	init_data(A, B, m_size, n_size);
@@ -347,26 +363,26 @@ int main(int argc, char **argv)
 			printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET
 			       "] Outputs are equal\n");
 			if (rep >= p.n_warmup) {
-				printf
+				dfatool_printf
 				    ("[::] GEMV-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d",
 				     NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T),
 				     BLOCK_SIZE, n_size * m_size);
-				printf
+				dfatool_printf
 				    (" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d numa_node_rank=%d ",
 				     WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD,
 				     WITH_FREE_OVERHEAD, numa_node_rank);
-				printf
+				dfatool_printf
 				    ("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
 				     timer.time[0], timer.time[1],
 				     timer.time[2],
 				     timer.time[3] + timer.time[6] +
 				     timer.time[7], timer.time[4],
 				     timer.time[5], timer.time[8]);
-				printf
+				dfatool_printf
 				    (" latency_write1_us=%f latency_write2_us=%f latency_write3_us=%f",
 				     timer.time[3], timer.time[6], timer.time[7]
 				    );
-				printf
+				dfatool_printf
 				    (" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
 				     n_size * m_size * sizeof(T) /
 				     timer.time[2],
@@ -377,7 +393,7 @@ int main(int argc, char **argv)
 				      timer.time[3] + timer.time[6] +
 				      timer.time[7] + timer.time[4] +
 				      timer.time[5] + timer.time[8]));
-				printf
+				dfatool_printf
 				    (" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
 				     n_size * m_size * sizeof(T) /
 				     (timer.time[3] + timer.time[6] +
@@ -392,7 +408,7 @@ int main(int argc, char **argv)
 				      timer.time[3] + timer.time[6] +
 				      timer.time[7] + timer.time[4] +
 				      timer.time[5]));
-				printf
+				dfatool_printf
 				    (" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
 				     n_size * m_size / timer.time[2],
 				     n_size * m_size / (timer.time[4]),
@@ -404,7 +420,7 @@ int main(int argc, char **argv)
 							timer.time[4] +
 							timer.time[5] +
 							timer.time[8]));
-				printf
+				dfatool_printf
 				    (" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
 				     n_size * m_size / (timer.time[3] +
 							timer.time[6] +
