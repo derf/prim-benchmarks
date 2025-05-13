@@ -12,14 +12,14 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 	advice call("% input_params(...)") : after() {
 		Params* p = tjp->result();
 		input_size = p->M_ * p->m * p->N_ * p->n;
-		printf("[>>] TRNS | n_dpus=%u n_elements=%lu e_exp=%d\n", NR_DPUS, input_size, p->exp);
+		printf("[>>] TRNS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
 	}
 
 	advice call("% trns_host(...)") : after() {
-		printf("[--] TRNS | n_dpus=%u n_ranks=%u n_elements=%lu e_exp=%d\n", n_dpus, n_ranks, input_size, p.exp);
+		printf("[--] TRNS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] TRNS | n_dpus=%u n_elements=%lu e_exp=%d\n", NR_DPUS, input_size, p.exp);
+		printf("[<<] TRNS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
 	}
 };

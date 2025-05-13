@@ -47,7 +47,6 @@ static T* A_host;
 static T* A_backup;
 static T* A_result;
 
-struct Params p;
 unsigned int kernel = 0;
 
 // Create input arrays
@@ -77,7 +76,7 @@ static void trns_host(T* input, unsigned int A, unsigned int B, unsigned int b){
 // Main of the Host Application
 int main(int argc, char **argv) {
 
-    p = input_params(argc, argv);
+    struct Params p = input_params(argc, argv);
 
     struct dpu_set_t dpu_set, dpu;
     uint32_t nr_of_dpus;

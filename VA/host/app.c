@@ -47,7 +47,6 @@ static T *B;
 static T *C;
 static T *C2;
 
-struct Params p;
 unsigned int kernel;
 
 // Create input arrays
@@ -72,7 +71,7 @@ static void vector_addition_host(T *C, T *A, T *B, unsigned long int nr_elements
 int main(int argc, char **argv)
 {
 
-	p = input_params(argc, argv);
+	struct Params p = input_params(argc, argv);
 
 	struct dpu_set_t dpu_set, dpu;
 	uint32_t nr_of_dpus;
