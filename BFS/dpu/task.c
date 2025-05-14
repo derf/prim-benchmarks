@@ -12,7 +12,7 @@
 #include <perfcounter.h>
 
 #include "dpu-utils.h"
-#include "../support/common.h"
+#include "common.h"
 
 BARRIER_INIT(my_barrier, NR_TASKLETS);
 

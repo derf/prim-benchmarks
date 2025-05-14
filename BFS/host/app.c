@@ -3,8 +3,23 @@
 * BFS Host Application Source File
 *
 */
+#if ASPECTC
+extern "C" {
+#endif
+
 #include <dpu.h>
 #include <dpu_log.h>
+
+#ifndef ENERGY
+#define ENERGY 0
+#endif
+#if ENERGY
+#include <dpu_probe.h>
+#endif
+
+#if ASPECTC
+}
+#endif
 
 #include <assert.h>
 #include <getopt.h>
@@ -14,18 +29,11 @@
 #include <unistd.h>
 
 #include "mram-management.h"
-#include "../support/common.h"
-#include "../support/graph.h"
-#include "../support/params.h"
-#include "../support/timer.h"
-#include "../support/utils.h"
-
-#ifndef ENERGY
-#define ENERGY 0
-#endif
-#if ENERGY
-#include <dpu_probe.h>
-#endif
+#include "common.h"
+#include "graph.h"
+#include "params.h"
+#include "timer.h"
+#include "utils.h"
 
 #define DPU_BINARY "./bin/dpu_code"
 
@@ -44,10 +52,6 @@ int main(int argc, char **argv)
 	double tenergy = 0;
 #endif
 
-	printf
-	    ("WITH_ALLOC_OVERHEAD=%d WITH_LOAD_OVERHEAD=%d WITH_FREE_OVERHEAD=%d\n",
-	     WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD);
-
 	// Allocate DPUs and load binary
 	struct dpu_set_t dpu_set, dpu;
 	uint32_t numDPUs, numRanks;
@@ -59,7 +63,7 @@ int main(int argc, char **argv)
 #if WITH_ALLOC_OVERHEAD
 	stopTimer(&timer, 0);
 #else
-	timer.time[0] = 0;
+	zeroTimer(&timer, 0);
 #endif
 
 #if WITH_LOAD_OVERHEAD
@@ -69,7 +73,7 @@ int main(int argc, char **argv)
 #if WITH_LOAD_OVERHEAD
 	stopTimer(&timer, 0);
 #else
-	timer.time[1] = 0;
+	zeroTimer(&timer, 1);
 #endif
 
 	DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &numDPUs));
@@ -86,10 +90,10 @@ int main(int argc, char **argv)
 	uint32_t numNodes = csrGraph.numNodes;
 	uint32_t *nodePtrs = csrGraph.nodePtrs;
 	uint32_t *neighborIdxs = csrGraph.neighborIdxs;
-	uint32_t *nodeLevel = calloc(numNodes, sizeof(uint32_t));	// Node's BFS level (initially all 0 meaning not reachable)
-	uint64_t *visited = calloc(numNodes / 64, sizeof(uint64_t));	// Bit vector with one bit per node
-	uint64_t *currentFrontier = calloc(numNodes / 64, sizeof(uint64_t));	// Bit vector with one bit per node
-	uint64_t *nextFrontier = calloc(numNodes / 64, sizeof(uint64_t));	// Bit vector with one bit per node
+	uint32_t *nodeLevel = (uint32_t*)calloc(numNodes, sizeof(uint32_t));	// Node's BFS level (initially all 0 meaning not reachable)
+	uint64_t *visited = (uint64_t*)calloc(numNodes / 64, sizeof(uint64_t));	// Bit vector with one bit per node
+	uint64_t *currentFrontier = (uint64_t*)calloc(numNodes / 64, sizeof(uint64_t));	// Bit vector with one bit per node
+	uint64_t *nextFrontier = (uint64_t*)calloc(numNodes / 64, sizeof(uint64_t));	// Bit vector with one bit per node
 	setBit(nextFrontier[0], 0);	// Initialize frontier to first node
 	uint32_t level = 1;
 
@@ -325,7 +329,7 @@ int main(int argc, char **argv)
 
 	// Calculating result on CPU
 	PRINT_INFO(p.verbosity >= 1, "Calculating result on CPU");
-	uint32_t *nodeLevelReference = calloc(numNodes, sizeof(uint32_t));	// Node's BFS level (initially all 0 meaning not reachable)
+	uint32_t *nodeLevelReference = (uint32_t*) calloc(numNodes, sizeof(uint32_t));	// Node's BFS level (initially all 0 meaning not reachable)
 	memset(nextFrontier, 0, numNodes / 64 * sizeof(uint64_t));
 	setBit(nextFrontier[0], 0);	// Initialize frontier to first node
 	nextFrontierEmpty = 0;
@@ -395,7 +399,7 @@ int main(int argc, char **argv)
 #if WITH_FREE_OVERHEAD
 	stopTimer(&timer, 7);
 #else
-	timer.time[7] = 0;
+	zeroTimer(&timer, 7);
 #endif
 
 	// Verify the result
@@ -412,9 +416,9 @@ int main(int argc, char **argv)
 	}
 
 	if (status) {
-		printf
+		dfatool_printf
 		    ("[::] BFS-UMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%d "
-		     "| throughput_pim_MBps=%f throughput_MBps=%f", numDPUs,
+		     "| throughput_pim_MBps=%f throughput_MBps=%f", numDPUs, numRanks,
 		     NR_TASKLETS, "uint32_t", numNodes,
 		     numNodes * sizeof(uint32_t) / (timer.time[2] +
 						    timer.time[3]),
@@ -423,12 +427,12 @@ int main(int argc, char **argv)
 						    timer.time[2] +
 						    timer.time[3] +
 						    timer.time[4]));
-		printf(" throughput_pim_MOpps=%f throughput_MOpps=%f",
+		dfatool_printf(" throughput_pim_MOpps=%f throughput_MOpps=%f",
 		       numNodes / (timer.time[2] + timer.time[3]),
 		       numNodes / (timer.time[0] + timer.time[1] +
 				   timer.time[2] + timer.time[3] +
 				   timer.time[4]));
-		printf
+		dfatool_printf
 		    (" latency_alloc_us=%f latency_load_us=%f latency_write_us=%f latency_kernel_us=%f latency_sync_us=%f latency_read_us=%f latency_cpu_us=%f latency_free_us=%f\n",
 		     timer.time[0], timer.time[1], timer.time[2], timer.time[3],
 		     timer.time[4], timer.time[5], timer.time[6],

@@ -31,6 +31,11 @@ void stop(Timer *timer, int i)
 	    (timer->stopTime[i].tv_usec - timer->startTime[i].tv_usec);
 }
 
+void zero(Timer *timer, int i)
+{
+	timer->time[0] = 0;
+}
+
 #else
 
 #define dfatool_printf(fmt, ...) do {} while (0)
@@ -45,6 +50,12 @@ void start(Timer *timer, int i, int rep)
 }
 
 void stop(Timer *timer, int i)
+{
+	(void)timer;
+	(void)i;
+}
+
+void zero(Timer *timer, int i)
 {
 	(void)timer;
 	(void)i;

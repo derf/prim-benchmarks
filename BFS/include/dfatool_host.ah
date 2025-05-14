@@ -1,0 +1,27 @@
+#pragma once
+
+#include <sys/time.h>
+#include "dfatool_host_dpu.ah"
+
+aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
+
+	virtual int getKernel() { return 1; }
+
+	DfatoolHostTiming() {
+		element_size = sizeof(uint32_t);
+	}
+
+	advice call("% input_params(...)"): after() {
+		printf("[>>] BFS | n_dpus=%u\n", NR_DPUS);
+	}
+
+	advice call("% coo2csr(...)") : after() {
+		struct CSRGraph *g = tjp->result();
+		input_size = g->numNodes;
+		printf("[--] BFS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+	}
+
+	advice execution("% main(...)") : after() {
+		printf("[<<] BFS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+	}
+};

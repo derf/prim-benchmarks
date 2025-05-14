@@ -2,8 +2,8 @@
 #ifndef _MRAM_MANAGEMENT_H_
 #define _MRAM_MANAGEMENT_H_
 
-#include "../support/common.h"
-#include "../support/utils.h"
+#include "common.h"
+#include "utils.h"
 
 #define DPU_CAPACITY (64 << 20)	// A DPU's capacity is 64 MiB
 
