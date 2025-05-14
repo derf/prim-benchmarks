@@ -3,6 +3,8 @@
 mkdir -p log/$(hostname)
 fn=log/$(hostname)/ccmcc25
 
+source /opt/upmem/upmem-2025.1.0-Linux-x86_64/upmem_env.sh
+
 run_benchmark_nmc() {
 	local "$@"
 	set -e
