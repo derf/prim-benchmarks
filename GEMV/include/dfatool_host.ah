@@ -5,7 +5,7 @@
 
 aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 
-	uint32_t kernel = 1;
+	virtual int getKernel() { return 1; }
 
 	DfatoolHostTiming() {
 		element_size = sizeof(T);
