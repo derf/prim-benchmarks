@@ -5,8 +5,6 @@
 aspect DfatoolHostDPUTiming {
 	struct timeval starttime;
 	struct timeval stoptime;
-	unsigned long input_size;
-	unsigned int element_size;
 	uint32_t n_ranks = 0;
 	uint32_t n_dpus = 0;
 
@@ -77,16 +75,12 @@ aspect DfatoolHostDPUTiming {
 		tjp->proceed();
 		gettimeofday(&stoptime, NULL);
 		double latency_us = (stoptime.tv_sec - starttime.tv_sec) * 1000000.0 + (stoptime.tv_usec - starttime.tv_usec);
-		printf("[::] dpu_launch @ %s:%d | n_dpus=%u n_ranks=%u e_kernel=kernel%d n_elements=%lu n_elements_per_dpu=%lu | latency_us=%f throughput_Mps=%f throughput_MiBps=%f\n",
+		printf("[::] dpu_launch @ %s:%d | n_dpus=%u n_ranks=%u e_kernel=kernel%d | latency_us=%f\n",
 			tjp->filename(),
 			tjp->line(),
 			n_dpus, n_ranks,
 			getKernel(),
-			input_size,
-			input_size / n_dpus,
-			latency_us,
-			input_size / latency_us,
-			input_size * element_size / (latency_us * M_to_Mi)
+			latency_us
 		);
 	}
 

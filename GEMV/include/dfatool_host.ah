@@ -4,6 +4,8 @@
 #include "dfatool_host_dpu.ah"
 
 aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
+	unsigned int n_cols, n_rows;
+	unsigned int element_size;
 
 	virtual int getKernel() { return 1; }
 
@@ -13,15 +15,16 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 
 	advice call("% input_params(...)") : after() {
 		Params* p = tjp->result();
-		input_size = p->n_size * p->m_size;
-		printf("[>>] GEMV | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		n_cols = p->n_size;
+		n_rows = p->m_size;
+		printf("[>>] GEMV | n_dpus=%u n_cols=%u n_rows=%u\n", NR_DPUS, n_cols, n_rows);
 	}
 
 	advice call("% gemv_host(...)") : after() {
-		printf("[--] GEMV | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		printf("[--] GEMV | n_dpus=%u n_cols=%u n_rows=%u\n", NR_DPUS, n_cols, n_rows);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] GEMV | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		printf("[<<] GEMV | n_dpus=%u n_cols=%u n_rows=%u\n", NR_DPUS, n_cols, n_rows);
 	}
 };

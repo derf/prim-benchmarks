@@ -5,6 +5,9 @@
 
 aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 
+	unsigned long n_elements, n_queries;
+	unsigned int element_size;
+
 	virtual int getKernel() { return 1; }
 
 	DfatoolHostTiming() {
@@ -13,15 +16,16 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 
 	advice call("% input_params(...)"): after() {
 		Params* p = tjp->result();
-		input_size = INPUT_SIZE + p->num_querys;
-		printf("[>>] BS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		n_elements = INPUT_SIZE;
+		n_queries = p->num_querys;
+		printf("[>>] BS | n_dpus=%u n_elements=%lu n_queries=%lu\n", NR_DPUS, n_elements, n_queries);
 	}
 
 	advice call("% binarySearch(...)") : after() {
-		printf("[--] BS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		printf("[--] BS | n_dpus=%u n_elements=%lu n_queries=%lu\n", NR_DPUS, n_elements, n_queries);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] BS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		printf("[<<] BS | n_dpus=%u n_elements=%lu n_queries=%lu\n", NR_DPUS, n_elements, n_queries);
 	}
 };

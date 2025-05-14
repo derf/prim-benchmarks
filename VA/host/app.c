@@ -47,8 +47,6 @@ static T *B;
 static T *C;
 static T *C2;
 
-unsigned int kernel;
-
 // Create input arrays
 static void read_input(T *A, T *B, unsigned long int nr_elements)
 {
@@ -202,7 +200,7 @@ int main(int argc, char **argv)
 			start(&timer, 3, 0);
 		}
 		// Input arguments
-		kernel = 0;
+		unsigned int kernel = 0;
 		dpu_arguments_t input_arguments[NR_DPUS];
 		for (i = 0; i < nr_of_dpus - 1; i++) {
 			input_arguments[i].size =

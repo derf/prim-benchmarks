@@ -5,6 +5,9 @@
 
 aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 
+	unsigned long input_size;
+	unsigned int element_size;
+
 	virtual int getKernel() { return 1; }
 
 	DfatoolHostTiming() {
@@ -18,10 +21,10 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 	advice call("% coo2csr(...)") : after() {
 		struct CSRGraph *g = tjp->result();
 		input_size = g->numNodes;
-		printf("[--] BFS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		printf("[--] BFS | n_dpus=%u n_nodes=%lu\n", NR_DPUS, input_size);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] BFS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		printf("[<<] BFS | n_dpus=%u n_nodes=%lu\n", NR_DPUS, input_size);
 	}
 };

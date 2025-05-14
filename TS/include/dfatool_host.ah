@@ -5,21 +5,27 @@
 
 aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 
+	unsigned long ts_size, query_length;
+	unsigned int element_size;
+
+	virtual int getKernel() { return kernel; }
+
 	DfatoolHostTiming() {
 		element_size = sizeof(DTYPE);
 	}
 
 	advice call("% input_params(...)") : after() {
 		Params* p = tjp->result();
-		input_size = p->input_size_n;
-		printf("[>>] TS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		ts_size = p->input_size_n;
+		query_length = p->input_size_m;
+		printf("[>>] TS | n_dpus=%u n_elements_ts=%lu n_elements_query=%lu\n", NR_DPUS, ts_size, query_length);
 	}
 
 	advice call("% streamp(...)") : before() {
-		printf("[--] TS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		printf("[--] TS | n_dpus=%u n_elements_ts=%lu n_elements_query=%lu\n", NR_DPUS, ts_size, query_length);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] TS | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		printf("[<<] TS | n_dpus=%u n_elements_ts=%lu n_elements_query=%lu\n", NR_DPUS, ts_size, query_length);
 	}
 };

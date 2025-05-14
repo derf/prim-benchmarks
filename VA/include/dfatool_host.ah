@@ -4,6 +4,10 @@
 #include "dfatool_host_dpu.ah"
 
 aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
+	unsigned long n_rows;
+	unsigned int element_size;
+
+	virtual int getKernel() { return 1; }
 
 	DfatoolHostTiming() {
 		element_size = sizeof(T);
@@ -11,15 +15,15 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 
 	advice call("% input_params(...)") : after() {
 		Params* p = tjp->result();
-		input_size = p->input_size;
-		printf("[>>] VA | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		n_rows = p->input_size;
+		printf("[>>] VA | n_dpus=%u n_rows=%lu\n", NR_DPUS, n_rows);
 	}
 
 	advice call("% vector_addition_host(...)") : after() {
-		printf("[--] VA | n_dpus=%u n_elements=%lu\n", n_dpus, input_size);
+		printf("[--] VA | n_dpus=%u n_rows=%lu\n", n_dpus, n_rows);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] VA | n_dpus=%u n_elements=%lu\n", NR_DPUS, input_size);
+		printf("[<<] VA | n_dpus=%u n_rows=%lu\n", NR_DPUS, n_rows);
 	}
 };

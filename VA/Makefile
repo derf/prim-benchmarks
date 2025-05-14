@@ -12,7 +12,7 @@ HOST_SOURCES := $(wildcard host/*.c)
 DPU_SOURCES := $(wildcard dpu/*.c)
 
 aspectc ?= 0
-aspectc_timing ?= *
+aspectc_timing ?= 0
 dfatool_timing ?= 1
 
 HOST_CC := ${CC}
