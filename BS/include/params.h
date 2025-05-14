@@ -20,7 +20,7 @@ void usage()
 		"\n    -e <E>    # of timed repetition iterations (default=3)"
 		"\n"
 		"\nBenchmark-specific options:"
-		"\n    -i <I>    problem size (default=2 queries)" "\n");
+		"\n    -i <I>    problem size (default=%d queries)" "\n", PROBLEM_SIZE);
 }
 
 struct Params input_params(int argc, char **argv)

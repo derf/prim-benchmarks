@@ -27,13 +27,15 @@
 #define INPUT_SIZE 2048576
 #endif
 
+enum kernel {
+	kernel1 = 0,
+	nr_kernels = 1,
+};
+
 typedef struct {
 	uint64_t input_size;
 	uint64_t slice_per_dpu;
-	enum kernels {
-		kernel1 = 0,
-		nr_kernels = 1,
-	} kernel;
+	enum kernel kernel;
 } dpu_arguments_t;
 
 // Structures used by both the host and the dpu to communicate information

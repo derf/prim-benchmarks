@@ -7,19 +7,27 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <dpu.h>
-#include <dpu_log.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <assert.h>
 #include <time.h>
 
+#if ASPECTC
+extern "C" {
+#endif
+
+#include <dpu.h>
+#include <dpu_log.h>
+#include <dpu_management.h>
+#include <dpu_target_macros.h>
+
 #if ENERGY
 #include <dpu_probe.h>
 #endif
 
-#include <dpu_management.h>
-#include <dpu_target_macros.h>
+#if ASPECTC
+}
+#endif
 
 #define XSTR(x) STR(x)
 #define STR(x) #x
@@ -96,17 +104,17 @@ int main(int argc, char **argv)
 	// Allocate DPUs and load binary
 #if !WITH_ALLOC_OVERHEAD
 	DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
-	timer.time[0] = 0;	// alloc
+	zero(&timer, 0); // alloc
 #endif
 #if !WITH_LOAD_OVERHEAD
 	DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
 	DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
 	DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
 	assert(nr_of_dpus == NR_DPUS);
-	timer.time[1] = 0;	// load
+	zero(&timer, 1); // load
 #endif
 #if !WITH_FREE_OVERHEAD
-	timer.time[6] = 0;	// free
+	zero(&timer, 6); // free
 #endif
 
 #if ENERGY
@@ -122,15 +130,15 @@ int main(int argc, char **argv)
 
 	assert(num_querys % (NR_DPUS * NR_TASKLETS) == 0 && "Input dimension");	// Allocate input and querys vectors
 
-	DTYPE *input = malloc((input_size) * sizeof(DTYPE));
-	DTYPE *querys = malloc((num_querys) * sizeof(DTYPE));
+	DTYPE *input = (DTYPE*)malloc((input_size) * sizeof(DTYPE));
+	DTYPE *querys = (DTYPE*)malloc((num_querys) * sizeof(DTYPE));
 
 	// Create an input file with arbitrary data
 	create_test_file(input, querys, input_size, num_querys);
 
 	// Create kernel arguments
 	uint64_t slice_per_dpu = num_querys / NR_DPUS;
-	dpu_arguments_t input_arguments = { input_size, slice_per_dpu, 0 };
+	dpu_arguments_t input_arguments = { input_size, slice_per_dpu, (enum kernel)0 };
 
 	for (unsigned int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 		// Perform input transfers
@@ -322,21 +330,21 @@ int main(int argc, char **argv)
 			printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET
 			       "] results are equal\n");
 			if (rep >= p.n_warmup) {
-				printf
+				dfatool_printf
 				    ("[::] BS-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%lu",
 				     NR_DPUS, nr_of_ranks, NR_TASKLETS,
 				     XSTR(DTYPE), BLOCK_SIZE, input_size);
-				printf
+				dfatool_printf
 				    (" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d numa_node_rank=%d ",
 				     WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD,
 				     WITH_FREE_OVERHEAD, numa_node_rank);
-				printf
+				dfatool_printf
 				    ("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
 				     timer.time[0], timer.time[1],
 				     timer.time[2], timer.time[3],
 				     timer.time[4], timer.time[5],
 				     timer.time[6]);
-				printf
+				dfatool_printf
 				    (" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
 				     num_querys * sizeof(DTYPE) / timer.time[2],
 				     num_querys * sizeof(DTYPE) /
@@ -345,7 +353,7 @@ int main(int argc, char **argv)
 				     (timer.time[0] + timer.time[1] +
 				      timer.time[3] + timer.time[4] +
 				      timer.time[5] + timer.time[6]));
-				printf
+				dfatool_printf
 				    (" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
 				     num_querys * sizeof(DTYPE) /
 				     (timer.time[3] + timer.time[4] +
@@ -357,7 +365,7 @@ int main(int argc, char **argv)
 				     (timer.time[0] + timer.time[1] +
 				      timer.time[3] + timer.time[4] +
 				      timer.time[5]));
-				printf
+				dfatool_printf
 				    (" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
 				     num_querys / timer.time[2],
 				     num_querys / (timer.time[4]),
@@ -367,7 +375,7 @@ int main(int argc, char **argv)
 						   timer.time[4] +
 						   timer.time[5] +
 						   timer.time[6]));
-				printf
+				dfatool_printf
 				    (" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
 				     num_querys / (timer.time[3] +
 						   timer.time[4] +
