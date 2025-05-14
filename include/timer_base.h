@@ -33,7 +33,7 @@ void stop(Timer *timer, int i)
 
 void zero(Timer *timer, int i)
 {
-	timer->time[0] = 0;
+	timer->time[i] = 0;
 }
 
 #else
