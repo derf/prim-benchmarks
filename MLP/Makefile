@@ -43,10 +43,10 @@ bin/mlp_host: ${HOST_SOURCES} include bin
 	${QUIET}rm -f include/dfatool_host_dpu.ah
 
 bin/mlp_dpu: ${DPU_SOURCES} include bin
-	dpu-upmem-dpurte-clang ${DPU_FLAGS} -o $@ ${DPU_SOURCES}
+	${QUIET}dpu-upmem-dpurte-clang ${DPU_FLAGS} -o $@ ${DPU_SOURCES}
 
 clean:
-	$(RM) -r $(BUILDDIR)
+	${QUIET}$(RM) -r $(BUILDDIR)
 
 test: all
 	bin/mlp_host -m 1024 -n 1024

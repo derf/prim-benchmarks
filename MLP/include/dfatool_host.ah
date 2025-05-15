@@ -21,8 +21,10 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 		printf("[>>] MLP | n_dpus=%u n_rows=%u n_cols=%u\n", NR_DPUS, n_rows, n_cols);
 	}
 
-	advice call("% binarySearch(...)") : after() {
-		printf("[--] MLP | n_dpus=%u n_rows=%u n_cols=%u\n", NR_DPUS, n_rows, n_cols);
+	advice call("% start(...)") : after() {
+		if (*(tjp->arg<1>()) == 1) {
+			printf("[--] MLP | n_dpus=%u n_rows=%u n_cols=%u\n", NR_DPUS, n_rows, n_cols);
+		}
 	}
 
 	advice execution("% main(...)") : after() {
