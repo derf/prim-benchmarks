@@ -1,0 +1,31 @@
+#pragma once
+
+#include <sys/time.h>
+#include "dfatool_host_dpu.ah"
+
+aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
+	unsigned long n_pixels;
+	unsigned int n_bins;
+	unsigned int element_size;
+
+	virtual int getKernel() { return 1; }
+
+	DfatoolHostTiming() {
+		element_size = sizeof(T);
+	}
+
+	advice call("% input_params(...)") : after() {
+		Params* p = tjp->result();
+		n_pixels = p->input_size;
+		n_bins = p->bins;
+		printf("[>>] HST-L | n_dpus=%u n_pixels=%lu n_bins=%u\n", NR_DPUS, n_pixels, n_bins);
+	}
+
+	advice call("% histogram_host(...)") : after() {
+		printf("[--] HST-L | n_dpus=%u n_pixels=%lu n_bins=%u\n", NR_DPUS, n_pixels, n_bins);
+	}
+
+	advice execution("% main(...)") : after() {
+		printf("[<<] HST-L | n_dpus=%u n_pixels=%lu n_bins=%u\n", NR_DPUS, n_pixels, n_bins);
+	}
+};

@@ -70,11 +70,11 @@ The following benchmark adjustments have been made:
 
 CPU and DPU benchmarks in this repository have been adjusted as follows:
 
-* BFS: DL
-* BS: DLN
+* BFS: ADL
+* BS: ADLN
 * COUNT: DLN (new benchmark, based on SEL)
-* GEMV: DLN
-* HST-L: D
+* GEMV: ADLN
+* HST-L: AD
 * HST-S: DLN
 * MLP: –
 * NW: –

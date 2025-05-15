@@ -20,15 +20,17 @@
 #define DEPTH 12
 #define ByteSwap16(n) (((((unsigned int)n) << 8) & 0xFF00) | ((((unsigned int)n) >> 8) & 0x00FF))
 
+enum kernels {
+	kernel1 = 0,
+	nr_kernels = 1,
+} kernel;
+
 // Structures used by both the host and the dpu to communicate information 
 typedef struct {
     uint32_t size;
     uint32_t transfer_size;
     uint32_t bins;
-	enum kernels {
-	    kernel1 = 0,
-	    nr_kernels = 1,
-	} kernel;
+	enum kernels kernel;
 } dpu_arguments_t;
 
 #ifndef ENERGY
