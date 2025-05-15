@@ -77,7 +77,7 @@ CPU and DPU benchmarks in this repository have been adjusted as follows:
 * HST-L: AD
 * HST-S: DLN
 * MLP: A
-* NW: –
+* NW: A
 * RED: DLN
 * SCAN-SSA: D
 * SCAN-RSS: DLN

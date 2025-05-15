@@ -7,19 +7,29 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+
+#if ASPECTC
+extern "C" {
+#endif
+
 #include <dpu.h>
 #include <dpu_log.h>
-#include <unistd.h>
-#include <getopt.h>
-#include <assert.h>
-
-#include "../support/common.h"
-#include "../support/timer.h"
-#include "../support/params.h"
 
 #if ENERGY
 #include <dpu_probe.h>
 #endif
+
+#if ASPECTC
+}
+#endif
+
+#include <unistd.h>
+#include <getopt.h>
+#include <assert.h>
+
+#include "common.h"
+#include "timer.h"
+#include "params.h"
 
 // Define the DPU Binary path as DPU_BINARY here
 #ifndef DPU_BINARY
@@ -184,7 +194,7 @@ int main(int argc, char **argv) {
 
     struct Params p = input_params(argc, argv);
     struct dpu_set_t dpu_set, dpu;
-    uint32_t nr_of_dpus, max_dpus;
+    uint32_t nr_of_dpus, nr_of_ranks, max_dpus;
 
 #if ENERGY
     struct dpu_probe_t probe;
@@ -195,6 +205,7 @@ int main(int argc, char **argv) {
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+    DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
     printf("Allocated %d DPU(s)\n", nr_of_dpus);
     printf("Allocated %d TASKLET(s) per DPU\n", NR_TASKLETS);
 #if DYNAMIC
@@ -822,28 +833,6 @@ int main(int argc, char **argv) {
             stop(&timer, 1);
 
     }
-
-    // Print timing results
-    printf("CPU version ");
-    print(&timer, 0, p.n_reps);
-    printf("CPU-DPU ");
-    print(&timer, 2, p.n_reps);
-    printf("DPU Kernel ");
-    print(&timer, 3, p.n_reps);
-    printf("Inter-DPU ");
-    print(&timer, 1, p.n_reps);
-    printf("DPU-CPU ");
-    print(&timer, 4, p.n_reps);
-    printf("\n");
-    printf("Longest Diagonal CPU-DPU ");
-    print(&long_diagonal_timer, 2, p.n_reps);
-    printf("Longest Diagonal DPU Kernel ");
-    print(&long_diagonal_timer, 3, p.n_reps);
-    printf("Longest Diagonal Inter-DPU ");
-    print(&long_diagonal_timer, 1, p.n_reps);
-    printf("Longest Diagonal DPU-CPU ");
-    print(&long_diagonal_timer, 4, p.n_reps);
-    printf("\n");
     
 #if ENERGY
     printf("DPU Energy (J): %f \t ", tavg_energy / p.n_reps);
