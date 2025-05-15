@@ -10,7 +10,7 @@
 #include <barrier.h>
 #include <seqread.h>
 
-#include "../support/common.h"
+#include "common.h"
 
 __host dpu_arguments_t DPU_INPUT_ARGUMENTS;
 

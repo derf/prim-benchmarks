@@ -1,0 +1,31 @@
+#pragma once
+
+#include <sys/time.h>
+#include "dfatool_host_dpu.ah"
+
+aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
+
+	unsigned int n_rows, n_cols;
+	unsigned int element_size;
+
+	virtual int getKernel() { return 1; }
+
+	DfatoolHostTiming() {
+		element_size = sizeof(uint32_t);
+	}
+
+	advice call("% input_params(...)"): after() {
+		Params* p = tjp->result();
+		n_rows = p->m_size;
+		n_cols = p->n_size;
+		printf("[>>] MLP | n_dpus=%u n_rows=%u n_cols=%u\n", NR_DPUS, n_rows, n_cols);
+	}
+
+	advice call("% binarySearch(...)") : after() {
+		printf("[--] MLP | n_dpus=%u n_rows=%u n_cols=%u\n", NR_DPUS, n_rows, n_cols);
+	}
+
+	advice execution("% main(...)") : after() {
+		printf("[<<] MLP | n_dpus=%u n_rows=%u n_cols=%u\n", NR_DPUS, n_rows, n_cols);
+	}
+};

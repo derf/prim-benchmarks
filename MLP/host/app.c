@@ -8,19 +8,28 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
-#include <dpu.h>
-#include <dpu_log.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <assert.h>
+
+#if ASPECTC
+extern "C" {
+#endif
+
+#include <dpu.h>
+#include <dpu_log.h>
 
 #if ENERGY
 #include <dpu_probe.h>
 #endif
 
-#include "../support/common.h"
-#include "../support/timer.h"
-#include "../support/params.h"
+#if ASPECTC
+}
+#endif
+
+#include "common.h"
+#include "timer.h"
+#include "params.h"
 
 // Define the DPU Binary path as DPU_BINARY here
 #ifndef DPU_BINARY
@@ -159,8 +168,8 @@ int main(int argc, char **argv)
 	B = (T *) malloc(n_size * sizeof(T));
 	B_host = (T *) malloc(n_size * sizeof(T));
 	C = (T *) malloc(m_size * sizeof(T));
-	C_dpu = malloc(max_rows_per_dpu * nr_of_dpus * sizeof(T));
-	B_tmp = malloc(max_rows_per_dpu * nr_of_dpus * sizeof(T));
+	C_dpu = (T*)malloc(max_rows_per_dpu * nr_of_dpus * sizeof(T));
+	B_tmp = (T*)malloc(max_rows_per_dpu * nr_of_dpus * sizeof(T));
 
 	init_data(A, B, B_host, m_size, n_size);
 
@@ -331,22 +340,9 @@ int main(int argc, char **argv)
 	DPU_ASSERT(dpu_probe_get(&probe, DPU_TIME, DPU_AVERAGE, &avg_time));
 #endif
 
-	// Print timing results
-	printf("CPU Version Time (ms): ");
-	print(&timer, 0, 1);
-	printf("CPU-DPU Time (ms): ");
-	print(&timer, 1, p.n_reps);
-	printf("DPU Kernel Time (ms): ");
-	print(&timer, 2, p.n_reps);
-	printf("Inter-DPU Time (ms): ");
-	print(&timer, 4, p.n_reps);
-	printf("DPU-CPU Time (ms): ");
-	print(&timer, 3, p.n_reps);
-
 #if ENERGY
 	printf("Energy (J): %f J\t", avg_energy);
 #endif
-	printf("\n\n");
 
 	// Check output
 	bool status = true;

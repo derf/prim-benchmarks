@@ -1,44 +1,54 @@
-DPU_DIR := dpu
-HOST_DIR := host
-BUILDDIR ?= bin
-NR_TASKLETS ?= 16 
+NR_DPUS ?= 1
+NR_TASKLETS ?= 16
 BL ?= 10
-NR_DPUS ?= 1 
 
-define conf_filename
-	${BUILDDIR}/.NR_DPUS_$(1)_NR_TASKLETS_$(2)_BL_$(3).conf
-endef
-CONF := $(call conf_filename,${NR_DPUS},${NR_TASKLETS},${BL})
+HOST_SOURCES := $(wildcard host/*.c)
+DPU_SOURCES := $(wildcard dpu/*.c)
 
-HOST_TARGET := ${BUILDDIR}/mlp_host
-DPU_TARGET := ${BUILDDIR}/mlp_dpu
+aspectc ?= 0
+aspectc_timing ?= 0
 
-COMMON_INCLUDES := support
-HOST_SOURCES := $(wildcard ${HOST_DIR}/*.c)
-DPU_SOURCES := $(wildcard ${DPU_DIR}/*.c)
+HOST_CC := ${CC}
 
-.PHONY: all clean test
+COMMON_FLAGS := -Wall -Wextra -g -Iinclude -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DBL=${BL} 
+HOST_FLAGS := ${COMMON_FLAGS} -O3 `dpu-pkg-config --cflags --libs dpu` -DASPECTC=${aspectc}
+DPU_FLAGS := ${COMMON_FLAGS} -O2
 
-__dirs := $(shell mkdir -p ${BUILDDIR})
+ifeq (${aspectc_timing}, 1)
+	ASPECTC_HOST_FLAGS += -ainclude/dfatool_host_dpu.ah -ainclude/dfatool_host.ah
+endif
 
-COMMON_FLAGS := -Wall -Wextra -g -I${COMMON_INCLUDES}
-HOST_FLAGS := ${COMMON_FLAGS} -std=c11 -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DBL=${BL}
-DPU_FLAGS := ${COMMON_FLAGS} -O2 -DNR_TASKLETS=${NR_TASKLETS} -DBL=${BL}
+ASPECTC_HOST_FLAGS ?= -a0
 
-all: ${HOST_TARGET} ${DPU_TARGET}
+ifeq (${aspectc}, 1)
+	HOST_CC = ag++ -r repo.acp -v 0 ${ASPECTC_HOST_FLAGS} --c_compiler ${UPMEM_HOME}/bin/clang++ -p . --Xcompiler
+else
+	HOST_FLAGS += -std=c11
+endif
 
-${CONF}:
-	$(RM) $(call conf_filename,*,*)
-	touch ${CONF}
+QUIET = @
 
-${HOST_TARGET}: ${HOST_SOURCES} ${COMMON_INCLUDES} ${CONF}
-	$(CC) -o $@ ${HOST_SOURCES} ${HOST_FLAGS}
+ifdef verbose
+	QUIET =
+endif
 
-${DPU_TARGET}: ${DPU_SOURCES} ${COMMON_INCLUDES} ${CONF}
+all: bin/mlp_dpu bin/mlp_host
+
+bin:
+	${QUIET}mkdir -p bin
+
+bin/mlp_host: ${HOST_SOURCES} include bin
+	${QUIET}cp ../include/dfatool_host_dpu.ah include
+	${QUIET}${HOST_CC} -o $@ ${HOST_SOURCES} ${HOST_FLAGS}
+	${QUIET}rm -f include/dfatool_host_dpu.ah
+
+bin/mlp_dpu: ${DPU_SOURCES} include bin
 	dpu-upmem-dpurte-clang ${DPU_FLAGS} -o $@ ${DPU_SOURCES}
 
 clean:
 	$(RM) -r $(BUILDDIR)
 
 test: all
-	./${HOST_TARGET} -m 1024 -n 1024
+	bin/mlp_host -m 1024 -n 1024
+
+.PHONY: all clean test
