@@ -1,0 +1,38 @@
+\documentclass{standalone}
+
+\usepackage[T1]{fontenc}
+\usepackage[default]{opensans}
+\usepackage[scaled]{beramono}
+
+\usepackage{tikz}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.18}
+\usepgfplotslibrary{statistics}
+
+\begin{document}
+	\begin{tikzpicture}
+		\begin{axis}[
+				ylabel={write [GB/s]},
+				xlabel={\# Ranks},
+				x label style={font=\footnotesize, yshift=2mm},
+				y label style={font=\footnotesize},
+				tick label style={/pgf/number format/assume math mode=true},
+				title={Benchmark Data},
+				title style={yshift=-3mm},
+				legend style={font=\footnotesize, legend columns=-1, column sep=1ex},
+				legend pos=south east,
+				legend entries={upstream,,{no transformation},},
+				reverse legend,
+				ymin=0,ymax=14,
+				xmin=0,xmax=41,
+				width=90mm,height=45mm
+			]
+			\addplot[thick, color=red, domain=1:40] {5.042768 + 0.258673 * min(x, 31.536102)};
+			\addplot[color=red,only marks,mark=*,mark size=0.9,opacity=.05]
+				table[x=n_ranks, y=value] {orig-NMC-transfer-writeThroughputGBps.txt};
+			\addplot[thick, color=blue, domain=1:40] {5.049962 + 0.308594 * min(x, 25.657012)};
+			\addplot[color=blue,only marks,mark=*,mark size=0.9,opacity=.05]
+				table[x=n_ranks, y=value] {notransform-NMC-transfer-writeThroughputGBps.txt};
+		\end{axis}
+	\end{tikzpicture}
+\end{document}

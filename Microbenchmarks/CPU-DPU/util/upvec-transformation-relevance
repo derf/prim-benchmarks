@@ -1,0 +1,41 @@
+#!/bin/sh
+
+data=$(mktemp -d)
+
+echo
+echo SDK with transformation
+echo
+
+DFATOOL_ULS_MIN_BOUND=0 DFATOOL_PARAM_RELEVANCE_THRESHOLD=0.9 DFATOOL_ULS_FUNCTIONS=roofline,linear \
+analyze-log.py \
+--filter-param='n_elements_per_dpu=1048576' \
+--ignore-param='n_dpus,n_nops,numa_node_cpu,numa_node_in,numa_node_out,numa_node_rank,n_elements' \
+--filter-observation='NMC-transfer:throughput_dram_mram_Bps,NMC-transfer:throughput_mram_dram_Bps' \
+--normalize-nfp='writeThroughputGBps=throughput_dram_mram_Bps=/1e9;readThroughputGBps=throughput_mram_dram_Bps=/1e9' \
+--export-pgf-unparam ${data}/orig- \
+--cross-validate=kfold:10 --progress \
+--show-model=param --show-model-error --show-model-precision=6 \
+log/tinos/upvec-2025.1.0-orig.txt
+
+echo
+echo SDK without transformation
+echo
+
+DFATOOL_ULS_MIN_BOUND=0 DFATOOL_PARAM_RELEVANCE_THRESHOLD=0.9 DFATOOL_ULS_FUNCTIONS=roofline,linear \
+analyze-log.py \
+--filter-param='n_elements_per_dpu=1048576' \
+--ignore-param='n_dpus,n_nops,numa_node_cpu,numa_node_in,numa_node_out,numa_node_rank,n_elements' \
+--filter-observation='NMC-transfer:throughput_dram_mram_Bps,NMC-transfer:throughput_mram_dram_Bps' \
+--normalize-nfp='writeThroughputGBps=throughput_dram_mram_Bps=/1e9;readThroughputGBps=throughput_mram_dram_Bps=/1e9' \
+--export-pgf-unparam ${data}/notransform- \
+--cross-validate=kfold:10 --progress \
+--show-model=param --show-model-error --show-model-precision=6 \
+log/tinos/upvec-2025.1.0-notransform.txt
+
+for op in read write; do
+	cp util/upvec-${op}.tex ${data}
+	lualatex -output-directory ${data} ${data}/upvec-${op}
+	cp ${data}/upvec-${op}.pdf util
+done
+
+rm -rf ${data}
