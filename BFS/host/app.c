@@ -186,19 +186,27 @@ int main(int argc, char **argv)
 			PRINT_INFO(p.verbosity >= 2,
 				   "        Copying data to DPU");
 			startTimer(&timer, 2, t0ini++);
-			copyToDPU(dpu, (uint8_t *) dpuNodePtrs_h, dpuNodePtrs_m,
-				  (dpuNumNodes + 1) * sizeof(uint32_t));
-			copyToDPU(dpu, (uint8_t *) dpuNeighborIdxs_h,
-				  dpuNeighborIdxs_m,
-				  dpuNumNeighbors * sizeof(uint32_t));
-			copyToDPU(dpu, (uint8_t *) dpuNodeLevel_h,
-				  dpuNodeLevel_m,
-				  dpuNumNodes * sizeof(uint32_t));
-			copyToDPU(dpu, (uint8_t *) visited, dpuVisited_m,
-				  numNodes / 64 * sizeof(uint64_t));
-			copyToDPU(dpu, (uint8_t *) nextFrontier,
-				  dpuNextFrontier_m,
-				  numNodes / 64 * sizeof(uint64_t));
+
+			DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+						dpuNodePtrs_m, (uint8_t *) dpuNodePtrs_h,
+						ROUND_UP_TO_MULTIPLE_OF_8((dpuNumNodes + 1) * sizeof(uint32_t))));
+
+			DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+						dpuNeighborIdxs_m, (uint8_t *) dpuNeighborIdxs_h,
+						ROUND_UP_TO_MULTIPLE_OF_8(dpuNumNeighbors * sizeof(uint32_t))));
+
+			DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+						dpuNodeLevel_m, (uint8_t *) dpuNodeLevel_h,
+						ROUND_UP_TO_MULTIPLE_OF_8(dpuNumNodes * sizeof(uint32_t))));
+
+			DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+						dpuVisited_m, (uint8_t *) visited,
+						ROUND_UP_TO_MULTIPLE_OF_8(numNodes / 64 * sizeof(uint64_t))));
+
+			DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+						dpuNextFrontier_m, (uint8_t *) nextFrontier,
+						ROUND_UP_TO_MULTIPLE_OF_8(numNodes / 64 * sizeof(uint64_t))))
+
 			// NOTE: No need to copy current frontier because it is written before being read
 			stopTimer(&timer, 2);
 			//loadTime += getElapsedTime(timer);
@@ -208,8 +216,9 @@ int main(int argc, char **argv)
 		PRINT_INFO(p.verbosity >= 2,
 			   "        Copying parameters to DPU");
 		startTimer(&timer, 2, t1ini++);
-		copyToDPU(dpu, (uint8_t *) & dpuParams[dpuIdx],
-			  dpuParams_m[dpuIdx], sizeof(struct DPUParams));
+		DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+					dpuParams_m[dpuIdx], (uint8_t *) & dpuParams[dpuIdx],
+					ROUND_UP_TO_MULTIPLE_OF_8(sizeof(struct DPUParams))));
 		stopTimer(&timer, 2);
 		//loadTime += getElapsedTime(timer);
 
@@ -248,19 +257,15 @@ int main(int argc, char **argv)
 			uint32_t dpuNumNodes = dpuParams[dpuIdx].dpuNumNodes;
 			if (dpuNumNodes > 0) {
 				if (dpuIdx == 0) {
-					copyFromDPU(dpu,
-						    dpuParams[dpuIdx].
-						    dpuNextFrontier_m,
-						    (uint8_t *) currentFrontier,
-						    numNodes / 64 *
-						    sizeof(uint64_t));
+					DPU_ASSERT(dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+								dpuParams[dpuIdx].dpuNextFrontier_m,
+								(uint8_t *) currentFrontier,
+								ROUND_UP_TO_MULTIPLE_OF_8(numNodes / 64 * sizeof(uint64_t))));
 				} else {
-					copyFromDPU(dpu,
-						    dpuParams[dpuIdx].
-						    dpuNextFrontier_m,
-						    (uint8_t *) nextFrontier,
-						    numNodes / 64 *
-						    sizeof(uint64_t));
+					DPU_ASSERT(dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+								dpuParams[dpuIdx].dpuNextFrontier_m,
+								(uint8_t *) nextFrontier,
+								ROUND_UP_TO_MULTIPLE_OF_8(numNodes / 64 * sizeof(uint64_t))));
 					for (uint32_t i = 0; i < numNodes / 64;
 					     ++i) {
 						currentFrontier[i] |=
@@ -287,19 +292,15 @@ int main(int argc, char **argv)
 				    dpuParams[dpuIdx].dpuNumNodes;
 				if (dpuNumNodes > 0) {
 					// Copy current frontier to all DPUs (place in next frontier and DPU will update visited and copy to current frontier)
-					copyToDPU(dpu,
-						  (uint8_t *) currentFrontier,
-						  dpuParams[dpuIdx].
-						  dpuNextFrontier_m,
-						  numNodes / 64 *
-						  sizeof(uint64_t));
+					DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+								dpuParams[dpuIdx].dpuNextFrontier_m,
+								(uint8_t *) currentFrontier,
+								ROUND_UP_TO_MULTIPLE_OF_8(numNodes / 64 * sizeof(uint64_t))));
 					// Copy new level to DPU
 					dpuParams[dpuIdx].level = level;
-					copyToDPU(dpu,
-						  (uint8_t *) &
-						  dpuParams[dpuIdx],
-						  dpuParams_m[dpuIdx],
-						  sizeof(struct DPUParams));
+					DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+								dpuParams_m[dpuIdx], (uint8_t *) &dpuParams[dpuIdx],
+								ROUND_UP_TO_MULTIPLE_OF_8(sizeof(struct DPUParams))));
 					++dpuIdx;
 				}
 			}
@@ -317,9 +318,10 @@ int main(int argc, char **argv)
 		uint32_t dpuNumNodes = dpuParams[dpuIdx].dpuNumNodes;
 		if (dpuNumNodes > 0) {
 			uint32_t dpuStartNodeIdx = dpuIdx * numNodesPerDPU;
-			copyFromDPU(dpu, dpuParams[dpuIdx].dpuNodeLevel_m,
-				    (uint8_t *) (nodeLevel + dpuStartNodeIdx),
-				    dpuNumNodes * sizeof(float));
+			DPU_ASSERT(dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+						dpuParams[dpuIdx].dpuNodeLevel_m,
+						(uint8_t *) (nodeLevel + dpuStartNodeIdx),
+						ROUND_UP_TO_MULTIPLE_OF_8(dpuNumNodes * sizeof(float))));
 		}
 		++dpuIdx;
 	}
