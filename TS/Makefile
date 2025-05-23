@@ -12,6 +12,8 @@ aspectc ?= 0
 aspectc_timing ?= 0
 dfatool_timing ?= 1
 
+HOST_CC := ${CC}
+
 COMMON_FLAGS := -Wall -Wextra  -g -Iinclude -DBL=${BL}
 HOST_FLAGS := ${COMMON_FLAGS} -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DWITH_ALLOC_OVERHEAD=${WITH_ALLOC_OVERHEAD} -DWITH_LOAD_OVERHEAD=${WITH_LOAD_OVERHEAD} -DWITH_FREE_OVERHEAD=${WITH_FREE_OVERHEAD} -DDFATOOL_TIMING=${dfatool_timing} -DASPECTC=${aspectc} -lm
 DPU_FLAGS := ${COMMON_FLAGS} -O2 -DNR_TASKLETS=${NR_TASKLETS}
