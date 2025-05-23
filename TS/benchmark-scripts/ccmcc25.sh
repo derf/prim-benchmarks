@@ -1,9 +1,6 @@
 #!/bin/bash
 
 mkdir -p log/$(hostname)
-fn=log/$(hostname)/ccmcc25
-
-source /opt/upmem/upmem-2025.1.0-Linux-x86_64/upmem_env.sh
 
 run_benchmark_nmc() {
 	local "$@"
@@ -16,10 +13,18 @@ run_benchmark_nmc() {
 
 export -f run_benchmark_nmc
 
-echo "prim-benchmarks  TS  $(git describe --all --long)  $(git rev-parse HEAD)  $(date -R)" >> ${fn}.txt
+for sdk in 2023.2.0 2024.1.0 2024.2.0 2025.1.0; do
 
-parallel -j1 --eta --joblog ${fn}.joblog --resume --header : \
-	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=8 numa_rank=any ts_size={ts_size} \
-	::: nr_dpus 64 128 256 512 768 1024 1536 2048 2304 \
-	::: ts_size 8388608 16777216 33554432 67108864 \
->> ${fn}.txt
+	fn=log/$(hostname)/ccmcc25-sdk${sdk}
+
+	source /opt/upmem/upmem-${sdk}-Linux-x86_64/upmem_env.sh
+
+	echo "prim-benchmarks  TS  $(git describe --all --long)  $(git rev-parse HEAD)  $(date -R)" >> ${fn}.txt
+
+	parallel -j1 --eta --joblog ${fn}.joblog --resume --header : \
+		run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=8 numa_rank=any ts_size={ts_size} \
+		::: nr_dpus 64 128 256 512 768 1024 1536 2048 2304 \
+		::: ts_size 8388608 16777216 33554432 67108864 \
+	>> ${fn}.txt
+
+done
