@@ -13,9 +13,9 @@
 #include <getopt.h>
 #include <assert.h>
 
-#include "../support/common.h"
-#include "../support/timer.h"
-#include "../support/params.h"
+#include "common.h"
+#include "timer.h"
+#include "params.h"
 
 // Define the DPU Binary path as DPU_BINARY here
 #ifndef DPU_BINARY
@@ -168,9 +168,9 @@ int main(int argc, char **argv) {
         // Input arguments
         unsigned int kernel = 0;
         dpu_arguments_t input_arguments[NR_DPUS];
-        for(i=0; i<NR_DPUS-1; i++) {
-            input_arguments[i].size=input_size_dpu_8bytes * sizeof(T); 
-            input_arguments[i].kernel=kernel;
+        for(int j=0; j<NR_DPUS-1; i++) {
+            input_arguments[j].size=input_size_dpu_8bytes * sizeof(T); 
+            input_arguments[j].kernel=kernel;
         }
         input_arguments[NR_DPUS-1].size=(input_size_8bytes - input_size_dpu_8bytes * (NR_DPUS-1)) * sizeof(T); 
         input_arguments[NR_DPUS-1].kernel=kernel;

@@ -11,8 +11,8 @@
 #include <handshake.h>
 #include <barrier.h>
 
-#include "../support/common.h"
-#include "../support/cyclecount.h"
+#include "common.h"
+#include "cyclecount.h"
 
 __host dpu_arguments_t DPU_INPUT_ARGUMENTS;
 __host dpu_results_t DPU_RESULTS[NR_TASKLETS];
