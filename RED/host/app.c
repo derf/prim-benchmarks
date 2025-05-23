@@ -7,8 +7,24 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+
+#if ASPECTC
+extern "C" {
+#endif
+
 #include <dpu.h>
 #include <dpu_log.h>
+#include <dpu_management.h>
+#include <dpu_target_macros.h>
+
+#if ENERGY
+#include <dpu_probe.h>
+#endif
+
+#if ASPECTC
+}
+#endif
+
 #include <unistd.h>
 #include <getopt.h>
 #include <assert.h>
@@ -24,13 +40,6 @@
 
 #define XSTR(x) STR(x)
 #define STR(x) #x
-
-#if ENERGY
-#include <dpu_probe.h>
-#endif
-
-#include <dpu_management.h>
-#include <dpu_target_macros.h>
 
 // Pointer declaration
 static T* A;
@@ -70,17 +79,17 @@ int main(int argc, char **argv) {
     // Allocate DPUs and load binary
 #if !WITH_ALLOC_OVERHEAD
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
-    timer.time[0] = 0; // alloc
+    zero(&timer, 0); // alloc
 #endif
 #if !WITH_LOAD_OVERHEAD
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
     DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
     assert(nr_of_dpus == NR_DPUS);
-    timer.time[1] = 0; // load
+    zero(&timer, 1); // load
 #endif
 #if !WITH_FREE_OVERHEAD
-    timer.time[6] = 0; // free
+    zero(&timer, 6); // free
 #endif
 
 #if ENERGY
@@ -102,7 +111,7 @@ int main(int argc, char **argv) {
         ((input_size_dpu * sizeof(T)) % 8) != 0 ? roundup(input_size_dpu, 8) : input_size_dpu; // Input size per DPU (max.), 8-byte aligned
 
     // Input/output allocation
-    A = malloc(input_size_dpu_8bytes * NR_DPUS * sizeof(T));
+    A = (T*)malloc(input_size_dpu_8bytes * NR_DPUS * sizeof(T));
     T *bufferA = A;
     T count = 0;
     T count_host = 0;
@@ -168,12 +177,12 @@ int main(int argc, char **argv) {
         // Input arguments
         unsigned int kernel = 0;
         dpu_arguments_t input_arguments[NR_DPUS];
-        for(int j=0; j<NR_DPUS-1; i++) {
+        for(int j=0; j<NR_DPUS-1; j++) {
             input_arguments[j].size=input_size_dpu_8bytes * sizeof(T); 
-            input_arguments[j].kernel=kernel;
+            input_arguments[j].kernel=(enum kernels)kernel;
         }
         input_arguments[NR_DPUS-1].size=(input_size_8bytes - input_size_dpu_8bytes * (NR_DPUS-1)) * sizeof(T); 
-        input_arguments[NR_DPUS-1].kernel=kernel;
+        input_arguments[NR_DPUS-1].kernel=(enum kernels)kernel;
         // Copy input arrays
         i = 0;
         DPU_FOREACH(dpu_set, dpu, i) {
@@ -218,7 +227,7 @@ int main(int argc, char **argv) {
 
         //printf("Retrieve results\n");
         dpu_results_t results[NR_DPUS];
-        T* results_count = malloc(NR_DPUS * sizeof(T));
+        T* results_count = (T*)malloc(NR_DPUS * sizeof(T));
         if(rep >= p.n_warmup)
             start(&timer, 5, 0);
         i = 0;
@@ -302,11 +311,11 @@ int main(int argc, char **argv) {
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             if (rep >= p.n_warmup) {
-                printf("[::] RED UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d",
+                dfatool_printf("[::] RED UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d",
                     NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size);
-                printf(" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d numa_node_rank=%d ",
+                dfatool_printf(" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d numa_node_rank=%d ",
                     WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD, numa_node_rank);
-                printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
+                dfatool_printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
                     timer.time[0],
                     timer.time[1],
                     timer.time[2],
@@ -314,19 +323,19 @@ int main(int argc, char **argv) {
                     timer.time[4],
                     timer.time[5],
                     timer.time[6]);
-                printf(" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
+                dfatool_printf(" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
                     input_size * sizeof(T) / timer.time[2],
                     input_size * sizeof(T) / (timer.time[4]),
                     input_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
-                printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
+                dfatool_printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
                     input_size * sizeof(T) / (timer.time[3] + timer.time[4] + timer.time[5]),
                     input_size * sizeof(T) / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
                     input_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
-                printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
+                dfatool_printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
                     input_size / timer.time[2],
                     input_size / (timer.time[4]),
                     input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
-                printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
+                dfatool_printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
                     input_size / (timer.time[3] + timer.time[4] + timer.time[5]),
                     input_size / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
                     input_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));

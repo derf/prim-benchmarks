@@ -38,19 +38,21 @@
 #define DIV 1 // Shift right to divide by sizeof(T)
 #endif
 
+enum kernels {
+	kernel1 = 0,
+	nr_kernels = 1,
+};
+
 // Structures used by both the host and the dpu to communicate information
 typedef struct {
-    uint32_t size;
-	enum kernels {
-	    kernel1 = 0,
-	    nr_kernels = 1,
-	} kernel;
-    T t_count;
+	uint32_t size;
+	enum kernels kernel;
+	T t_count;
 } dpu_arguments_t;
 
 typedef struct {
-    uint64_t cycles;
-    T t_count;
+	uint64_t cycles;
+	T t_count;
 } dpu_results_t;
 
 #ifndef PERF

@@ -1,0 +1,29 @@
+#pragma once
+
+#include <sys/time.h>
+#include "dfatool_host_dpu.ah"
+
+aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
+	unsigned long n_elements;
+	unsigned int element_size;
+
+	virtual int getKernel() { return 1; }
+
+	DfatoolHostTiming() {
+		element_size = sizeof(T);
+	}
+
+	advice call("% input_params(...)") : after() {
+		Params* p = tjp->result();
+		n_elements = p->input_size;
+		printf("[>>] RED | n_dpus=%u n_elements=%lu\n", NR_DPUS, n_elements);
+	}
+
+	advice call("% reduction_host(...)") : after() {
+		printf("[--] RED | n_dpus=%u n_elements=%lu\n", n_dpus, n_elements);
+	}
+
+	advice execution("% main(...)") : after() {
+		printf("[<<] RED | n_dpus=%u n_elements=%lu\n", NR_DPUS, n_elements);
+	}
+};
