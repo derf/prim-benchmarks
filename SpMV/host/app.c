@@ -3,8 +3,23 @@
 * SpMV Host Application Source File
 *
 */
+#if ASPECTC
+extern "C" {
+#endif
+
 #include <dpu.h>
 #include <dpu_log.h>
+
+#ifndef ENERGY
+#define ENERGY 0
+#endif
+#if ENERGY
+#include <dpu_probe.h>
+#endif
+
+#if ASPECTC
+}
+#endif
 
 #include <assert.h>
 #include <getopt.h>
@@ -14,23 +29,16 @@
 #include <unistd.h>
 
 #include "mram-management.h"
-#include "../support/common.h"
-#include "../support/matrix.h"
-#include "../support/params.h"
-#include "../support/timer.h"
-#include "../support/utils.h"
+#include "common.h"
+#include "matrix.h"
+#include "params.h"
+#include "timer.h"
+#include "utils.h"
 
 #define DPU_BINARY "./bin/dpu_code"
 
 #define XSTR(x) STR(x)
 #define STR(x) #x
-
-#ifndef ENERGY
-#define ENERGY 0
-#endif
-#if ENERGY
-#include <dpu_probe.h>
-#endif
 
 // Main of the Host Application
 int main(int argc, char **argv)
@@ -78,10 +86,10 @@ int main(int argc, char **argv)
 	uint32_t *rowPtrs = csrMatrix.rowPtrs;
 	struct Nonzero *nonzeros = csrMatrix.nonzeros;
 	float *inVector =
-	    malloc(ROUND_UP_TO_MULTIPLE_OF_8(numCols * sizeof(float)));
+	    (float*)malloc(ROUND_UP_TO_MULTIPLE_OF_8(numCols * sizeof(float)));
 	initVector(inVector, numCols);
 	float *outVector =
-	    malloc(ROUND_UP_TO_MULTIPLE_OF_8(numRows * sizeof(float)));
+	    (float*)malloc(ROUND_UP_TO_MULTIPLE_OF_8(numRows * sizeof(float)));
 
 	// Partition data structure across DPUs
 	uint32_t numRowsPerDPU =
@@ -158,22 +166,25 @@ int main(int argc, char **argv)
 			PRINT_INFO(p.verbosity >= 2,
 				   "        Copying data to DPU");
 			startTimer(&timer);
-			copyToDPU(dpu, (uint8_t *) dpuRowPtrs_h, dpuRowPtrs_m,
-				  (dpuNumRows + 1) * sizeof(uint32_t));
-			copyToDPU(dpu, (uint8_t *) dpuNonzeros_h, dpuNonzeros_m,
-				  dpuNumNonzeros * sizeof(struct Nonzero));
-			copyToDPU(dpu, (uint8_t *) inVector, dpuInVector_m,
-				  numCols * sizeof(float));
+			DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+						dpuRowPtrs_m, (uint8_t *) dpuRowPtrs_h,
+						ROUND_UP_TO_MULTIPLE_OF_8((dpuNumRows + 1) * sizeof(uint32_t))));
+			DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+						dpuNonzeros_m, (uint8_t *) dpuNonzeros_h,
+						ROUND_UP_TO_MULTIPLE_OF_8(dpuNumNonzeros * sizeof(struct Nonzero))));
+			DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+						dpuInVector_m, (uint8_t *) inVector,
+						ROUND_UP_TO_MULTIPLE_OF_8(numCols * sizeof(float))));
 			stopTimer(&timer);
 			writeTime += getElapsedTime(timer);
-
 		}
 		// Send parameters to DPU
 		PRINT_INFO(p.verbosity >= 2,
 			   "        Copying parameters to DPU");
 		startTimer(&timer);
-		copyToDPU(dpu, (uint8_t *) & dpuParams[dpuIdx], dpuParams_m,
-			  sizeof(struct DPUParams));
+		DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+					dpuParams_m, (uint8_t *) & dpuParams[dpuIdx],
+					ROUND_UP_TO_MULTIPLE_OF_8(sizeof(struct DPUParams))));
 		stopTimer(&timer);
 		writeTime += getElapsedTime(timer);
 
@@ -204,13 +215,15 @@ int main(int argc, char **argv)
 	PRINT_INFO(p.verbosity >= 1, "Copying back the result");
 	startTimer(&timer);
 	dpuIdx = 0;
+
 	DPU_FOREACH(dpu_set, dpu) {
 		unsigned int dpuNumRows = dpuParams[dpuIdx].dpuNumRows;
 		if (dpuNumRows > 0) {
 			uint32_t dpuStartRowIdx = dpuIdx * numRowsPerDPU;
-			copyFromDPU(dpu, dpuParams[dpuIdx].dpuOutVector_m,
-				    (uint8_t *) (outVector + dpuStartRowIdx),
-				    dpuNumRows * sizeof(float));
+			DPU_ASSERT(dpu_copy_from(dpu, DPU_MRAM_HEAP_POINTER_NAME,
+						dpuParams[dpuIdx].dpuOutVector_m,
+						(uint8_t *) (outVector + dpuStartRowIdx),
+						ROUND_UP_TO_MULTIPLE_OF_8(dpuNumRows * sizeof(float))));
 		}
 		++dpuIdx;
 	}
@@ -220,7 +233,7 @@ int main(int argc, char **argv)
 
 	// Calculating result on CPU
 	PRINT_INFO(p.verbosity >= 1, "Calculating result on CPU");
-	float *outVectorReference = malloc(numRows * sizeof(float));
+	float *outVectorReference = (float*)malloc(numRows * sizeof(float));
 	for (uint32_t rowIdx = 0; rowIdx < numRows; ++rowIdx) {
 		float sum = 0.0f;
 		for (uint32_t i = rowPtrs[rowIdx]; i < rowPtrs[rowIdx + 1]; ++i) {
@@ -254,22 +267,22 @@ int main(int argc, char **argv)
 	freeTime += getElapsedTime(timer);
 
 	if (status) {
-		printf
+		dfatool_printf
 		    ("[::] SpMV UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s n_elements=%d ",
 		     numDPUs, numRanks, NR_TASKLETS, "float",
 		     csrMatrix.numNonzeros);
-		printf
+		dfatool_printf
 		    ("| latency_alloc_us=%f latency_load_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
 		     allocTime, loadTime, writeTime, dpuTime, readTime,
 		     freeTime);
-		printf
+		dfatool_printf
 		    (" throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
 		     // coomatrix / csrmatrix use uint32_t indexes and float values, so all 32bit
 		     csrMatrix.numNonzeros * sizeof(float) / (dpuTime * 1e6),
 		     csrMatrix.numNonzeros * sizeof(float) /
 		     ((allocTime + loadTime + writeTime + dpuTime + readTime +
 		       freeTime) * 1e6));
-		printf
+		dfatool_printf
 		    (" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
 		     csrMatrix.numNonzeros * sizeof(float) /
 		     ((writeTime + dpuTime + readTime) * 1e6),
@@ -278,14 +291,14 @@ int main(int argc, char **argv)
 		     csrMatrix.numNonzeros * sizeof(float) /
 		     ((allocTime + loadTime + writeTime + dpuTime +
 		       readTime) * 1e6));
-		printf
+		dfatool_printf
 		    (" throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
 		     // coomatrix / csrmatrix use uint32_t indexes and float values, so all 32bit
 		     csrMatrix.numNonzeros / (dpuTime * 1e6),
 		     csrMatrix.numNonzeros /
 		     ((allocTime + loadTime + writeTime + dpuTime + readTime +
 		       freeTime) * 1e6));
-		printf
+		dfatool_printf
 		    (" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
 		     csrMatrix.numNonzeros / ((writeTime + dpuTime + readTime) *
 					      1e6),

@@ -11,7 +11,7 @@
 #include <perfcounter.h>
 #include <seqread.h>
 
-#include "../support/common.h"
+#include "common.h"
 
 #define PRINT_ERROR(fmt, ...) printf("\033[0;31mERROR:\033[0m   "fmt"\n", ##__VA_ARGS__)
 

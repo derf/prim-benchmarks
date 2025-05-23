@@ -1,9 +1,7 @@
+#pragma once
 
-#ifndef _MRAM_MANAGEMENT_H_
-#define _MRAM_MANAGEMENT_H_
-
-#include "../support/common.h"
-#include "../support/utils.h"
+#include "common.h"
+#include "utils.h"
 
 #define DPU_CAPACITY (64 << 20)	// A DPU's capacity is 64 MiB
 
@@ -29,21 +27,3 @@ static uint32_t mram_heap_alloc(struct mram_heap_allocator_t *allocator,
 	}
 	return ret;
 }
-
-static void copyToDPU(struct dpu_set_t dpu, uint8_t *hostPtr, uint32_t mramIdx,
-		      uint32_t size)
-{
-	DPU_ASSERT(dpu_copy_to
-		   (dpu, DPU_MRAM_HEAP_POINTER_NAME, mramIdx, hostPtr,
-		    ROUND_UP_TO_MULTIPLE_OF_8(size)));
-}
-
-static void copyFromDPU(struct dpu_set_t dpu, uint32_t mramIdx,
-			uint8_t *hostPtr, uint32_t size)
-{
-	DPU_ASSERT(dpu_copy_from
-		   (dpu, DPU_MRAM_HEAP_POINTER_NAME, mramIdx, hostPtr,
-		    ROUND_UP_TO_MULTIPLE_OF_8(size)));
-}
-
-#endif

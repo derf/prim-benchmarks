@@ -1,0 +1,31 @@
+#pragma once
+
+#include <sys/time.h>
+#include "dfatool_host_dpu.ah"
+
+aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
+	unsigned long n_rows, n_cols, n_nonzero;
+	unsigned int element_size;
+
+	virtual int getKernel() { return 1; }
+
+	DfatoolHostTiming() {
+		element_size = sizeof(float);
+	}
+
+	advice call("% input_params(...)"): after() {
+		printf("[>>] SpMV | n_dpus=%u\n", NR_DPUS);
+	}
+
+	advice call("% readCOOMatrix(...)") : after() {
+		struct COOMatrix* c = tjp->result();
+		n_rows = c->numRows;
+		n_cols = c->numCols;
+		n_nonzero = c->numNonzeros;
+		printf("[--] SpMV | n_dpus=%u n_rows=%lu n_cols=%lu n_nonzero=%lu\n", NR_DPUS, n_rows, n_cols, n_nonzero);
+	}
+
+	advice execution("% main(...)") : after() {
+		printf("[<<] SpMV | n_dpus=%u n_rows=%lu n_cols=%lu n_nonzero=%lu\n", NR_DPUS, n_rows, n_cols, n_nonzero);
+	}
+};
