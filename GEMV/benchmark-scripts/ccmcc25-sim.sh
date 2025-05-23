@@ -8,7 +8,7 @@ run_benchmark_nmc() {
 	sudo limit_ranks_to_numa_node ${numa_rank}
 	make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets} \
 		aspectc=1 aspectc_timing=1 dfatool_timing=0
-	bin/gemv_host -w 0 -e 50 -n ${nr_cols} -m ${nr_rows} 2>&1
+	bin/gemv_host -w 0 -e 5 -n ${nr_cols} -m ${nr_rows} 2>&1
 }
 
 export -f run_benchmark_nmc
