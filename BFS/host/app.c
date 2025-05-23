@@ -205,7 +205,7 @@ int main(int argc, char **argv)
 
 			DPU_ASSERT(dpu_copy_to(dpu, DPU_MRAM_HEAP_POINTER_NAME,
 						dpuNextFrontier_m, (uint8_t *) nextFrontier,
-						ROUND_UP_TO_MULTIPLE_OF_8(numNodes / 64 * sizeof(uint64_t))))
+						ROUND_UP_TO_MULTIPLE_OF_8(numNodes / 64 * sizeof(uint64_t))));
 
 			// NOTE: No need to copy current frontier because it is written before being read
 			stopTimer(&timer, 2);
