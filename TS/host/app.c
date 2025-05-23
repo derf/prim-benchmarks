@@ -224,6 +224,15 @@ int main(int argc, char **argv)
 
 	for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
+		if (rep >= p.n_warmup) {
+			start(&timer, 6, 0);
+		}
+		streamp(tSeries, AMean, ASigma, ts_size - query_length - 1,
+			query, query_length, query_mean, query_std);
+		if (rep >= p.n_warmup) {
+			stop(&timer, 6);
+		}
+
 #if WITH_ALLOC_OVERHEAD
 		if (rep >= p.n_warmup) {
 			start(&timer, 0, 0);
@@ -395,15 +404,6 @@ int main(int argc, char **argv)
 		}
 #endif
 #endif
-
-		if (rep >= p.n_warmup) {
-			start(&timer, 6, 0);
-		}
-		streamp(tSeries, AMean, ASigma, ts_size - query_length - 1,
-			query, query_length, query_mean, query_std);
-		if (rep >= p.n_warmup) {
-			stop(&timer, 6);
-		}
 
 		int status = (minHost == result.minValue);
 		if (status) {
