@@ -250,16 +250,10 @@ int main(int argc, char **argv)
 			start(&timer, 2, 0);
 		}
 		uint32_t i = 0;
-
-		DPU_FOREACH(dpu_set, dpu) {
-			input_arguments.exclusion_zone = 0;
-
-			DPU_ASSERT(dpu_copy_to
-				   (dpu, "DPU_INPUT_ARGUMENTS", 0,
-				    (const void *)&input_arguments,
-				    sizeof(input_arguments)));
-			i++;
+		DPU_FOREACH(dpu_set, dpu, i) {
+			DPU_ASSERT(dpu_prepare_xfer(dpu, (const void *)&input_arguments));
 		}
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0, sizeof(input_arguments), DPU_XFER_DEFAULT));
 
 		i = 0;
 		mem_offset = 0;
