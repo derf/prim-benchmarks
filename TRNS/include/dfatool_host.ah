@@ -5,7 +5,7 @@
 
 aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 
-	unsigned int n_rows_f1, n_rows_f2, n_cols_f1, n_cols_f2;
+	unsigned int n_rows_outer, n_rows_tile, n_cols_outer, n_cols_tile;
 	unsigned int element_size;
 
 	virtual int getKernel() { return kernel; }
@@ -19,18 +19,18 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 		/*
 		 * Input: (M_ * m) × (N_ * n) matrix
 		 */
-		n_rows_f1 = p->M_;
-		n_rows_f2 = p->m;
-		n_cols_f1 = p->N_;
-		n_cols_f2 = p->n;
-		printf("[>>] TRNS | n_dpus=%u n_rows_f1=%u n_rows_f2=%u n_cols_f1=%u n_cols_f2=%u\n", NR_DPUS, n_rows_f1, n_rows_f2, n_cols_f1, n_cols_f2);
+		n_rows_outer = p->M_;
+		n_rows_tile = p->m;
+		n_cols_outer = p->N_;
+		n_cols_tile = p->n;
+		printf("[>>] TRNS | n_dpus=%u n_rows_outer=%u n_rows_tile=%u n_cols_outer=%u n_cols_tile=%u\n", NR_DPUS, n_rows_outer, n_rows_tile, n_cols_outer, n_cols_tile);
 	}
 
 	advice call("% trns_host(...)") : after() {
-		printf("[--] TRNS | n_dpus=%u n_rows_f1=%u n_rows_f2=%u n_cols_f1=%u n_cols_f2=%u\n", NR_DPUS, n_rows_f1, n_rows_f2, n_cols_f1, n_cols_f2);
+		printf("[--] TRNS | n_dpus=%u n_rows_outer=%u n_rows_tile=%u n_cols_outer=%u n_cols_tile=%u\n", NR_DPUS, n_rows_outer, n_rows_tile, n_cols_outer, n_cols_tile);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] TRNS | n_dpus=%u n_rows_f1=%u n_rows_f2=%u n_cols_f1=%u n_cols_f2=%u\n", NR_DPUS, n_rows_f1, n_rows_f2, n_cols_f1, n_cols_f2);
+		printf("[<<] TRNS | n_dpus=%u n_rows_outer=%u n_rows_tile=%u n_cols_outer=%u n_cols_tile=%u\n", NR_DPUS, n_rows_outer, n_rows_tile, n_cols_outer, n_cols_tile);
 	}
 };
