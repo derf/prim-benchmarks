@@ -80,7 +80,7 @@ CPU and DPU benchmarks in this repository have been adjusted as follows:
 * NW: A
 * RED: DLN
 * SCAN-SSA: D
-* SCAN-RSS: DLN
+* SCAN-RSS: ADLN
 * SEL: DLN
 * SpMV: ADL
 * TRNS: ABDLN
