@@ -40,15 +40,17 @@
 
 #define REGS (BLOCK_SIZE >> DIV)
 
+enum kernels {
+	kernel1 = 0,
+	kernel2 = 1,
+	nr_kernels = 2,
+};
+
 // Structures used by both the host and the dpu to communicate information
 typedef struct {
-    uint32_t size;
-	enum kernels {
-	    kernel1 = 0,
-	    kernel2 = 1,
-	    nr_kernels = 2,
-	} kernel;
-    T t_count;
+	uint32_t size;
+	enum kernels kernel;
+	T t_count;
 } dpu_arguments_t;
 
 typedef struct {

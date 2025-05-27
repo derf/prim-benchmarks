@@ -7,15 +7,29 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+
+#if ASPECTC
+extern "C" {
+#endif
+
 #include <dpu.h>
 #include <dpu_log.h>
+
+#if ENERGY
+#include <dpu_probe.h>
+#endif
+
+#if ASPECTC
+}
+#endif
+
 #include <unistd.h>
 #include <getopt.h>
 #include <assert.h>
 
-#include "../support/common.h"
-#include "../support/timer.h"
-#include "../support/params.h"
+#include "common.h"
+#include "timer.h"
+#include "params.h"
 
 // Define the DPU Binary path as DPU_BINARY here
 #ifndef DPU_BINARY
@@ -25,14 +39,12 @@
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
-#if ENERGY
-#include <dpu_probe.h>
-#endif
-
 // Pointer declaration
 static T* A;
 static T* C;
 static T* C2;
+
+unsigned int kernel;
 
 // Create input arrays
 static void read_input(T* A, unsigned int nr_elements, unsigned int nr_elements_round) {
@@ -95,9 +107,9 @@ int main(int argc, char **argv) {
         (input_size_dpu_ % (NR_TASKLETS * REGS) != 0) ? roundup(input_size_dpu_, (NR_TASKLETS * REGS)) : input_size_dpu_; // Input size per DPU (max.), 8-byte aligned
 
     // Input/output allocation
-    A = malloc(input_size_dpu_round * nr_of_dpus * sizeof(T));
-    C = malloc(input_size_dpu_round * nr_of_dpus * sizeof(T));
-    C2 = malloc(input_size_dpu_round * nr_of_dpus * sizeof(T));
+    A = (T*) malloc(input_size_dpu_round * nr_of_dpus * sizeof(T));
+    C = (T*) malloc(input_size_dpu_round * nr_of_dpus * sizeof(T));
+    C2 = (T*) malloc(input_size_dpu_round * nr_of_dpus * sizeof(T));
     T *bufferA = A;
     T *bufferC = C2;
 
@@ -124,8 +136,8 @@ int main(int argc, char **argv) {
             start(&timer, 1, 0);
         // Input arguments
         const unsigned int input_size_dpu = input_size_dpu_round;
-        unsigned int kernel = 0;
-        dpu_arguments_t input_arguments = {input_size_dpu * sizeof(T), kernel, 0};
+        kernel = 0;
+        dpu_arguments_t input_arguments = {(uint32_t)(input_size_dpu * sizeof(T)), (enum kernels)kernel, 0};
         // Copy input arrays
         i = 0;
         DPU_FOREACH(dpu_set, dpu, i) {
@@ -170,7 +182,7 @@ int main(int argc, char **argv) {
 
         //printf("Retrieve results\n");
         dpu_results_t results[nr_of_dpus];
-        T* results_scan = malloc(nr_of_dpus * sizeof(T));
+        T* results_scan = (T*) malloc(nr_of_dpus * sizeof(T));
         i = 0;
         accum = 0;
 
@@ -207,7 +219,7 @@ int main(int argc, char **argv) {
         dpu_arguments_t input_arguments_2[NR_DPUS];
         for(i=0; i<nr_of_dpus; i++) {
             input_arguments_2[i].size=input_size_dpu * sizeof(T); 
-            input_arguments_2[i].kernel=kernel;
+            input_arguments_2[i].kernel=(enum kernels)kernel;
             input_arguments_2[i].t_count=results_scan[i];
         }
         DPU_FOREACH(dpu_set, dpu, i) {
@@ -272,17 +284,16 @@ int main(int argc, char **argv) {
         }
         if (status) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-            printf("[::] SCAN-SSA NMC | n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d b_unroll=%d n_elements=%u "
-                "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f\n",
+            dfatool_printf("[::] SCAN-SSA NMC | n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d b_unroll=%d n_elements=%u "
+                "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f",
                 nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, UNROLL, input_size,
                 input_size * sizeof(T) / timer.time[0],
                 input_size * sizeof(T) / (timer.time[2] + timer.time[3] + timer.time[4]),
                 input_size * sizeof(T) / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5]));
-            printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f\n",
+            dfatool_printf(" throughput_cpu_MOpps=%f throughput_pim_MOpps=%f throughput_MOpps=%f\n",
                 input_size / timer.time[0],
                 input_size / (timer.time[2] + timer.time[3] + timer.time[4]),
                 input_size / (timer.time[1] + timer.time[2] + timer.time[3] + timer.time[4] + timer.time[5]));
-            printall(&timer, 5);
         } else {
             printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
         }
