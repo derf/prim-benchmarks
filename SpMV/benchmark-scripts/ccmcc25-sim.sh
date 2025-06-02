@@ -18,14 +18,12 @@ for i in 4 8 16; do
 done
 cd ../..
 
-
 fn=log/$(hostname)/ccmcc25-sdk${sdk}-sim
 
 source ~/lib/local/upmem/upmem-2025.1.0-Linux-x86_64/upmem_env.sh simulator
 
-echo "prim-benchmarks  BFS  $(git describe --all --long)  $(git rev-parse HEAD)  $(date -R)" >> ${fn}.txt
+echo "prim-benchmarks  SpMV  $(git describe --all --long)  $(git rev-parse HEAD)  $(date -R)" >> ${fn}.txt
 
-# BFS does not support repeated kernel invocations → repeat it here
 parallel -j1 --eta --joblog ${fn}.joblog --resume --header : \
 	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 data={data} \
 	::: data bcsstk30.mtx bcsstk30.4.mtx bcsstk30.8.mtx bcsstk30.16.mtx \
