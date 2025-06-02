@@ -35,7 +35,7 @@ endif
 
 QUIET = @
 
-ifdef verbose
+ifeq (${verbose}, 1)
 	QUIET =
 endif
 
@@ -45,12 +45,12 @@ bin:
 	${QUIET}mkdir -p bin
 
 # cp/rm are needed to work around AspectC++ not liking symlinks
-bin/host_code: ${HOST_SOURCES} ${COMMON_INCLUDES} bin
+bin/host_code: ${HOST_SOURCES} include bin
 	${QUIET}cp ../include/dfatool_host_dpu.ah include
 	${QUIET}${HOST_CC} -o $@ ${HOST_SOURCES} ${HOST_FLAGS}
 	${QUIET}rm -f include/dfatool_host_dpu.ah
 
-bin/dpu_code: ${DPU_SOURCES} ${COMMON_INCLUDES} bin
+bin/dpu_code: ${DPU_SOURCES} include bin
 	${QUIET}dpu-upmem-dpurte-clang ${DPU_FLAGS} -o $@ ${DPU_SOURCES}
 
 clean:
