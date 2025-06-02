@@ -13,7 +13,7 @@ run_benchmark_nmc() {
 
 export -f run_benchmark_nmc
 
-fn=log/$(hostname)/ccmcc25-sdk${sdk}-sim
+fn=log/$(hostname)/ccmcc25-sim
 
 source ~/lib/local/upmem/upmem-2025.1.0-Linux-x86_64/upmem_env.sh simulator
 
@@ -21,7 +21,7 @@ echo "prim-benchmarks  BS  $(git describe --all --long)  $(git rev-parse HEAD)  
 
 parallel -j1 --eta --joblog ${fn}.joblog --resume --header : \
 	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 nr_elements={nr_elements} nr_queries={nr_queries} \
-	::: nr_dpus 1 2 4 8 16 32 64 \
-	::: nr_elements $((2**20)) $((2**21)) $((2**22)) \
+	::: nr_dpus 1 2 4 8 16 32 48 64 \
+	::: nr_elements $((2**18)) $((2**19)) $((2**20)) $((2**21)) $((2**22)) \
 	::: nr_queries 512 1024 2048 4096 \
 >> ${fn}.txt
