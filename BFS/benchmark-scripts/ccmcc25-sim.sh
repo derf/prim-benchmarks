@@ -23,5 +23,5 @@ parallel -j1 --eta --joblog ${fn}.joblog --resume --header : \
 	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 data={data} \
 	::: i $(seq 0 4) \
 	::: data data/roadNet-CA.txt data/loc-gowalla_edges.txt \
-	::: nr_dpus 1 2 4 8 16 32 64 \
+	::: nr_dpus 1 2 4 8 16 32 48 64 \
 >> ${fn}.txt
