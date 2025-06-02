@@ -1,7 +1,7 @@
 NR_TASKLETS ?= 13
-BL ?= 1024 
-BL_IN ?= 4 
-NR_DPUS ?= 1 
+BL ?= 1024
+BL_IN ?= 4
+NR_DPUS ?= 1
 ENERGY ?= 0
 
 HOST_SOURCES := $(wildcard host/*.c)
