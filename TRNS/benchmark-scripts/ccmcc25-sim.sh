@@ -32,7 +32,7 @@ run_benchmark_nmc() {
 	set -e
 	make -B NR_DPUS=${nr_dpus} NR_TASKLETS=${nr_tasklets}  \
 		aspectc=1 aspectc_timing=1 dfatool_timing=0
-	bin/host_code -w 0 -e 5 -p ${cols} -o ${rows} -m ${tile_rows} -n ${tile_cols}
+	bin/host_code -w 0 -e 2 -p ${cols} -o ${rows} -m ${tile_rows} -n ${tile_cols}
 }
 
 export -f run_benchmark_nmc
@@ -44,7 +44,8 @@ source ~/lib/local/upmem/upmem-2025.1.0-Linux-x86_64/upmem_env.sh simulator
 echo "prim-benchmarks  TRNS  $(git describe --all --long)  $(git rev-parse HEAD)  $(date -R)" >> ${fn}.txt
 
 parallel -j1 --eta --joblog ${fn}.joblog --resume --header : \
-	::: nr_dpus 1 2 4 8 16 32 48 64 \
+	run_benchmark_nmc nr_dpus={nr_dpus} nr_tasklets=16 cols={cols} rows={rows} tile_cols={tile_cols} tile_rows={tile_rows} \
+	::: nr_dpus 1 4 16 32 64 \
 	::: rows 64 128 256 512 \
 	::: cols 64 128 256 512 \
 	::: tile_rows 16 \
