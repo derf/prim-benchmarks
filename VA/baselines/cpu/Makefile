@@ -5,7 +5,7 @@ nop_sync ?= 0
 numa ?= 0
 numa_memcpy ?= 0
 
-CFLAGS =
+CFLAGS = -DDFATOOL_TIMING=1
 LDFLAGS =
 
 ifeq (${debug}, 1)

@@ -15,7 +15,7 @@
 #include <omp.h>
 
 #if WITH_BENCHMARK
-#include "../../support/timer.h"
+#include "../../include/timer.h"
 #else
 #define start(...)
 #define stop(...)
@@ -109,7 +109,7 @@ struct Params input_params(int argc, char **argv)
 	p.n_warmup = 1;
 	p.n_reps = 3;
 	p.exp = 1;
-	p.n_threads = 5;
+	p.n_threads = 8;
 #if NUMA
 	p.bitmask_in = NULL;
 	p.bitmask_out = NULL;
@@ -213,9 +213,11 @@ int main(int argc, char **argv)
 	C = (T *) malloc(input_size * sizeof(T));
 #endif
 
+	omp_set_num_threads(p.n_threads);
+	#pragma omp parallel for
 	for (unsigned long i = 0; i < input_size; i++) {
-		A[i] = (T) (rand());
-		B[i] = (T) (rand());
+		A[i] = (T) i % (1<<31) + 5;
+		B[i] = (T) i % (1<<31) + 6;
 	}
 
 #if NUMA
