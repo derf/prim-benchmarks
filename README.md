@@ -43,19 +43,23 @@ author = {Friesel, Birte and L{\"u}tke Dreimann, Marcel and Spinczyk, Olaf},
 title = {Performance Models for Task-based Scheduling with Disruptive Memory Technologies},
 year = {2024},
 month = 11,
+doi = {10.1145/3698783.3699376},
+isbn = {979-8-4007-1303-3},
+download-url = {https://ess.cs.uos.de/static/papers/Friesel-2024-DIMES.pdf},
+pages = {1--8},
+numpages = {8},
 publisher = {Association for Computing Machinery},
 address = {New York, NY, USA},
 booktitle = {Proceedings of the 2nd Workshop on Disruptive Memory Systems},
 location = {Austin, TX, USA},
 series = {DIMES '24},
-category = {ESS, SMAUG},
-note = {to appear}
+category = {ESS, SMAUG}
 }
 ```
 
 Up-to-date source code is available on the following mirrors:
+* [ESS](https://ess.cs.uos.de/git/software/smaug/prim-benchmarks)
 * [GitHub](https://github.com/derf/prim-benchmarks)
-* [ess.cs.uos.de](https://ess.cs.uos.de/git/software/smaug/prim-benchmarks)
 
 ## Benchmark status
 
@@ -79,7 +83,7 @@ CPU and DPU benchmarks in this repository have been adjusted as follows:
 * MLP: A
 * NW: A
 * RED: DLN
-* SCAN-SSA: D
+* SCAN-SSA: AD
 * SCAN-RSS: ADLN
 * SEL: DLN
 * SpMV: ADL
