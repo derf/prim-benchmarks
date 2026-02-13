@@ -96,7 +96,7 @@ GPU versions are un-changed.
 
 The original README follows.
 It contains minor adjustments to the directory structure;
-benchmark how-tos that no do not apply to this fork have been removed.
+benchmark how-tos that do not apply to this fork have been removed.
 
 ---
 
