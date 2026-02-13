@@ -13,9 +13,9 @@
 #include <getopt.h>
 #include <assert.h>
 
-#include "../support/common.h"
-#include "../support/timer.h"
-#include "../support/params.h"
+#include "common.h"
+#include "timer.h"
+#include "params.h"
 
 // Define the DPU Binary path as DPU_BINARY here
 #ifndef DPU_BINARY
