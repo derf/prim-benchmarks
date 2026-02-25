@@ -12,7 +12,7 @@
 #include <assert.h>
 #include <stdint.h>
 #include <omp.h>
-#include "../../support/timer.h"
+#include "../../include/timer.h"
 
 #if NUMA
 #include <numaif.h>
@@ -237,9 +237,8 @@ int main(int argc, char **argv) {
                 numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
 #endif
                 file_size * 2 * sizeof(T) / timer.time[0]);
-            printf(" throughput_MOpps=%f",
-                file_size / timer.time[0]);
-            printall(&timer, 0);
+            printf(" throughput_MOpps=%f latency_kernel_us=%f\n",
+                file_size / timer.time[0], timer.time[0]);
         }
     }
 

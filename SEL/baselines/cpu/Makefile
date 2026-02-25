@@ -1,5 +1,5 @@
 NUMA ?= 0
-FLAGS =
+FLAGS = -DDFATOOL_TIMING=1
 
 ifeq (${NUMA}, 1)
 	FLAGS += -lnuma
