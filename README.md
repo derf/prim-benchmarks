@@ -58,7 +58,9 @@ category = {ESS, SMAUG}
 ```
 
 Up-to-date source code is available on the following mirrors:
+
 * [ESS](https://ess.cs.uos.de/git/software/smaug/prim-benchmarks)
+* [Finelrewind](https://git.finalrewind.org/derf/prim-benchmarks)
 * [GitHub](https://github.com/derf/prim-benchmarks)
 
 ## Benchmark status
