@@ -1,0 +1,29 @@
+#!/bin/bash
+
+mkdir -p log/$(hostname)
+fn=log/$(hostname)/fgbs26a.txt
+: > ${fn}
+
+(
+
+echo "prim-benchmarks SEL CPU (dfatool fgbs26a edition)"
+echo "Started at $(date)"
+echo "Revision $(git describe --always)"
+
+# default: uint64_t; -t 4 -i 1258291200
+
+for nr_threads in 88 64 44 32; do
+	# 1258291200 : default
+	# 251658240 : strong-full
+	# 3932160 : strong-rank
+	for i in $(( 2 ** 30 )); do
+		#for dt in uint8_t uint16_t uint32_t uint64_t float double; do
+		for dt in uint64_t; do
+			if make -B TYPE=${dt}; then
+				timeout --foreground -k 1m 90m ./sel -i ${i} -w 0 -e 100 -t ${nr_threads} || true
+				sleep 10
+			fi
+		done
+	done
+done
+) | tee ${fn}
