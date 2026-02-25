@@ -16,7 +16,7 @@ for nr_threads in 88 64 44 32; do
 	# 1258291200 : default
 	# 251658240 : strong-full
 	# 3932160 : strong-rank
-	for i in $(( 2 ** 30 )); do
+	for i in 1258291200 $(( 2 ** 30 )); do
 		#for dt in uint8_t uint16_t uint32_t uint64_t float double; do
 		for dt in uint64_t; do
 			if make -B TYPE=${dt}; then
