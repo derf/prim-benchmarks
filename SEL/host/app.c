@@ -40,7 +40,6 @@ static T* C2;
 // Create input arrays
 static void read_input(T* A, unsigned int nr_elements, unsigned int nr_elements_round) {
     //srand(0);
-    printf("nr_elements\t%u\t", nr_elements);
     for (unsigned int i = 0; i < nr_elements; i++) {
         //A[i] = (T) (rand());
         A[i] = i + 1;
@@ -121,8 +120,6 @@ int main(int argc, char **argv) {
     // Create an input file with arbitrary data
     read_input(A, input_size, input_size_dpu_round * NR_DPUS);
 
-    printf("NR_TASKLETS\t%d\tBL\t%d\n", NR_TASKLETS, BL);
-
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
@@ -172,7 +169,6 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             stop(&timer, 2);
 
-        printf("Load input data\n");
         if(rep >= p.n_warmup)
             start(&timer, 3, 0);
         // Input arguments
@@ -192,7 +188,6 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             stop(&timer, 3);
 
-        printf("Run program on DPU(s) \n");
         // Run DPU kernel
         if(rep >= p.n_warmup) {
             start(&timer, 4, 0);
@@ -220,7 +215,6 @@ int main(int argc, char **argv) {
         }
 #endif
 
-        printf("Retrieve results\n");
         dpu_results_t results[NR_DPUS];
         uint32_t* results_scan = malloc(NR_DPUS * sizeof(uint32_t));
         i = 0;
@@ -315,7 +309,6 @@ int main(int argc, char **argv) {
             }
         }
         if (status) {
-            printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             if (rep >= p.n_warmup) {
                 printf("[::] SEL-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d n_elements_per_dpu=%d",
                     NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size, input_size_dpu_round);
