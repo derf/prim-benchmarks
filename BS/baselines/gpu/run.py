@@ -1,14 +1,20 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import numpy as np
 import time
+import sys
 
 #Local Imports
 from cu_lib_import import binary_search as gpu_search
 
 # Set an array size to create
-arr_len = 2048576
-num_querys = 16777216
+if len(sys.argv) >= 3:
+    arr_len = int(sys.argv[1])
+    num_querys = int(sys.argv[2])
+else:
+    arr_len = 2048576
+    num_querys = 16777216
 
 # Dummy array created
 arr = np.arange(0, arr_len, 1).astype("i8")

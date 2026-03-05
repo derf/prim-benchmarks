@@ -94,32 +94,77 @@ int binary_search(const long int *arr, const long int len, const long int *query
     size_t res_size = sizeof(long int);
     size_t flag_size = sizeof(bool);
 
-    cudaMalloc(&d_arr, arr_size);
-    cudaMalloc(&d_querys, querys_size);
-    cudaMalloc(&d_res, res_size);
-    cudaMalloc(&d_flag, flag_size);
+    std::cout << "[>>] BS | n_elements=" << len << " n_queries=" << num_querys << std::endl;
 
+    auto start = std::chrono::high_resolution_clock::now();
+    cudaMalloc(&d_arr, arr_size);
+    auto end = std::chrono::high_resolution_clock::now();
+    std::cout << "[::] cudaMalloc | size_B=" << arr_size << " | latency_us=" <<
+        std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << std::endl;
+
+    start = std::chrono::high_resolution_clock::now();
+    cudaMalloc(&d_querys, querys_size);
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "[::] cudaMalloc | size_B=" << querys_size << " | latency_us=" <<
+        std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << std::endl;
+
+    start = std::chrono::high_resolution_clock::now();
+    cudaMalloc(&d_res, res_size);
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "[::] cudaMalloc | size_B=" << res_size << " | latency_us=" <<
+        std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << std::endl;
+
+    start = std::chrono::high_resolution_clock::now();
+    cudaMalloc(&d_flag, flag_size);
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "[::] cudaMalloc | size_B=" << flag_size << " | latency_us=" <<
+        std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << std::endl;
+
+    start = std::chrono::high_resolution_clock::now();
     cudaMemcpy(d_arr, arr, arr_size, cudaMemcpyHostToDevice);
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "[::] cudaMemcpyHostToDevice | size_B=" << arr_size << " | latency_us=" <<
+        std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << std::endl;
+
+    start = std::chrono::high_resolution_clock::now();
     cudaMemcpy(d_querys, querys, querys_size, cudaMemcpyHostToDevice);
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "[::] cudaMemcpyHostToDevice | size_B=" << querys_size << " | latency_us=" <<
+        std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << std::endl;
+
+    start = std::chrono::high_resolution_clock::now();
     cudaMemset(d_flag, 0, flag_size);
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "[::] cudaMemset | size_B=" << flag_size << " | latency_us=" <<
+        std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << std::endl;
 
     /* Set res value to -1, so that if the function returns -1, that
     indicates an algorithm failure. */
+    start = std::chrono::high_resolution_clock::now();
     cudaMemset(d_res, -0x1, res_size);
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "[::] cudaMemset | size_B=" << res_size << " | latency_us=" <<
+        std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << std::endl;
 
     int blockSize = BLOCKDIM;
     int gridSize = (len-1)/BLOCK_CHUNK + 1;
 
-    auto start = std::chrono::high_resolution_clock::now();
+    start = std::chrono::high_resolution_clock::now();
     search_kernel<<<gridSize,blockSize>>>(d_arr, len, d_querys, num_querys ,d_res, d_flag);
     cudaDeviceSynchronize();
-    auto end = std::chrono::high_resolution_clock::now();
-    std::cout << "Kernel Time: " <<
-        std::chrono::duration_cast<std::chrono::milliseconds>(end-start).count() <<
-        " ms" << std::endl;
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "[::] search_kernel | n_nodes=" << len << " n_blocks=" << gridSize << " n_threads=" << blockSize << " | latency_us=" <<
+        std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << std::endl;
 
     long int res;
+
+    start = std::chrono::high_resolution_clock::now();
     cudaMemcpy(&res, d_res, res_size, cudaMemcpyDeviceToHost);
+    end = std::chrono::high_resolution_clock::now();
+    std::cout << "[::] cudaMemcpyDeviceToHost | size_B=" << querys_size << " | latency_us=" <<
+        std::chrono::duration_cast<std::chrono::microseconds>(end-start).count() << std::endl;
+
+    std::cout << "[<<] BS | n_elements=" << len << " n_queries=" << num_querys << std::endl;
 
     return res;
 }
