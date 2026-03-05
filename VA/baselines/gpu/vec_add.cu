@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <math.h>
+#include <time.h>
 
 __global__ void Vec_add(unsigned int x[], unsigned int y[], unsigned int z[], int n) {
     int thread_id = blockIdx.x * blockDim.x + threadIdx.x;
@@ -24,9 +25,18 @@ int main(int argc, char* argv[]) {
     unsigned int *d_x, *d_y, *d_z;
     size_t size;
 
+    struct timespec starttime;
+    struct timespec stoptime;
+
     /* Define vector length */
     n = 2621440;
     m = 320;
+
+    if (argc >= 3) {
+        n = atoi(argv[1]);
+        m = atoi(argv[2]);
+    }
+
     size = m * n * sizeof(unsigned int);
 
     // Allocate memory for the vectors on host memory.
@@ -39,7 +49,7 @@ int main(int argc, char* argv[]) {
         h_y[i] = n-i;
     }
 
-    printf("Input size = %d\n", n * m);
+    printf("[>>] VA | n_rows=%lu\n", n * m);
 
     // Print original vectors.
     /*printf("h_x = ");
@@ -65,8 +75,14 @@ int main(int argc, char* argv[]) {
     cudaMalloc(&d_z, size);
 
     /* Copy vectors from host memory to device memory */
+    clock_gettime(CLOCK_MONOTONIC, &starttime);
     cudaMemcpy(d_x, h_x, size, cudaMemcpyHostToDevice);
+    clock_gettime(CLOCK_MONOTONIC, &stoptime);
+    printf("[::] cudaMemcpyHostToDevice | size_B = %lu | latency_ms=%f\n", size, (stoptime.tv_sec - starttime.tv_sec) * 1000.0 + (stoptime.tv_nsec - starttime.tv_nsec) * 0.000001);
+    clock_gettime(CLOCK_MONOTONIC, &starttime);
     cudaMemcpy(d_y, h_y, size, cudaMemcpyHostToDevice);
+    clock_gettime(CLOCK_MONOTONIC, &stoptime);
+    printf("[::] cudaMemcpyHostToDevice | size_B = %lu | latency_ms=%f\n", size, (stoptime.tv_sec - starttime.tv_sec) * 1000.0 + (stoptime.tv_nsec - starttime.tv_nsec) * 0.000001);
     
     // Start timer
     cudaEventRecord( start, 0 );
@@ -79,14 +95,18 @@ int main(int argc, char* argv[]) {
     cudaEventSynchronize( stop );
     cudaEventElapsedTime( &time1, start, stop );
 
+    printf("[::] Vec_add | n_rows=%lu n_blocks=%lu n_threads=%lu | latency_ms=%f\n", n * m, (n * m) / 256, 256, time1);
+
+    clock_gettime(CLOCK_MONOTONIC, &starttime);
     cudaMemcpy(h_z, d_z, size, cudaMemcpyDeviceToHost);
+    clock_gettime(CLOCK_MONOTONIC, &stoptime);
+    printf("[::] cudaMemcpyDeviceToHost | size_B = %lu | latency_ms=%f\n", size, (stoptime.tv_sec - starttime.tv_sec) * 1000.0 + (stoptime.tv_nsec - starttime.tv_nsec) * 0.000001);
     /*printf("The sum is: \n");
     for (int i = 0; i < m; i++){
         printf("%u ", h_z[i]);
     }
     printf("\n");*/
 
-    printf("Execution time = %f ms\n", time1);
 
     /* Free device memory */
     cudaFree(d_x);
@@ -96,6 +116,8 @@ int main(int argc, char* argv[]) {
     free(h_x);
     free(h_y);
     free(h_z);
+
+    printf("[<<] VA | n_rows=%lu\n", n * m);
 
     return 0;
 }  /* main */
