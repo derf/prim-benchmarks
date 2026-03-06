@@ -3,62 +3,78 @@
 #include <sys/time.h>
 
 aspect DfatoolHostGPUTiming {
-	struct timeval starttime;
-	struct timeval stoptime;
+	cudaEvent_t ev_start;
+	cudaEvent_t ev_stop;
 
 	double const M_to_Mi = 1.048576; /* 2^20 / 1e6 */
 
+	DfatoolHostGPUTiming() {
+		cudaEventCreate(&ev_start);
+		cudaEventCreate(&ev_stop);
+	}
+
+	~DfatoolHostGPUTiming() {
+		cudaEventDestroy(ev_start);
+		cudaEventDestroy(ev_stop);
+	}
+
 	advice call("% cudaMalloc(...)") : around() {
 		size_t payload_size = *(tjp->arg<1>());
-		gettimeofday(&starttime, NULL);
+		cudaEventRecord(ev_start, 0);
 		tjp->proceed();
-		gettimeofday(&stoptime, NULL);
-		double time_us = (stoptime.tv_sec - starttime.tv_sec) * 1000000.0 + (stoptime.tv_usec - starttime.tv_usec);
-		printf("[::] cudaMalloc @ %s:%d | payload_B=%lu | latency_us=%f throughput_MiBps=%f\n",
+		cudaEventRecord(ev_stop, 0);
+		cudaEventSynchronize(ev_stop);
+		float time_ms = 0;
+		cudaEventElapsedTime(&time_ms, ev_start, ev_stop);
+		printf("[::] cudaMalloc @ %s:%d | payload_B=%lu | latency_ms=%f throughput_MiBps=%f\n",
 			tjp->filename(),
 			tjp->line(),
 			payload_size,
-			time_us,
-			payload_size / (time_us * M_to_Mi)
+			time_ms,
+			payload_size / (time_ms * M_to_Mi)
 		);
 	}
 
 	advice call("% cudaMemset(...)") : around() {
 		size_t payload_size = *(tjp->arg<1>());
-		gettimeofday(&starttime, NULL);
+		cudaEventRecord(ev_start, 0);
 		tjp->proceed();
-		gettimeofday(&stoptime, NULL);
-		double time_us = (stoptime.tv_sec - starttime.tv_sec) * 1000000.0 + (stoptime.tv_usec - starttime.tv_usec);
-		printf("[::] cudaMemset @ %s:%d | payload_B=%lu | latency_us=%f throughput_MiBps=%f\n",
+		cudaEventRecord(ev_stop, 0);
+		cudaEventSynchronize(ev_stop);
+		float time_ms = 0;
+		cudaEventElapsedTime(&time_ms, ev_start, ev_stop);
+		printf("[::] cudaMemset @ %s:%d | payload_B=%lu | latency_ms=%f throughput_MiBps=%f\n",
 			tjp->filename(),
 			tjp->line(),
 			payload_size,
-			time_us,
-			payload_size / (time_us * M_to_Mi)
+			time_ms,
+			payload_size / (time_ms * M_to_Mi)
 		);
 	}
 
 	advice call("% cudaMemcpy(...)") : around() {
 		size_t payload_size = *(tjp->arg<2>());
-		gettimeofday(&starttime, NULL);
+		cudaEventRecord(ev_start, 0);
 		tjp->proceed();
-		gettimeofday(&stoptime, NULL);
-		double time_us = (stoptime.tv_sec - starttime.tv_sec) * 1000000.0 + (stoptime.tv_usec - starttime.tv_usec);
+		cudaEventRecord(ev_stop, 0);
+		cudaEventSynchronize(ev_stop);
+		float time_ms = 0;
+		cudaEventElapsedTime(&time_ms, ev_start, ev_stop);
 		if (*(tjp->arg<3>()) == cudaMemcpyHostToDevice) {
-			printf("[::] cudaMemcpyHostToDevice @ %s:%d | payload_B=%lu | latency_us=%f throughput_MiBps=%f\n",
+			printf("[::] cudaMemcpyHostToDevice @ %s:%d | payload_B=%lu | latency_ms=%f throughput_MiBps=%f\n",
 				tjp->filename(),
 				tjp->line(),
 				payload_size,
-				time_us,
-				payload_size / (time_us * M_to_Mi)
+				time_ms,
+				payload_size / (time_ms * M_to_Mi)
 			);
 		} else if (*(tjp->arg<3>()) == cudaMemcpyDeviceToHost) {
-			printf("[::] cudaMemcpyDeviceToHost @ %s:%d | payload_B=%lu | latency_us=%f throughput_MiBps=%f\n",
+			printf("[::] cudaMemcpyDeviceToHost @ %s:%d | payload_B=%lu | latency_ms=%f throughput_MiBps=%f\n",
 				tjp->filename(),
 				tjp->line(),
 				payload_size,
-				time_us,
-				payload_size / (time_us * M_to_Mi)
+				time_ms,
+				payload_size / (time_ms * M_to_Mi)
 			);
 		}
 	}
