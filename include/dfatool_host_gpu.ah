@@ -6,7 +6,7 @@ aspect DfatoolHostGPUTiming {
 	cudaEvent_t ev_start;
 	cudaEvent_t ev_stop;
 
-	double const M_to_Mi = 1.048576; /* 2^20 / 1e6 */
+	double const K_to_Mi = 1048.576; /* 2^20 / 1e6 */
 
 	DfatoolHostGPUTiming() {
 		cudaEventCreate(&ev_start);
@@ -26,17 +26,16 @@ aspect DfatoolHostGPUTiming {
 		cudaEventSynchronize(ev_stop);
 		float time_ms = 0;
 		cudaEventElapsedTime(&time_ms, ev_start, ev_stop);
-		printf("[::] cudaMalloc @ %s:%d | payload_B=%lu | latency_ms=%f throughput_MiBps=%f\n",
+		printf("[::] cudaMalloc @ %s:%d | payload_B=%lu | latency_ms=%f\n",
 			tjp->filename(),
 			tjp->line(),
 			payload_size,
-			time_ms,
-			payload_size / (time_ms * M_to_Mi)
+			time_ms
 		);
 	}
 
 	advice call("% cudaMemset(...)") : around() {
-		size_t payload_size = *(tjp->arg<1>());
+		size_t payload_size = *(tjp->arg<2>());
 		cudaEventRecord(ev_start, 0);
 		tjp->proceed();
 		cudaEventRecord(ev_stop, 0);
@@ -48,7 +47,7 @@ aspect DfatoolHostGPUTiming {
 			tjp->line(),
 			payload_size,
 			time_ms,
-			payload_size / (time_ms * M_to_Mi)
+			payload_size / (time_ms * K_to_Mi)
 		);
 	}
 
@@ -66,7 +65,7 @@ aspect DfatoolHostGPUTiming {
 				tjp->line(),
 				payload_size,
 				time_ms,
-				payload_size / (time_ms * M_to_Mi)
+				payload_size / (time_ms * K_to_Mi)
 			);
 		} else if (*(tjp->arg<3>()) == cudaMemcpyDeviceToHost) {
 			printf("[::] cudaMemcpyDeviceToHost @ %s:%d | payload_B=%lu | latency_ms=%f throughput_MiBps=%f\n",
@@ -74,7 +73,7 @@ aspect DfatoolHostGPUTiming {
 				tjp->line(),
 				payload_size,
 				time_ms,
-				payload_size / (time_ms * M_to_Mi)
+				payload_size / (time_ms * K_to_Mi)
 			);
 		}
 	}
