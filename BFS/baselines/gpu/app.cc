@@ -1,4 +1,3 @@
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,25 +5,16 @@
 #include <unistd.h>
 #include <stdint.h>
 
-#include "../../support/common.h"
-#include "../../support/graph.h"
-#include "../../support/params.h"
-#include "../../support/timer.h"
-#include "../../support/utils.h"
+#include <cuda.h>
+#include <cuda_runtime.h>
 
-__global__ void bfs_kernel(CSRGraph csrGraph, uint32_t* nodeLevel, uint32_t* prevFrontier, uint32_t* currFrontier, uint32_t numPrevFrontier, uint32_t* numCurrFrontier,  uint32_t level) {
-    uint32_t i = blockIdx.x*blockDim.x + threadIdx.x;
-    if(i < numPrevFrontier) {
-        uint32_t node = prevFrontier[i];
-        for(uint32_t edge = csrGraph.nodePtrs[node]; edge < csrGraph.nodePtrs[node + 1]; ++edge) {
-            uint32_t neighbor = csrGraph.neighborIdxs[edge];
-            if(atomicCAS(&nodeLevel[neighbor], UINT32_MAX, level) == UINT32_MAX) { // Node not previously visited
-                uint32_t currFrontierIdx = atomicAdd(numCurrFrontier, 1);
-                currFrontier[currFrontierIdx] = neighbor;
-            }
-        }
-    }
-}
+#include "../../include/common.h"
+#include "../../include/graph.h"
+#include "../../include/params.h"
+#include "../../include/timer.h"
+#include "../../include/utils.h"
+
+void bfs_kernel(uint32_t numBlocks, uint32_t numThreadsPerBlock, CSRGraph csrGraph_d, uint32_t* nodeLevel_d, uint32_t* prevFrontier_d, uint32_t* currFrontier_d, uint32_t numPrevFrontier, uint32_t* numCurrFrontier_d, uint32_t level);
 
 int main(int argc, char** argv) {
 
@@ -72,7 +62,7 @@ int main(int argc, char** argv) {
     // Calculating result on GPU
     PRINT_INFO(p.verbosity >= 1, "Calculating result on GPU");
     Timer timer;
-    startTimer(&timer);
+    startTimer(&timer, 0, 0);
     uint32_t numPrevFrontier = 1;
     uint32_t numThreadsPerBlock = 256;
     for(uint32_t level = 1; numPrevFrontier > 0; ++level) {
@@ -80,7 +70,7 @@ int main(int argc, char** argv) {
         // Visit nodes in previous frontier
         cudaMemset(numCurrFrontier_d, 0, sizeof(uint32_t));
         uint32_t numBlocks = (numPrevFrontier + numThreadsPerBlock - 1)/numThreadsPerBlock;
-        bfs_kernel <<< numBlocks, numThreadsPerBlock >>> (csrGraph_d, nodeLevel_d, prevFrontier_d, currFrontier_d, numPrevFrontier, numCurrFrontier_d, level);
+        bfs_kernel(numBlocks, numThreadsPerBlock, csrGraph_d, nodeLevel_d, prevFrontier_d, currFrontier_d, numPrevFrontier, numCurrFrontier_d, level);
 
         // Swap buffers
         uint32_t* tmp = prevFrontier_d;
@@ -90,9 +80,7 @@ int main(int argc, char** argv) {
 
     }
     cudaDeviceSynchronize();
-    stopTimer(&timer);
-    if(p.verbosity == 0) PRINT("%f", getElapsedTime(timer)*1e3);
-    PRINT_INFO(p.verbosity >= 1, "Elapsed time: %f ms", getElapsedTime(timer)*1e3);
+    stopTimer(&timer, 0);
 
     // Copy data from GPU
     cudaMemcpy(nodeLevel_gpu, nodeLevel_d, csrGraph_d.numNodes*sizeof(uint32_t), cudaMemcpyDeviceToHost);

@@ -1,0 +1,27 @@
+#pragma once
+
+#include <sys/time.h>
+#include "dfatool_host_gpu.ah"
+
+aspect DfatoolHostTiming : public DfatoolHostGPUTiming {
+	advice call("% bfs_kernel(...)") : around() {
+		unsigned long num_blocks = *(tjp->arg<0>());
+		unsigned long num_threads = *(tjp->arg<1>());
+		unsigned long num_prev_frontier = *(tjp->arg<6>());
+		unsigned long level = *(tjp->arg<8>());
+		gettimeofday(&starttime, NULL);
+		tjp->proceed();
+		gettimeofday(&stoptime, NULL);
+		double time_us = (stoptime.tv_sec - starttime.tv_sec) * 1000000.0 + (stoptime.tv_usec - starttime.tv_usec);
+		printf("[::] bfs_kernel @ %s:%d | n_blocks=%lu n_threads=%lu n_prev_frontier=%lu n_level=%lu | latency_us=%f throughput_MiBps=%f\n",
+			tjp->filename(),
+			tjp->line(),
+			num_blocks,
+			num_threads,
+			num_prev_frontier,
+			level,
+			time_us,
+			0
+		);
+	}
+};
