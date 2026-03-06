@@ -4,23 +4,37 @@
 #include "dfatool_host_gpu.ah"
 
 aspect DfatoolHostTiming : public DfatoolHostGPUTiming {
+	unsigned long int input_size;
+
+	advice call("% coo2csr(...)") : after() {
+		struct CSRGraph *g = tjp->result();
+		input_size = g->numNodes;
+		printf("[>>] BFS | n_nodes=%lu\n", input_size);
+	}
+
+	advice execution("% main(...)") : after() {
+		printf("[<<] BFS | n_nodes=%lu\n", input_size);
+	}
+
 	advice call("% bfs_kernel(...)") : around() {
 		unsigned long num_blocks = *(tjp->arg<0>());
 		unsigned long num_threads = *(tjp->arg<1>());
 		unsigned long num_prev_frontier = *(tjp->arg<6>());
 		unsigned long level = *(tjp->arg<8>());
-		gettimeofday(&starttime, NULL);
+		cudaEventRecord(ev_start, 0);
 		tjp->proceed();
-		gettimeofday(&stoptime, NULL);
-		double time_us = (stoptime.tv_sec - starttime.tv_sec) * 1000000.0 + (stoptime.tv_usec - starttime.tv_usec);
-		printf("[::] bfs_kernel @ %s:%d | n_blocks=%lu n_threads=%lu n_prev_frontier=%lu n_level=%lu | latency_us=%f throughput_MiBps=%f\n",
+		cudaEventRecord(ev_stop, 0);
+		cudaEventSynchronize(ev_stop);
+		float time_ms = 0;
+		cudaEventElapsedTime(&time_ms, ev_start, ev_stop);
+		printf("[::] bfs_kernel @ %s:%d | n_blocks=%lu n_threads=%lu n_prev_frontier=%lu n_level=%lu | latency_ms=%f throughput_MiBps=%f\n",
 			tjp->filename(),
 			tjp->line(),
 			num_blocks,
 			num_threads,
 			num_prev_frontier,
 			level,
-			time_us,
+			time_ms,
 			0
 		);
 	}
