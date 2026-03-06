@@ -68,7 +68,7 @@ struct CUDASetup {
 
         cudaStatus = cudaGetDeviceProperties(&device_prop, device);
         CUDA_ERR();
-        fprintf(stderr, "%s\t", device_prop.name);
+        puts(device_prop.name);
 
     }
 

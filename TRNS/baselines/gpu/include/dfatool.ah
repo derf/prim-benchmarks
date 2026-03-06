@@ -1,0 +1,58 @@
+#pragma once
+
+#include <sys/time.h>
+#include "dfatool_host_gpu.ah"
+
+aspect DfatoolHostTiming : public DfatoolHostGPUTiming {
+
+	unsigned int n_rows_outer, n_rows_tile, n_cols_outer, n_cols_tile;
+
+	advice construction("Params") : after() {
+		n_rows_outer = tjp->that()->M_;
+		n_rows_tile = tjp->that()->m;
+		n_cols_outer = tjp->that()->N_;
+		n_cols_tile = tjp->that()->n;
+		printf("[>>] TRNS | n_rows_outer=%u n_rows_tile=%u n_cols_outer=%u n_cols_outer=%u\n", n_rows_outer, n_rows_tile, n_cols_outer, n_cols_tile);
+	}
+
+	advice destruction("Params") : before() {
+		printf("[<<] TRNS | n_rows_outer=%u n_rows_tile=%u n_cols_outer=%u n_cols_outer=%u\n", n_rows_outer, n_rows_tile, n_cols_outer, n_cols_tile);
+	}
+
+	advice call("% call_PTTWAC_soa_asta(...)") : around() {
+		unsigned long num_blocks = *(tjp->arg<0>());
+		unsigned long num_threads = *(tjp->arg<1>());
+		cudaEventRecord(ev_start, 0);
+		tjp->proceed();
+		cudaEventRecord(ev_stop, 0);
+		cudaEventSynchronize(ev_stop);
+		float time_ms = 0;
+		cudaEventElapsedTime(&time_ms, ev_start, ev_stop);
+		printf("[::] call_PTTWAC_soa_asta @ %s:%d | n_blocks=%lu n_threads=%lu | latency_ms=%f throughput_MiBps=%f\n",
+			tjp->filename(),
+			tjp->line(),
+			num_blocks,
+			num_threads,
+			time_ms,
+			0
+		);
+	}
+	advice call("% call_BS_marshal(...)") : around() {
+		unsigned long num_blocks = *(tjp->arg<0>());
+		unsigned long num_threads = *(tjp->arg<1>());
+		cudaEventRecord(ev_start, 0);
+		tjp->proceed();
+		cudaEventRecord(ev_stop, 0);
+		cudaEventSynchronize(ev_stop);
+		float time_ms = 0;
+		cudaEventElapsedTime(&time_ms, ev_start, ev_stop);
+		printf("[::] call_BS_marshal @ %s:%d | n_blocks=%lu n_threads=%lu | latency_ms=%f throughput_MiBps=%f\n",
+			tjp->filename(),
+			tjp->line(),
+			num_blocks,
+			num_threads,
+			time_ms,
+			0
+		);
+	}
+};

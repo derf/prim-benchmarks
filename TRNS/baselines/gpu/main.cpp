@@ -137,7 +137,6 @@ int main(int argc, char **argv) {
     cudaError_t  cudaStatus;
 
     // Allocate
-    timer.start("Allocation");
     int M_       = p.M_;
     int m       = p.m;
     int N_       = p.N_;
@@ -161,22 +160,16 @@ int main(int argc, char **argv) {
     T *h_in_backup = (T *)malloc(in_size * sizeof(T));
     ALLOC_ERR(h_in_backup);
     cudaDeviceSynchronize();
-    timer.stop("Allocation");
-    timer.print("Allocation", 1);
 
     // Initialize
-    timer.start("Initialization");
     const int max_gpu_threads = setcuda.max_gpu_threads();
     read_input(h_in_out, p);
     memset((void *)h_finished, 0, sizeof(std::atomic_int) * finished_size);
     for(int i = 0; i < N_; i++)
         h_head[i].store(0);
-    timer.stop("Initialization");
-    timer.print("Initialization", 1);
     memcpy(h_in_backup, h_in_out, in_size * sizeof(T)); // Backup for reuse across iterations
 
     // Copy to device
-    timer.start("Copy To Device");
     if(p.n_gpu_blocks != 0) {
         cudaStatus = cudaMemcpy(d_in_out, h_in_backup, in_size * sizeof(T), cudaMemcpyHostToDevice);
         cudaStatus = cudaMemcpy(d_finished, h_finished, sizeof(int) * finished_size, cudaMemcpyHostToDevice);
@@ -184,8 +177,6 @@ int main(int argc, char **argv) {
         CUDA_ERR();
     }
     cudaDeviceSynchronize();
-    timer.stop("Copy To Device");
-    timer.print("Copy To Device", 1);
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
@@ -209,32 +200,26 @@ int main(int argc, char **argv) {
             CUDA_ERR();
 
 	        // start timer
-	        if(rep >= p.n_warmup)
-	            timer.start("Step 1");
+	        //if(rep >= p.n_warmup)
+	        //    timer.start("Step 1");
             // Step 1
             cudaStatus = call_PTTWAC_soa_asta(M_ * m * N_, p.n_gpu_threads, M_ * m, N_, n,
                 d_in_out, (int*)d_finished, (int*)d_head, sizeof(int) + sizeof(int));
             CUDA_ERR();
 	        // end timer
-	        if(rep >= p.n_warmup)
-	            timer.stop("Step 1");
+	        //if(rep >= p.n_warmup)
+	        //    timer.stop("Step 1");
 
 	        // start timer
-	        if(rep >= p.n_warmup)
-	            timer.start("Step 2");
             // Step 2
             cudaStatus = call_BS_marshal(M_ * N_, p.n_gpu_threads, m, n, d_in_out, m * n * sizeof(T));
             CUDA_ERR();
 	        // end timer
-	        if(rep >= p.n_warmup)
-	            timer.stop("Step 2");
 
             cudaStatus = cudaMemcpy(d_finished, h_finished, sizeof(int) * finished_size, cudaMemcpyHostToDevice);
             cudaStatus = cudaMemcpy(d_head, h_head, N_ * sizeof(int), cudaMemcpyHostToDevice);
             CUDA_ERR();
             // start timer
-            if(rep >= p.n_warmup)
-                timer.start("Step 3");
             // Step 3
             for(int i = 0; i < N_; i++){
                 cudaStatus = call_PTTWAC_soa_asta(M_ * n, p.n_gpu_threads, M_, n, m,
@@ -242,33 +227,24 @@ int main(int argc, char **argv) {
                 CUDA_ERR();
             }
             // end timer
-            if(rep >= p.n_warmup)
-                timer.stop("Step 3");
 
         }
 
         cudaDeviceSynchronize();
 
     }
-    timer.print("Step 1", p.n_reps);
-    timer.print("Step 2", p.n_reps);
-    timer.print("Step 3", p.n_reps);
 
     // Copy back
-    timer.start("Copy Back and Merge");
     if(p.n_gpu_blocks != 0) {
         cudaStatus = cudaMemcpy(h_in_out, d_in_out, in_size * sizeof(T), cudaMemcpyDeviceToHost);
         CUDA_ERR();
         cudaDeviceSynchronize();
     }
-    timer.stop("Copy Back and Merge");
-    timer.print("Copy Back and Merge", 1);
 
     // Verify answer
     verify(h_in_out, h_in_backup, M_ * m, N_ * n, 1);
 
     // Free memory
-    timer.start("Deallocation");
     free(h_in_out);
     free(h_finished);
     free(h_head);
@@ -280,18 +256,6 @@ int main(int argc, char **argv) {
     }
     free(h_in_backup);
     cudaDeviceSynchronize();
-    timer.stop("Deallocation");
-    timer.print("Deallocation", 1);
-
-    // Release timers
-    timer.release("Allocation");
-    timer.release("Initialization");
-    timer.release("Copy To Device");
-    timer.release("Step 1");
-    timer.release("Step 2");
-    timer.release("Step 3");
-    timer.release("Copy Back and Merge");
-    timer.release("Deallocation");
 
     printf("Test Passed\n");
     return 0;
