@@ -1,0 +1,3 @@
+BasedOnStyle: WebKit
+UseTab: ForIndentation
+IndentWidth: 8
