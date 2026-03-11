@@ -6,25 +6,23 @@
 aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 
 	unsigned long input_size;
-	unsigned int element_size;
+	unsigned int depth;
 
 	virtual int getKernel() { return 1; }
 
-	DfatoolHostTiming() {
-		element_size = sizeof(uint32_t);
-	}
-
 	advice call("% input_params(...)"): after() {
-		printf("[>>] BFS | n_dpus=%u\n", NR_DPUS);
+		struct Params *p = tjp->result();
+		depth = p->depth;
+		printf("[>>] BFS | n_dpus=%u depth=%u\n", NR_DPUS, depth);
 	}
 
 	advice call("% coo2csr(...)") : after() {
 		struct CSRGraph *g = tjp->result();
 		input_size = g->numNodes;
-		printf("[--] BFS | n_dpus=%u n_nodes=%lu\n", NR_DPUS, input_size);
+		printf("[--] BFS | n_dpus=%u depth=%u n_nodes=%lu\n", NR_DPUS, depth, input_size);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] BFS | n_dpus=%u n_nodes=%lu\n", NR_DPUS, input_size);
+		printf("[<<] BFS | n_dpus=%u depth=%u n_nodes=%lu\n", NR_DPUS, depth, input_size);
 	}
 };

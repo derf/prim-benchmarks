@@ -10,6 +10,7 @@ static void usage()
 	PRINT("\nUsage:  ./program [options]"
 	      "\n"
 	      "\nBenchmark-specific options:"
+	      "\n    -d <n>    input matrix depth (only needed for dfatool)"
 	      "\n    -f <F>    input matrix file name (default=data/roadNet-CA.txt)"
 	      "\n"
 	      "\nGeneral options:"
@@ -18,6 +19,7 @@ static void usage()
 
 typedef struct Params {
 	const char *fileName;
+	unsigned int depth;
 	unsigned int verbosity;
 #if NUMA
 	struct bitmask *bitmask_in;
@@ -30,13 +32,17 @@ static struct Params input_params(int argc, char **argv)
 	struct Params p;
 	p.fileName = "data/roadNet-CA.txt";
 	p.verbosity = 0;
+	p.depth = 0;
 #if NUMA
 	p.bitmask_in = NULL;
 	p.numa_node_cpu = -1;
 #endif
 	int opt;
-	while ((opt = getopt(argc, argv, "f:v:hA:C:")) >= 0) {
+	while ((opt = getopt(argc, argv, "d:f:v:hA:C:")) >= 0) {
 		switch (opt) {
+		case 'd':
+			p.depth = atoi(optarg);
+			break;
 		case 'f':
 			p.fileName = optarg;
 			break;

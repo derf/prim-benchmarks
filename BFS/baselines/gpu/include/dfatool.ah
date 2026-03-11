@@ -5,15 +5,21 @@
 
 aspect DfatoolHostTiming : public DfatoolHostGPUTiming {
 	unsigned long int input_size;
+	unsigned int depth;
+
+	advice call("% input_params(...)") : after() {
+		struct Params *p = tjp->result();
+		depth = p->depth;
+	}
 
 	advice call("% coo2csr(...)") : after() {
 		struct CSRGraph *g = tjp->result();
 		input_size = g->numNodes;
-		printf("[>>] BFS | n_nodes=%lu\n", input_size);
+		printf("[>>] BFS | depth=%u n_nodes=%lu\n", depth, input_size);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] BFS | n_nodes=%lu\n", input_size);
+		printf("[<<] BFS | depth=%u n_nodes=%lu\n", depth, input_size);
 	}
 
 	advice call("% bfs_kernel(...)") : around() {
