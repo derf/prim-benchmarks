@@ -10,6 +10,10 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 
 	virtual int getKernel() { return kernel; }
 
+	virtual void printKernelArgs() {
+		printf("n_elements_ts=%lu n_elements_query=%lu", ts_size, query_length);
+	}
+
 	DfatoolHostTiming() {
 		element_size = sizeof(DTYPE);
 	}
@@ -18,14 +22,14 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 		Params* p = tjp->result();
 		ts_size = p->input_size_n;
 		query_length = p->input_size_m;
-		printf("[>>] TS | n_dpus=%u n_elements_ts=%lu n_elements_query=%lu\n", NR_DPUS, ts_size, query_length);
+		printf("[>>] TS | n_dpus=%u n_ranks=%u n_elements_ts=%lu n_elements_query=%lu\n", NR_DPUS, NR_RANKS, ts_size, query_length);
 	}
 
 	advice call("% streamp(...)") : before() {
-		printf("[--] TS | n_dpus=%u n_elements_ts=%lu n_elements_query=%lu\n", NR_DPUS, ts_size, query_length);
+		printf("[--] TS | n_dpus=%u n_ranks=%u n_elements_ts=%lu n_elements_query=%lu\n", NR_DPUS, NR_RANKS, ts_size, query_length);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] TS | n_dpus=%u n_elements_ts=%lu n_elements_query=%lu\n", NR_DPUS, ts_size, query_length);
+		printf("[<<] TS | n_dpus=%u n_ranks=%u n_elements_ts=%lu n_elements_query=%lu\n", NR_DPUS, NR_DPUS, ts_size, query_length);
 	}
 };
