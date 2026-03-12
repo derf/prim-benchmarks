@@ -86,28 +86,22 @@ int main(int argc, char **argv)
 	int numa_node_rank = -2;
 
 	// Allocate DPUs and load binary
-#if DFATOOL_TIMING
 	start(&timer, 0, 0);
-#endif
 #if NR_DPUS
 	DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
 #else
 	DPU_ASSERT(dpu_alloc_ranks(NR_RANKS, NULL, &dpu_set));
 #endif
-#if DFATOOL_TIMING
 	stop(&timer, 0);
-#endif
 	DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
 	DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
 #if NR_DPUS
 	assert(nr_of_dpus == NR_DPUS);
 #endif
-#if DFATOOL_TIMING
 	start(&timer, 1, 0);
-#endif
 	DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
-#if DFATOOL_TIMING
 	stop(&timer, 1);
+#if DFATOOL_TIMING
 	timer.time[6] = 0;	// free
 #endif
 

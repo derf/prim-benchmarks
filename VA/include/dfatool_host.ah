@@ -20,14 +20,14 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 	advice call("% input_params(...)") : after() {
 		Params* p = tjp->result();
 		n_rows = p->input_size;
-		printf("[>>] VA | n_dpus=%u n_ranks=%d n_rows=%lu\n", NR_DPUS, NR_RANKS, n_rows);
+		printf("[>>] VA | n_dpus=%u n_ranks=%u n_rows=%lu\n", NR_DPUS, NR_RANKS, n_rows);
 	}
 
 	advice call("% vector_addition_host(...)") : after() {
-		printf("[--] VA | n_dpus=%u n_ranks=%d n_rows=%lu\n", n_dpus, n_ranks, n_rows);
+		printf("[--] VA | n_dpus=%u n_ranks=%u n_rows=%lu\n", NR_DPUS, NR_RANKS, n_rows);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] VA | n_dpus=%u n_ranks=%d n_rows=%lu\n", NR_DPUS, NR_RANKS, n_rows);
+		printf("[<<] VA | n_dpus=%u n_ranks=%u n_rows=%lu\n", NR_DPUS, NR_RANKS, n_rows);
 	}
 };
