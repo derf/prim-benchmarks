@@ -86,39 +86,43 @@ int main(int argc, char **argv)
 	int numa_node_rank = -2;
 
 	// Allocate DPUs and load binary
-#if !WITH_ALLOC_OVERHEAD
-	DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
 #if DFATOOL_TIMING
-	timer.time[0] = 0;	// alloc
+	start(&timer, 0, 0);
 #endif
+#if NR_DPUS
+	DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+#else
+	DPU_ASSERT(dpu_alloc_ranks(NR_RANKS, NULL, &dpu_set));
 #endif
-#if !WITH_LOAD_OVERHEAD
-	DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
+#if DFATOOL_TIMING
+	stop(&timer, 0);
+#endif
 	DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
 	DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
+#if NR_DPUS
 	assert(nr_of_dpus == NR_DPUS);
-#if DFATOOL_TIMING
-	timer.time[1] = 0;	// load
 #endif
-#endif
-#if !WITH_FREE_OVERHEAD
 #if DFATOOL_TIMING
+	start(&timer, 1, 0);
+#endif
+	DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
+#if DFATOOL_TIMING
+	stop(&timer, 1);
 	timer.time[6] = 0;	// free
-#endif
 #endif
 
 	unsigned int i = 0;
 	const unsigned long int input_size =
-	    p.exp == 0 ? p.input_size * NR_DPUS : p.input_size;
+	    p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size;
 	const unsigned long int input_size_8bytes = ((input_size * sizeof(T)) % 8) != 0 ? roundup(input_size, 8) : input_size;	// Input size per DPU (max.), 8-byte aligned
-	const unsigned long int input_size_dpu = divceil(input_size, NR_DPUS);	// Input size per DPU (max.)
+	const unsigned long int input_size_dpu = divceil(input_size, nr_of_dpus);	// Input size per DPU (max.)
 	const unsigned long int input_size_dpu_8bytes = ((input_size_dpu * sizeof(T)) % 8) != 0 ? roundup(input_size_dpu, 8) : input_size_dpu;	// Input size per DPU (max.), 8-byte aligned
 
 	// Input/output allocation
-	A = (T*)malloc(input_size_dpu_8bytes * NR_DPUS * sizeof(T));
-	B = (T*)malloc(input_size_dpu_8bytes * NR_DPUS * sizeof(T));
-	C = (T*)malloc(input_size_dpu_8bytes * NR_DPUS * sizeof(T));
-	C2 = (T*)malloc(input_size_dpu_8bytes * NR_DPUS * sizeof(T));
+	A = (T*)malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
+	B = (T*)malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
+	C = (T*)malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
+	C2 = (T*)malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
 	T *bufferA = A;
 	T *bufferB = B;
 	T *bufferC = C2;
@@ -129,15 +133,6 @@ int main(int argc, char **argv)
 	// Loop over main kernel
 	for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
-#if WITH_ALLOC_OVERHEAD
-		if (rep >= p.n_warmup) {
-			start(&timer, 0, 0);
-		}
-		DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
-		if (rep >= p.n_warmup) {
-			stop(&timer, 0);
-		}
-#endif
 #if WITH_DPUINFO
 		printf("DPUs:");
 		DPU_FOREACH(dpu_set, dpu) {
@@ -149,18 +144,6 @@ int main(int argc, char **argv)
 			printf(" %d(%d.%d)", rank, slice, member);
 		}
 		printf("\n");
-#endif
-#if WITH_LOAD_OVERHEAD
-		if (rep >= p.n_warmup) {
-			start(&timer, 1, 0);
-		}
-		DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
-		if (rep >= p.n_warmup) {
-			stop(&timer, 1);
-		}
-		DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
-		DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
-		assert(nr_of_dpus == NR_DPUS);
 #endif
 
 		// int prev_rank_id = -1;
@@ -201,7 +184,7 @@ int main(int argc, char **argv)
 		}
 		// Input arguments
 		unsigned int kernel = 0;
-		dpu_arguments_t input_arguments[NR_DPUS];
+		dpu_arguments_t input_arguments[nr_of_dpus];
 		for (i = 0; i < nr_of_dpus - 1; i++) {
 			input_arguments[i].size =
 			    input_size_dpu_8bytes * sizeof(T);
@@ -211,7 +194,7 @@ int main(int argc, char **argv)
 		}
 		input_arguments[nr_of_dpus - 1].size =
 		    (input_size_8bytes -
-		     input_size_dpu_8bytes * (NR_DPUS - 1)) * sizeof(T);
+		     input_size_dpu_8bytes * (nr_of_dpus - 1)) * sizeof(T);
 		input_arguments[nr_of_dpus - 1].transfer_size =
 		    input_size_dpu_8bytes * sizeof(T);
 		input_arguments[nr_of_dpus - 1].kernel = (enum kernels)kernel;
@@ -293,19 +276,6 @@ int main(int argc, char **argv)
 		if (rep >= p.n_warmup) {
 			stop(&timer, 5);
 		}
-#if WITH_ALLOC_OVERHEAD
-#if WITH_FREE_OVERHEAD
-		if (rep >= p.n_warmup) {
-			start(&timer, 6, 0);
-		}
-#endif
-		DPU_ASSERT(dpu_free(dpu_set));
-#if WITH_FREE_OVERHEAD
-		if (rep >= p.n_warmup) {
-			stop(&timer, 6);
-		}
-#endif
-#endif
 
 		// Check output
 		bool status = true;
@@ -325,11 +295,10 @@ int main(int argc, char **argv)
 				    ("[::] VA-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%lu n_elements_per_dpu=%lu",
 				     nr_of_dpus, nr_of_ranks, NR_TASKLETS,
 				     XSTR(T), BLOCK_SIZE, input_size,
-				     input_size / NR_DPUS);
+				     input_size / nr_of_dpus);
 				dfatool_printf
-				    (" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d numa_node_rank=%d ",
-				     WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD,
-				     WITH_FREE_OVERHEAD, numa_node_rank);
+				    (" numa_node_rank=%d ",
+				     numa_node_rank);
 				dfatool_printf
 				    ("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
 				     timer.time[0], timer.time[1],
@@ -400,9 +369,7 @@ int main(int argc, char **argv)
 	free(C);
 	free(C2);
 
-#if !WITH_ALLOC_OVERHEAD
 	DPU_ASSERT(dpu_free(dpu_set));
-#endif
 
 	return 0;
 }
