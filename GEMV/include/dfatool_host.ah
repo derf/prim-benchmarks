@@ -1,6 +1,5 @@
 #pragma once
 
-#include <sys/time.h>
 #include "dfatool_host_dpu.ah"
 
 aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
@@ -8,6 +7,10 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 	unsigned int element_size;
 
 	virtual int getKernel() { return 1; }
+
+	virtual void printKernelArgs() {
+		printf("n_cols=%u n_rows=%u", n_cols, n_rows);
+	}
 
 	DfatoolHostTiming() {
 		element_size = sizeof(T);
@@ -17,14 +20,14 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 		Params* p = tjp->result();
 		n_cols = p->n_size;
 		n_rows = p->m_size;
-		printf("[>>] GEMV | n_dpus=%u n_cols=%u n_rows=%u\n", NR_DPUS, n_cols, n_rows);
+		printf("[>>] GEMV | n_dpus=%u n_ranks=%u n_cols=%u n_rows=%u\n", NR_DPUS, NR_RANKS, n_cols, n_rows);
 	}
 
 	advice call("% gemv_host(...)") : after() {
-		printf("[--] GEMV | n_dpus=%u n_cols=%u n_rows=%u\n", NR_DPUS, n_cols, n_rows);
+		printf("[--] GEMV | n_dpus=%u n_ranks=%u n_cols=%u n_rows=%u\n", NR_DPUS, NR_RANKS, n_cols, n_rows);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] GEMV | n_dpus=%u n_cols=%u n_rows=%u\n", NR_DPUS, n_cols, n_rows);
+		printf("[<<] GEMV | n_dpus=%u n_ranks=%u n_cols=%u n_rows=%u\n", NR_DPUS, NR_RANKS, n_cols, n_rows);
 	}
 };

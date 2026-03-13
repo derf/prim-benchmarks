@@ -93,26 +93,22 @@ int main(int argc, char **argv)
 	int numa_node_rank = -2;
 
 	// Allocate DPUs and load binary
-#if !WITH_ALLOC_OVERHEAD
+	start(&timer, 0, 0);
+#if NR_DPUS
 	DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
-#if DFATOOL_TIMING
-	timer.time[0] = 0;	// alloc
+#else
+	DPU_ASSERT(dpu_alloc_ranks(NR_RANKS, NULL, &dpu_set));
 #endif
-#endif
-#if !WITH_LOAD_OVERHEAD
+	stop(&timer, 0);
+	start(&timer, 1, 0);
 	DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
+	stop(&timer, 1);
 	DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
 	DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
+#if NR_DPUS
 	assert(nr_of_dpus == NR_DPUS);
-#if DFATOOL_TIMING
-	timer.time[1] = 0;	// load
 #endif
-#endif
-#if !WITH_FREE_OVERHEAD
-#if DFATOOL_TIMING
-	timer.time[8] = 0;	// free
-#endif
-#endif
+	zero(&timer, 8); // free
 
 #if ENERGY
 	struct dpu_probe_t probe;
@@ -125,21 +121,21 @@ int main(int argc, char **argv)
 
 	// Initialize help data
 	dpu_info =
-	    (struct dpu_info_t *)malloc(NR_DPUS * sizeof(struct dpu_info_t));
+	    (struct dpu_info_t *)malloc(nr_of_dpus * sizeof(struct dpu_info_t));
 	dpu_arguments_t *input_args =
-	    (dpu_arguments_t *) malloc(NR_DPUS * sizeof(dpu_arguments_t));
+	    (dpu_arguments_t *) malloc(nr_of_dpus * sizeof(dpu_arguments_t));
 	uint32_t max_rows_per_dpu = 0;
 	uint32_t n_size_pad = n_size;
 	if (n_size % 2 == 1) {
 		n_size_pad++;
 	}
 
-	for (i = 0; i < NR_DPUS; i++) {
+	for (i = 0; i < nr_of_dpus; i++) {
 		uint32_t rows_per_dpu;
 		uint32_t prev_rows_dpu = 0;
-		uint32_t chunks = m_size / NR_DPUS;
+		uint32_t chunks = m_size / nr_of_dpus;
 		rows_per_dpu = chunks;
-		uint32_t rest_rows = m_size % NR_DPUS;
+		uint32_t rest_rows = m_size % nr_of_dpus;
 		if (i < rest_rows)
 			rows_per_dpu++;
 		if (rest_rows > 0) {
@@ -171,38 +167,16 @@ int main(int argc, char **argv)
 		input_args[i].nr_rows = rows_per_dpu;
 	}
 
-	A = (T*)malloc(max_rows_per_dpu * NR_DPUS * n_size_pad * sizeof(T));
+	A = (T*)malloc(max_rows_per_dpu * nr_of_dpus * n_size_pad * sizeof(T));
 	B = (T*)malloc(n_size_pad * sizeof(T));
-	C = (T*)malloc(max_rows_per_dpu * NR_DPUS * sizeof(T));
-	C_dpu = (T*)malloc(max_rows_per_dpu * NR_DPUS * sizeof(T));
+	C = (T*)malloc(max_rows_per_dpu * nr_of_dpus * sizeof(T));
+	C_dpu = (T*)malloc(max_rows_per_dpu * nr_of_dpus * sizeof(T));
 
 	// Initialize data with arbitrary data
 	init_data(A, B, m_size, n_size);
 
 	// Compute output on CPU (performance comparison and verification purposes)
 	for (unsigned int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
-
-#if WITH_ALLOC_OVERHEAD
-		if (rep >= p.n_warmup) {
-			start(&timer, 0, 0);
-		}
-		DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
-		if (rep >= p.n_warmup) {
-			stop(&timer, 0);
-		}
-#endif
-#if WITH_LOAD_OVERHEAD
-		if (rep >= p.n_warmup) {
-			start(&timer, 1, 0);
-		}
-		DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
-		if (rep >= p.n_warmup) {
-			stop(&timer, 1);
-		}
-		DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
-		DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
-		assert(nr_of_dpus == NR_DPUS);
-#endif
 
 		// int prev_rank_id = -1;
 		int rank_id = -1;
@@ -330,25 +304,11 @@ int main(int argc, char **argv)
 			stop(&timer, 5);
 		}
 
-#if WITH_ALLOC_OVERHEAD
-#if WITH_FREE_OVERHEAD
-		if (rep >= p.n_warmup) {
-			start(&timer, 8, 0);
-		}
-#endif
-		DPU_ASSERT(dpu_free(dpu_set));
-#if WITH_FREE_OVERHEAD
-		if (rep >= p.n_warmup) {
-			stop(&timer, 8);
-		}
-#endif
-#endif
-
 		// Check output
 		bool status = true;
 		unsigned int n, j;
 		i = 0;
-		for (n = 0; n < NR_DPUS; n++) {
+		for (n = 0; n < nr_of_dpus; n++) {
 			for (j = 0; j < dpu_info[n].rows_per_dpu; j++) {
 				if (C[i] != C_dpu[n * max_rows_per_dpu + j]) {
 					status = false;
@@ -365,12 +325,11 @@ int main(int argc, char **argv)
 			if (rep >= p.n_warmup) {
 				dfatool_printf
 				    ("[::] GEMV-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d",
-				     NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T),
+				     nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T),
 				     BLOCK_SIZE, n_size * m_size);
 				dfatool_printf
-				    (" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d numa_node_rank=%d ",
-				     WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD,
-				     WITH_FREE_OVERHEAD, numa_node_rank);
+				    (" numa_node_rank=%d ",
+				     numa_node_rank);
 				dfatool_printf
 				    ("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
 				     timer.time[0], timer.time[1],
@@ -456,18 +415,6 @@ int main(int argc, char **argv)
 	DPU_ASSERT(dpu_probe_get(&probe, DPU_TIME, DPU_AVERAGE, &avg_time));
 #endif
 
-	// Print timing results
-	/*
-	   printf("CPU Version Time (ms): ");
-	   print(&timer, 0, 1);
-	   printf("CPU-DPU Time (ms): ");
-	   print(&timer, 1, p.n_reps);
-	   printf("DPU Kernel Time (ms): ");
-	   print(&timer, 2, p.n_reps);
-	   printf("DPU-CPU Time (ms): ");
-	   print(&timer, 3, p.n_reps);
-	 */
-
 #if ENERGY
 	printf("Energy (J): %f J\t", avg_energy);
 #endif
@@ -477,9 +424,7 @@ int main(int argc, char **argv)
 	free(B);
 	free(C);
 	free(C_dpu);
-#if !WITH_ALLOC_OVERHEAD
 	DPU_ASSERT(dpu_free(dpu_set));
-#endif
 
 #if ENERGY
 	DPU_ASSERT(dpu_probe_deinit(&probe));
