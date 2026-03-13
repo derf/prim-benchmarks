@@ -1,4 +1,4 @@
-NR_DPUS ?= 1
+NR_DPUS ?= 0
 NR_TASKLETS ?= 16
 ENERGY ?= 0
 
