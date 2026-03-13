@@ -10,6 +10,10 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 
 	virtual int getKernel() { return 1; }
 
+	virtual void printKernelArgs() {
+		printf("n_elements=%lu n_queries=%lu", n_elements, n_queries);
+	}
+
 	DfatoolHostTiming() {
 		element_size = sizeof(uint32_t);
 	}
@@ -18,14 +22,14 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 		Params* p = tjp->result();
 		n_elements = INPUT_SIZE;
 		n_queries = p->num_querys;
-		printf("[>>] BS | n_dpus=%u n_elements=%lu n_queries=%lu\n", NR_DPUS, n_elements, n_queries);
+		printf("[>>] BS | n_dpus=%u n_ranks=%u n_elements=%lu n_queries=%lu\n", NR_DPUS, NR_RANKS, n_elements, n_queries);
 	}
 
 	advice call("% binarySearch(...)") : after() {
-		printf("[--] BS | n_dpus=%u n_elements=%lu n_queries=%lu\n", NR_DPUS, n_elements, n_queries);
+		printf("[--] BS | n_dpus=%u n_ranks=%u n_elements=%lu n_queries=%lu\n", NR_DPUS, NR_RANKS, n_elements, n_queries);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] BS | n_dpus=%u n_elements=%lu n_queries=%lu\n", NR_DPUS, n_elements, n_queries);
+		printf("[<<] BS | n_dpus=%u n_ranks=%u n_elements=%lu n_queries=%lu\n", NR_DPUS, NR_RANKS, n_elements, n_queries);
 	}
 };
