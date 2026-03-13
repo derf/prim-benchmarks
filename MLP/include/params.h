@@ -58,7 +58,6 @@ struct Params input_params(int argc, char **argv)
 			exit(0);
 		}
 	}
-	assert(NR_DPUS > 0 && "Invalid # of dpus!");
 
 	return p;
 }

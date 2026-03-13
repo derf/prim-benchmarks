@@ -93,12 +93,17 @@ int main(int argc, char **argv)
 	struct Params p = input_params(argc, argv);
 
 	struct dpu_set_t dpu_set, dpu;
-	uint32_t nr_of_dpus;
+	uint32_t nr_of_dpus, nr_of_ranks;
 
 	// Allocate DPUs and load binary
+#if NR_DPUS
 	DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+#else
+	DPU_ASSERT(dpu_alloc_ranks(NR_RANKS, NULL, &dpu_set));
+#endif
 	DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
 	DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+	DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
 
 #if ENERGY
 	struct dpu_probe_t probe;
