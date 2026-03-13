@@ -7,7 +7,11 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 	unsigned long n_elements;
 	unsigned int element_size;
 
-	virtual int getKernel() { return 1; }
+	virtual int getKernel() { return kernel; }
+
+	virtual void printKernelArgs() {
+		printf("n_elements=%lu", n_elements);
+	}
 
 	DfatoolHostTiming() {
 		element_size = sizeof(T);
@@ -16,14 +20,14 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 	advice call("% input_params(...)") : after() {
 		Params* p = tjp->result();
 		n_elements = p->input_size;
-		printf("[>>] SCAN-RSS | n_dpus=%u n_elements=%lu\n", NR_DPUS, n_elements);
+		printf("[>>] SCAN-RSS | n_dpus=%u n_ranks=%u n_elements=%lu\n", NR_DPUS, NR_RANKS, n_elements);
 	}
 
 	advice call("% scan_host(...)") : after() {
-		printf("[--] SCAN-RSS | n_dpus=%u n_elements=%lu\n", n_dpus, n_elements);
+		printf("[--] SCAN-RSS | n_dpus=%u n_ranks=%u n_elements=%lu\n", n_dpus, NR_RANKS, n_elements);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] SCAN-RSS | n_dpus=%u n_elements=%lu\n", NR_DPUS, n_elements);
+		printf("[<<] SCAN-RSS | n_dpus=%u n_ranks=%u n_elements=%lu\n", NR_DPUS, NR_RANKS, n_elements);
 	}
 };
