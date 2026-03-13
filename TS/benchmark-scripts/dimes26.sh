@@ -20,7 +20,7 @@ for sdk in 2025.1.0; do
 
 	echo "prim-benchmarks  TS  $(git describe --all --long)  $(git rev-parse HEAD)  $(date -R)" > ${fn}.txt
 
-	parallel -j1 --eta --joblog ${fn}.joblog --resume --header : \
+	parallel -j1 --eta --joblog ${fn}.joblog --header : \
 		run_benchmark_nmc nr_ranks={nr_ranks} nr_tasklets=8 ts_size={ts_size} \
 		::: nr_ranks 1 2 4 8 12 16 20 24 28 32 36 40 \
 		::: ts_size 8388608 16777216 33554432 67108864 \

@@ -30,6 +30,6 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] TS | n_dpus=%u n_ranks=%u n_elements_ts=%lu n_elements_query=%lu\n", NR_DPUS, NR_DPUS, ts_size, query_length);
+		printf("[<<] TS | n_dpus=%u n_ranks=%u n_elements_ts=%lu n_elements_query=%lu\n", NR_DPUS, NR_RANKS, ts_size, query_length);
 	}
 };
