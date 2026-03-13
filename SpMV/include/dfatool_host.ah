@@ -9,12 +9,16 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 
 	virtual int getKernel() { return 1; }
 
+	virtual void printKernelArgs() {
+		printf("n_rows=%lu n_cols=%lu n_nonzero=%lu", n_rows, n_cols, n_nonzero);
+	}
+
 	DfatoolHostTiming() {
 		element_size = sizeof(float);
 	}
 
 	advice call("% input_params(...)"): after() {
-		printf("[>>] SpMV | n_dpus=%u\n", NR_DPUS);
+		printf("[>>] SpMV | n_dpus=%u n_ranks=%u\n", NR_DPUS, NR_RANKS);
 	}
 
 	advice call("% readCOOMatrix(...)") : after() {
@@ -22,10 +26,10 @@ aspect DfatoolHostTiming : public DfatoolHostDPUTiming {
 		n_rows = c->numRows;
 		n_cols = c->numCols;
 		n_nonzero = c->numNonzeros;
-		printf("[--] SpMV | n_dpus=%u n_rows=%lu n_cols=%lu n_nonzero=%lu\n", NR_DPUS, n_rows, n_cols, n_nonzero);
+		printf("[--] SpMV | n_dpus=%u n_ranks=%u n_rows=%lu n_cols=%lu n_nonzero=%lu\n", NR_DPUS, NR_RANKS, n_rows, n_cols, n_nonzero);
 	}
 
 	advice execution("% main(...)") : after() {
-		printf("[<<] SpMV | n_dpus=%u n_rows=%lu n_cols=%lu n_nonzero=%lu\n", NR_DPUS, n_rows, n_cols, n_nonzero);
+		printf("[<<] SpMV | n_dpus=%u n_ranks=%u n_rows=%lu n_cols=%lu n_nonzero=%lu\n", NR_DPUS, NR_RANKS, n_rows, n_cols, n_nonzero);
 	}
 };

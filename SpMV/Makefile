@@ -1,5 +1,6 @@
 NR_TASKLETS ?= 16
-NR_DPUS ?= 1
+NR_DPUS ?= 0
+NR_RANKS ?= 0
 
 aspectc ?= 0
 aspectc_timing ?= 0
@@ -8,7 +9,7 @@ dfatool_timing ?= 1
 HOST_CC := ${CC}
 
 COMMON_FLAGS := -Wall -Wextra -g -Iinclude
-HOST_FLAGS := ${COMMON_FLAGS} -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DASPECTC=${aspectc} -DDFATOOL_TIMING=${dfatool_timing}
+HOST_FLAGS := ${COMMON_FLAGS} -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DNR_RANKS=${NR_RANKS} -DASPECTC=${aspectc} -DDFATOOL_TIMING=${dfatool_timing}
 DPU_FLAGS := ${COMMON_FLAGS} -O2 -DNR_TASKLETS=${NR_TASKLETS}
 
 ifeq (${aspectc_timing}, 1)

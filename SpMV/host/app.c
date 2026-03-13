@@ -61,7 +61,11 @@ int main(int argc, char **argv)
 	uint32_t numDPUs, numRanks;
 
 	startTimer(&timer);
+#if NR_DPUS
 	DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+#else
+	DPU_ASSERT(dpu_alloc_ranks(NR_RANKS, NULL, &dpu_set));
+#endif
 	stopTimer(&timer);
 	allocTime += getElapsedTime(timer);
 
@@ -72,7 +76,9 @@ int main(int argc, char **argv)
 
 	DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &numDPUs));
 	DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &numRanks));
+#if NR_DPUS
 	assert(numDPUs == NR_DPUS);
+#endif
 	PRINT_INFO(p.verbosity >= 1, "Allocated %d DPU(s)", numDPUs);
 
 	// Initialize SpMV data structures
