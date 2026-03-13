@@ -1,4 +1,5 @@
-NR_DPUS ?= 1
+NR_DPUS ?= 0
+NR_RANKS ?= 0
 NR_TASKLETS ?= 16
 BL ?= 10
 TYPE ?= INT64
@@ -15,7 +16,7 @@ dfatool_timing ?= 1
 
 HOST_CC := ${CC}
 
-COMMON_FLAGS = -Wall -Wextra -O2 -Iinclude -DNR_DPUS=${NR_DPUS} -DNR_TASKLETS=${NR_TASKLETS} -DBL=${BL} -D${TYPE} -DUNROLL=${UNROLL}
+COMMON_FLAGS = -Wall -Wextra -O2 -Iinclude -DNR_DPUS=${NR_DPUS} -DNR_RANKS=${NR_RANKS} -DNR_TASKLETS=${NR_TASKLETS} -DBL=${BL} -D${TYPE} -DUNROLL=${UNROLL}
 HOST_FLAGS = ${COMMON_FLAGS} `dpu-pkg-config --cflags --libs dpu` -DDFATOOL_TIMING=${dfatool_timing} -DASPECTC=${aspectc}
 DPU_FLAGS = ${COMMON_FLAGS}
 

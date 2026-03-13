@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
     struct Params p = input_params(argc, argv);
 
     struct dpu_set_t dpu_set, dpu;
-    uint32_t nr_of_dpus;
+    uint32_t nr_of_dpus, nr_of_ranks;
     
 #if ENERGY
     struct dpu_probe_t probe;
@@ -93,9 +93,14 @@ int main(int argc, char **argv) {
 #endif
 
     // Allocate DPUs and load binary
+#if NR_DPUs
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
+#else
+    DPU_ASSERT(dpu_alloc_ranks(NR_RANKS, NULL, &dpu_set));
+#endif
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+    DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
     //printf("Allocated %d DPU(s)\n", nr_of_dpus);
 
     unsigned int i = 0;
@@ -216,7 +221,7 @@ int main(int argc, char **argv) {
 
         // Arguments for add kernel (2nd kernel)
         kernel = 1;
-        dpu_arguments_t input_arguments_2[NR_DPUS];
+        dpu_arguments_t input_arguments_2[nr_of_dpus];
         for(i=0; i<nr_of_dpus; i++) {
             input_arguments_2[i].size=input_size_dpu * sizeof(T); 
             input_arguments_2[i].kernel=(enum kernels)kernel;
@@ -283,7 +288,6 @@ int main(int argc, char **argv) {
             }
         }
         if (status) {
-            printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             dfatool_printf("[::] SCAN-SSA NMC | n_dpus=%d n_tasklets=%d e_type=%s block_size_B=%d b_unroll=%d n_elements=%u "
                 "| throughput_cpu_MBps=%f throughput_pim_MBps=%f throughput_MBps=%f",
                 nr_of_dpus, NR_TASKLETS, XSTR(T), BLOCK_SIZE, UNROLL, input_size,
