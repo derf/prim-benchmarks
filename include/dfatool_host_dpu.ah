@@ -1,5 +1,11 @@
 #pragma once
 
+extern "C" {
+#include <dpu.h>
+#include <dpu_management.h>
+#include <dpu_target_macros.h>
+};
+
 #include <sys/time.h>
 
 aspect DfatoolHostDPUTiming {
@@ -89,14 +95,21 @@ aspect DfatoolHostDPUTiming {
 	}
 
 	advice call("% dpu_copy_to(...)") : around() {
-		size_t payload_size = *(tjp->arg<4>());
 		gettimeofday(&starttime, NULL);
 		tjp->proceed();
 		gettimeofday(&stoptime, NULL);
+		size_t payload_size = *(tjp->arg<4>());
+		struct dpu_set_t dpu = *(tjp->arg<0>());
+		int rank =
+			dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) &
+			DPU_TARGET_MASK;
+		int slice = dpu_get_slice_id(dpu_from_set(dpu));
+		int member = dpu_get_member_id(dpu_from_set(dpu));
 		double time_us = (stoptime.tv_sec - starttime.tv_sec) * 1000000.0 + (stoptime.tv_usec - starttime.tv_usec);
-		printf("[::] dpu_copy_to @ %s:%d | payload_B=%lu | latency_us=%f throughput_MiBps=%f\n",
+		printf("[::] dpu_copy_to @ %s:%d | rank=%d slice=%d member=%d payload_B=%lu | latency_us=%f throughput_MiBps=%f\n",
 			tjp->filename(),
 			tjp->line(),
+			rank, slice, member,
 			payload_size,
 			time_us,
 			payload_size / (time_us * M_to_Mi)
@@ -104,14 +117,21 @@ aspect DfatoolHostDPUTiming {
 	}
 
 	advice call("% dpu_copy_from(...)") : around() {
-		size_t payload_size = *(tjp->arg<4>());
 		gettimeofday(&starttime, NULL);
 		tjp->proceed();
 		gettimeofday(&stoptime, NULL);
+		size_t payload_size = *(tjp->arg<4>());
+		struct dpu_set_t dpu = *(tjp->arg<0>());
+		int rank =
+			dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) &
+			DPU_TARGET_MASK;
+		int slice = dpu_get_slice_id(dpu_from_set(dpu));
+		int member = dpu_get_member_id(dpu_from_set(dpu));
 		double time_us = (stoptime.tv_sec - starttime.tv_sec) * 1000000.0 + (stoptime.tv_usec - starttime.tv_usec);
-		printf("[::] dpu_copy_from @ %s:%d | payload_B=%lu | latency_us=%f throughput_MiBps=%f\n",
+		printf("[::] dpu_copy_from @ %s:%d | rank=%d slice=%d member=%d payload_B=%lu | latency_us=%f throughput_MiBps=%f\n",
 			tjp->filename(),
 			tjp->line(),
+			rank, slice, member,
 			payload_size,
 			time_us,
 			payload_size / (time_us * M_to_Mi)
@@ -119,10 +139,10 @@ aspect DfatoolHostDPUTiming {
 	}
 
 	advice call("% dpu_push_xfer(...)") : around() {
-		size_t payload_size = *(tjp->arg<4>());
 		gettimeofday(&starttime, NULL);
 		tjp->proceed();
 		gettimeofday(&stoptime, NULL);
+		size_t payload_size = *(tjp->arg<4>());
 		double time_us = (stoptime.tv_sec - starttime.tv_sec) * 1000000.0 + (stoptime.tv_usec - starttime.tv_usec);
 		if (*(tjp->arg<1>()) == DPU_XFER_TO_DPU) {
 			printf("[::] dpu_push_to_dpu @ %s:%d | n_dpus=%u n_ranks=%u total_payload_B=%lu dpu_payload_B=%lu | latency_us=%f throughput_MiBps=%f\n",
