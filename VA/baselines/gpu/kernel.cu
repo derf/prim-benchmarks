@@ -18,6 +18,7 @@ __global__ void Vec_add(unsigned int x[], unsigned int y[], unsigned int z[], un
     }
 }
 
-void Vec_add(unsigned long block_size, unsigned long num_threads, unsigned int x[], unsigned int y[], unsigned int z[], unsigned long long n) {
+cudaError_t Vec_add(unsigned long block_size, unsigned long num_threads, unsigned int x[], unsigned int y[], unsigned int z[], unsigned long long n) {
     Vec_add<<<block_size, num_threads>>>(x, y, z, n);
+    return cudaGetLastError();
 }

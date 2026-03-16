@@ -3,10 +3,12 @@ aspectc_timing ?= 0
 dfatool_timing ?= 1
 verbose ?= 0
 
+NR_THREADS ?= 256
+
 NVCC ?= /usr/local/cuda/bin/nvcc
 CXX = g++
 
-COMMON_FLAGS := -I/usr/local/cuda/include -O2 -lm
+COMMON_FLAGS := -I/usr/local/cuda/include -O2 -lm -DNR_THREADS=${NR_THREADS}
 COMMON_FLAGS += -DASPECTC=${aspectc} -DDFATOOL_TIMING=${dfatool_timing}
 
 ifeq (${aspectc_timing}, 1)

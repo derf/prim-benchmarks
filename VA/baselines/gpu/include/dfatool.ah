@@ -16,7 +16,7 @@ aspect DfatoolHostTiming : public DfatoolHostGPUTiming {
 		cudaEventSynchronize(ev_stop);
 		float time_ms = 0;
 		cudaEventElapsedTime(&time_ms, ev_start, ev_stop);
-		printf("[::] search_kernel @ %s:%d | n_blocks=%lu n_threads=%lu n_rows=%lu | latency_ms=%f throughput_MiBps=%f\n",
+		printf("[::] Vec_add @ %s:%d | n_blocks=%lu n_threads=%lu n_rows=%lu | latency_ms=%f throughput_MiBps=%f\n",
 			tjp->filename(),
 			tjp->line(),
 			num_blocks,

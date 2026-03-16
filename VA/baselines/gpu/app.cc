@@ -14,13 +14,20 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 
-void Vec_add(unsigned long block_size, unsigned long num_threads, unsigned int x[], unsigned int y[], unsigned int z[], unsigned long long n);
+#define CUDA_CHECK()                                                                                                     \
+    if(cudaStatus != cudaSuccess) {                                                                                    \
+        fprintf(stderr, "CUDA error: %s at %s:%d\n", cudaGetErrorString(cudaStatus), __FILE__, __LINE__);           \
+        exit(-1);                                                                                                      \
+    }
+
+cudaError_t Vec_add(unsigned long block_size, unsigned long num_threads, unsigned int x[], unsigned int y[], unsigned int z[], unsigned long long n);
 
 int main(int argc, char* argv[]) {
     unsigned long long n, m;
     unsigned int *h_x, *h_y, *h_z;
     unsigned int *d_x, *d_y, *d_z;
     unsigned long long size;
+    cudaError_t  cudaStatus;
 
     /* Define vector length */
     n = 2621440;
@@ -34,7 +41,7 @@ int main(int argc, char* argv[]) {
     size = m * n * sizeof(unsigned int);
 
 #if ASPECTC
-    printf("[>>] VA | n_rows=%lld\n", n * m);
+    printf("[>>] VA | n_threads=%u n_rows=%lld\n", NR_THREADS, n * m);
 #endif
 
 
@@ -61,18 +68,25 @@ int main(int argc, char* argv[]) {
     printf("\n\n");*/
 
     /* Allocate vectors in device memory */
-    cudaMalloc(&d_x, size);
-    cudaMalloc(&d_y, size);
-    cudaMalloc(&d_z, size);
+    cudaStatus = cudaMalloc(&d_x, size);
+    CUDA_CHECK();
+    cudaStatus = cudaMalloc(&d_y, size);
+    CUDA_CHECK();
+    cudaStatus = cudaMalloc(&d_z, size);
+    CUDA_CHECK();
 
     /* Copy vectors from host memory to device memory */
-    cudaMemcpy(d_x, h_x, size, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_y, h_y, size, cudaMemcpyHostToDevice);
+    cudaStatus = cudaMemcpy(d_x, h_x, size, cudaMemcpyHostToDevice);
+    CUDA_CHECK();
+    cudaStatus = cudaMemcpy(d_y, h_y, size, cudaMemcpyHostToDevice);
+    CUDA_CHECK();
 
     /* Kernel Call */
-    Vec_add((n * m) / 256, 256, d_x, d_y, d_z, n * m);
+    cudaStatus = Vec_add((n * m) / NR_THREADS, NR_THREADS, d_x, d_y, d_z, n * m);
+    CUDA_CHECK();
 
-    cudaMemcpy(h_z, d_z, size, cudaMemcpyDeviceToHost);
+    cudaStatus = cudaMemcpy(h_z, d_z, size, cudaMemcpyDeviceToHost);
+    CUDA_CHECK();
     /*printf("The sum is: \n");
     for (int i = 0; i < m; i++){
         printf("%u ", h_z[i]);
@@ -90,7 +104,7 @@ int main(int argc, char* argv[]) {
     free(h_z);
 
 #if ASPECTC
-    printf("[<<] VA | n_rows=%lld\n", n * m);
+    printf("[<<] VA | n_threads=%u n_rows=%lld\n", NR_THREADS, n * m);
 #endif
 
     return 0;
