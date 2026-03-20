@@ -1,0 +1,30 @@
+#pragma once
+
+#include <sys/time.h>
+#include "dfatool_host_gpu.ah"
+
+aspect DfatoolHostTiming : public DfatoolHostGPUTiming {
+	unsigned long n_rows, n_cols, n_nonzero;
+
+	advice call("% gemv(...)") : around() {
+		cudaEventRecord(ev_start, 0);
+		tjp->proceed();
+		cudaEventRecord(ev_stop, 0);
+		cudaEventSynchronize(ev_stop);
+		float time_ms = 0;
+		cudaEventElapsedTime(&time_ms, ev_start, ev_stop);
+		unsigned long num_blocks = *(tjp->arg<0>());
+		unsigned long num_threads = *(tjp->arg<1>());
+		int mm = *(tjp->arg<2>());
+		int nn = *(tjp->arg<3>());
+		printf("[::] gemv @ %s:%d | n_blocks=%lu n_threads=%lu mm=%d nn=%d | latency_ms=%f\n",
+			tjp->filename(),
+			tjp->line(),
+			num_blocks,
+			num_threads,
+			mm,
+			nn,
+			time_ms
+		);
+	}
+};
