@@ -66,27 +66,27 @@ uint32_t n_dpus, n_ranks;
 Timer timer;
 
 void fill_db() {
-	printf("Allocating %llu GiB for input data \n", (n_elements * sizeof(T)) >> 30);
+	printf("Allocating %llu GiB for input data \n", ((n_elements + n_fill_dpu) * sizeof(T)) >> 30);
 #if NUMA
 	if (p.bitmask_in) {
 		numa_set_membind(p.bitmask_in);
 		numa_free_nodemask(p.bitmask_in);
 	}
-	in_data = (T*) numa_alloc(n_elements * sizeof(T));
+	in_data = (T*) numa_alloc((n_elements + n_fill_dpu) * sizeof(T));
 #else
-	in_data = (T*) malloc(n_elements * sizeof(T));
+	in_data = (T*) malloc((n_elements + n_fill_dpu) * sizeof(T));
 #endif
 	assert(in_data != NULL);
 
-	printf("Allocating %llu MiB for output bitmap\n", (n_elements / 32 * sizeof(uint32_t) + sizeof(uint32_t)) >> 20);
+	printf("Allocating %llu MiB for output bitmap\n", ((n_elements + n_fill_dpu) / 32 * sizeof(uint32_t) + sizeof(uint32_t)) >> 20);
 #if NUMA
 	if (p.bitmask_out) {
 		numa_set_membind(p.bitmask_out);
 		numa_free_nodemask(p.bitmask_out);
 	}
-	out_bitmap = (uint32_t*) numa_alloc(n_elements / 32 * sizeof(uint32_t) + sizeof(uint32_t));
+	out_bitmap = (uint32_t*) numa_alloc((n_elements + n_fill_dpu) / 32 * sizeof(uint32_t) + sizeof(uint32_t));
 #else
-	out_bitmap = (uint32_t*) malloc(n_elements / 32 * sizeof(uint32_t) + sizeof(uint32_t));
+	out_bitmap = (uint32_t*) malloc((n_elements + n_fill_dpu) / 32 * sizeof(uint32_t) + sizeof(uint32_t));
 #endif
 	assert(out_bitmap != NULL);
 
