@@ -8,10 +8,10 @@
 
 #include <omp.h>
 
-#include "../../support/matrix.h"
-#include "../../support/params.h"
-#include "../../support/timer.h"
-#include "../../support/utils.h"
+#include "../../include/matrix.h"
+#include "../../include/params.h"
+#include "../../include/timer.h"
+#include "../../include/utils.h"
 
 int main(int argc, char **argv)
 {
