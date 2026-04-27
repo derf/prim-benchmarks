@@ -1,6 +1,7 @@
+dfatool_timing ?= 1
 native ?= 1
 
-CFLAGS =
+CFLAGS = -DDFATOOL_TIMING=${dfatool_timing}
 
 ifeq (${native}, 1)
 	CFLAGS += -march=native
