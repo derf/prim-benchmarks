@@ -38,7 +38,7 @@
 #include "support/common.h"
 #include "support/verify.h"
 
-#if WITH_BENCHMARK
+#if WITH_BENCHMARK || 1
 #include "support/timer.h"
 #else
 #include <string>
@@ -46,6 +46,15 @@ struct Timer {
     inline void start(std::string name) {(void)name;}
     inline void stop(std::string name) {(void)name;}
 };
+#endif
+
+#if WITH_PERF
+extern "C" {
+#include "../../../include/perf.h"
+};
+#else
+#define perf_start(...)
+#define perf_stop(...)
 #endif
 
 #include <unistd.h>
@@ -326,11 +335,29 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             timer.start("Step 1");
         // Launch CPU threads
+        perf_start();
         std::thread main_thread_1(run_cpu_threads_100, h_local, h_finished, h_head, M_ * m, N_, n, p.n_threads); //M_ * m * N_);
         main_thread_1.join();
+        perf_stop();
         // end timer
         if(rep >= p.n_warmup)
             timer.stop("Step 1");
+
+#if WITH_PERF
+        printf("[::] run_cpu_threads_100 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d |",
+            __FILE__, __LINE__,
+            M_* m, N_, n, p.n_threads
+		);
+		perf_print();
+#endif
+
+#if ASPECTC
+        printf("[::] run_cpu_threads_100 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d | latency_us=%f\n",
+            __FILE__, __LINE__,
+            M_* m, N_, n, p.n_threads,
+            timer.get("Step 1")
+        );
+#endif
 
         for(int i = 0; i < N_; i++)
             h_head[i].store(0);
@@ -339,27 +366,62 @@ int main(int argc, char **argv) {
         if(rep >= p.n_warmup)
             timer.start("Step 2");
         // Launch CPU threads
+		perf_start();
         std::thread main_thread_2(run_cpu_threads_010, h_local, h_head, m, n, M_ * N_, p.n_threads);
         main_thread_2.join();
+		perf_stop();
         // end timer
         if(rep >= p.n_warmup)
             timer.stop("Step 2");
+
+#if WITH_PERF
+        printf("[::] run_cpu_threads_010 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d |",
+            __FILE__, __LINE__,
+            M_* m, N_, n, p.n_threads
+		);
+		perf_print();
+#endif
+
+#if ASPECTC
+        printf("[::] run_cpu_threads_010 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d | latency_us=%f\n",
+            __FILE__, __LINE__,
+            m, n, M_ * N_, p.n_threads,
+            timer.get("Step 2")
+        );
+#endif
 
         memset((void *)h_finished, 0, sizeof(std::atomic_int) * finished_size);
         for(int i = 0; i < N_; i++)
             h_head[i].store(0);
 
         // start timer
-        if(rep >= p.n_warmup)
-            timer.start("Step 3");
         // Launch CPU threads
+		perf_start();
         for(int i = 0; i < N_; i++){
+            if(rep >= p.n_warmup)
+                timer.start("Step 3");
             std::thread main_thread_3(run_cpu_threads_100, h_local + i * M_ * n * m, h_finished + i * M_ * n, h_head + i, M_, n, m, p.n_threads); //M_ * n);
             main_thread_3.join();
+            if(rep >= p.n_warmup)
+                timer.stop("Step 3");
+#if ASPECTC
+            printf("[::] run_cpu_threads_100 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d | latency_us=%f\n",
+                __FILE__, __LINE__,
+                M_* m, N_, n, p.n_threads,
+                timer.get("Step 3")
+            );
+#endif
         }
+		perf_stop();
         // end timer
-        if(rep >= p.n_warmup)
-            timer.stop("Step 3");
+
+#if WITH_PERF
+			printf("[::] run_cpu_threads_100 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d |",
+				__FILE__, __LINE__,
+				M_* m, N_, n, p.n_threads
+			);
+			perf_print();
+#endif
 
 #if NUMA_MEMCPY
         if(rep >= p.n_warmup)
@@ -371,6 +433,7 @@ int main(int argc, char **argv) {
             timer.stop("free");
 #endif
 
+/*
 #if WITH_BENCHMARK
         if (rep >= p.n_warmup) {
 #if NUMA_MEMCPY
@@ -407,6 +470,7 @@ int main(int argc, char **argv) {
 #endif // NUMA_MEMCPY
         }
 #endif // WITH_BENCHMARK
+*/
     }
 
     // Verify answer
