@@ -1,16 +1,16 @@
 /**
-* @file app.c
-* @brief Template for a Host Application Source File.
-*
-*/
+ * @file app.c
+ * @brief Template for a Host Application Source File.
+ *
+ */
+#include <assert.h>
+#include <getopt.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
-#include <getopt.h>
-#include <assert.h>
-#include <stdint.h>
 
 #include <omp.h>
 
@@ -21,11 +21,87 @@
 #define stop(...)
 #endif
 
-#if NUMA
-#include <numaif.h>
-#include <numa.h>
+#if WITH_PERF
+#include <linux/perf_event.h>
+#include <perf/utilities.h>
 
-void *mp_pages[1];
+typedef struct {
+	uint64_t nr;
+	struct {
+		uint64_t value;
+		uint64_t id;
+	} values[1];
+} measurement_t;
+
+typedef struct {
+	int type;
+	int config;
+	char* desc;
+} perf_attr_t;
+
+perf_attr_t perf_attrs[] = {
+	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, "n_instr" },
+	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES, "n_cache_ref" },
+	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES, "n_cache_miss" },
+	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS, "n_branch" },
+	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_MISSES, "n_branch_miss" },
+	/* {PERF_TYPE_HARDWARE, PERF_COUNT_HW_STALLED_CYCLES_FRONTEND, "n_stalled_frontend"}, */
+	/* {PERF_TYPE_HARDWARE, PERF_COUNT_HW_STALLED_CYCLES_BACKEND,  "n_stalled_backend"}, */
+	{
+	    PERF_TYPE_HW_CACHE,
+	    PERF_COUNT_HW_CACHE_L1D
+	        | (PERF_COUNT_HW_CACHE_OP_READ << 8)
+	        | (PERF_COUNT_HW_CACHE_RESULT_ACCESS << 16),
+	    "n_l1d_read" },
+	{ PERF_TYPE_HW_CACHE,
+	    PERF_COUNT_HW_CACHE_L1D
+	        | (PERF_COUNT_HW_CACHE_OP_READ << 8)
+	        | (PERF_COUNT_HW_CACHE_RESULT_MISS << 16),
+	    "n_l1d_read_miss" },
+	{ PERF_TYPE_HW_CACHE,
+	    PERF_COUNT_HW_CACHE_LL
+	        | (PERF_COUNT_HW_CACHE_OP_READ << 8)
+	        | (PERF_COUNT_HW_CACHE_RESULT_ACCESS << 16),
+	    "n_llc_read" },
+	{ PERF_TYPE_HW_CACHE,
+	    PERF_COUNT_HW_CACHE_LL
+	        | (PERF_COUNT_HW_CACHE_OP_READ << 8)
+	        | (PERF_COUNT_HW_CACHE_RESULT_MISS << 16),
+	    "n_llc_read_miss" },
+	{ PERF_TYPE_HW_CACHE,
+	    PERF_COUNT_HW_CACHE_DTLB
+	        | (PERF_COUNT_HW_CACHE_OP_READ << 8)
+	        | (PERF_COUNT_HW_CACHE_RESULT_ACCESS << 16),
+	    "n_tlb_read" },
+	{ PERF_TYPE_HW_CACHE,
+	    PERF_COUNT_HW_CACHE_DTLB
+	        | (PERF_COUNT_HW_CACHE_OP_READ << 8)
+	        | (PERF_COUNT_HW_CACHE_RESULT_MISS << 16),
+	    "n_tlb_read_miss" },
+};
+perf_measurement_t* perf_measurements[sizeof(perf_attrs) / sizeof(perf_attr_t)];
+measurement_t measurements[sizeof(perf_attrs) / sizeof(perf_attr_t)];
+
+perf_measurement_t* perf_alloc(int type, int config, unsigned long int attr_idx)
+{
+	perf_measurement_t* ret = perf_create_measurement(type, config, 0, -1);
+	if (perf_has_sufficient_privilege(ret) != 1) {
+		printf("cannot measure %s: insufficient privilege\n", perf_attrs[attr_idx].desc);
+		exit(1);
+	}
+	if (perf_event_is_supported(ret) != 1) {
+		printf("cannot measure %s: unsupported\n", perf_attrs[attr_idx].desc);
+		exit(1);
+	}
+	return ret;
+}
+#endif
+
+#if NUMA
+#include <numa.h>
+#include <numaif.h>
+
+void* mp_pages[1];
 int mp_status[1];
 int mp_nodes[1];
 int numa_node_in = -1;
@@ -40,21 +116,21 @@ int numa_node_cpu = -1;
 #define T int32_t
 #endif
 
-static T *A;
-static T *B;
-static T *C;
+static T* A;
+static T* B;
+static T* C;
 
 #if NUMA_MEMCPY
 int numa_node_cpu_memcpy = -1;
 int numa_node_local = -1;
 int numa_node_in_is_local = 0;
-static T *A_local;
-static T *B_local;
+static T* A_local;
+static T* B_local;
 #endif
 
 /**
-* @brief compute output in the host
-*/
+ * @brief compute output in the host
+ */
 static void vector_addition_host(unsigned long nr_elements, int t)
 {
 	omp_set_num_threads(t);
@@ -76,33 +152,34 @@ typedef struct Params {
 	int exp;
 	int n_threads;
 #if NUMA
-	struct bitmask *bitmask_in;
-	struct bitmask *bitmask_out;
+	struct bitmask* bitmask_in;
+	struct bitmask* bitmask_out;
 	int numa_node_cpu;
 #endif
 #if NUMA_MEMCPY
 	int numa_node_cpu_memcpy;
-	struct bitmask *bitmask_cpu;
+	struct bitmask* bitmask_cpu;
 #endif
 } Params;
 
 void usage()
 {
 	fprintf(stderr,
-		"\nUsage:  ./program [options]"
-		"\n"
-		"\nGeneral options:"
-		"\n    -h        help"
-		"\n    -t <T>    # of threads (default=8)"
-		"\n    -w <W>    # of untimed warmup iterations (default=1)"
-		"\n    -e <E>    # of timed repetition iterations (default=3)"
-		"\n    -x <X>    Weak (0) or strong (1) scaling (default=0)"
-		"\n"
-		"\nBenchmark-specific options:"
-		"\n    -i <I>    input size (default=8M elements)" "\n");
+	    "\nUsage:  ./program [options]"
+	    "\n"
+	    "\nGeneral options:"
+	    "\n    -h        help"
+	    "\n    -t <T>    # of threads (default=8)"
+	    "\n    -w <W>    # of untimed warmup iterations (default=1)"
+	    "\n    -e <E>    # of timed repetition iterations (default=3)"
+	    "\n    -x <X>    Weak (0) or strong (1) scaling (default=0)"
+	    "\n"
+	    "\nBenchmark-specific options:"
+	    "\n    -i <I>    input size (default=8M elements)"
+	    "\n");
 }
 
-struct Params input_params(int argc, char **argv)
+struct Params input_params(int argc, char** argv)
 {
 	struct Params p;
 	p.input_size = 16777216;
@@ -159,8 +236,8 @@ struct Params input_params(int argc, char **argv)
 		case 'M':
 			p.numa_node_cpu_memcpy = atoi(optarg);
 			break;
-#endif				// NUMA_MEMCPY
-#endif				// NUMA
+#endif // NUMA_MEMCPY
+#endif // NUMA
 		default:
 			fprintf(stderr, "\nUnrecognized option!\n");
 			usage();
@@ -173,22 +250,21 @@ struct Params input_params(int argc, char **argv)
 }
 
 /**
-* @brief Main of the Host Application.
-*/
-int main(int argc, char **argv)
+ * @brief Main of the Host Application.
+ */
+int main(int argc, char** argv)
 {
 
 	struct Params p = input_params(argc, argv);
 
-	const unsigned long input_size =
-	    p.exp == 0 ? p.input_size * p.n_threads : p.input_size;
+	const unsigned long input_size = p.exp == 0 ? p.input_size * p.n_threads : p.input_size;
 
 	// Create an input file with arbitrary data.
-    /**
-    * @brief creates a "test file" by filling a buffer of 64MB with pseudo-random values
-    * @param nr_elements how many 32-bit elements we want the file to be
-    * @return the buffer address
-    */
+	/**
+	 * @brief creates a "test file" by filling a buffer of 64MB with pseudo-random values
+	 * @param nr_elements how many 32-bit elements we want the file to be
+	 * @return the buffer address
+	 */
 	srand(0);
 
 #if NUMA
@@ -196,11 +272,11 @@ int main(int argc, char **argv)
 		numa_set_membind(p.bitmask_in);
 		numa_free_nodemask(p.bitmask_in);
 	}
-	A = (T *) numa_alloc(input_size * sizeof(T));
-	B = (T *) numa_alloc(input_size * sizeof(T));
+	A = (T*)numa_alloc(input_size * sizeof(T));
+	B = (T*)numa_alloc(input_size * sizeof(T));
 #else
-	A = (T *) malloc(input_size * sizeof(T));
-	B = (T *) malloc(input_size * sizeof(T));
+	A = (T*)malloc(input_size * sizeof(T));
+	B = (T*)malloc(input_size * sizeof(T));
 #endif
 
 #if NUMA
@@ -208,16 +284,16 @@ int main(int argc, char **argv)
 		numa_set_membind(p.bitmask_out);
 		numa_free_nodemask(p.bitmask_out);
 	}
-	C = (T *) numa_alloc(input_size * sizeof(T));
+	C = (T*)numa_alloc(input_size * sizeof(T));
 #else
-	C = (T *) malloc(input_size * sizeof(T));
+	C = (T*)malloc(input_size * sizeof(T));
 #endif
 
 	omp_set_num_threads(p.n_threads);
-	#pragma omp parallel for
+#pragma omp parallel for
 	for (unsigned long i = 0; i < input_size; i++) {
-		A[i] = (T) i % (1<<31) + 5;
-		B[i] = (T) i % (1<<31) + 6;
+		A[i] = (T)i % (1 << 31) + 5;
+		B[i] = (T)i % (1 << 31) + 6;
 	}
 
 #if NUMA
@@ -227,12 +303,12 @@ int main(int argc, char **argv)
 		numa_free_nodemask(p.bitmask_cpu);
 	}
 #else
-	struct bitmask *bitmask_all = numa_allocate_nodemask();
+	struct bitmask* bitmask_all = numa_allocate_nodemask();
 	numa_bitmask_setall(bitmask_all);
 	numa_set_membind(bitmask_all);
 	numa_free_nodemask(bitmask_all);
-#endif				// NUMA_MEMCPY
-#endif				// NUMA
+#endif // NUMA_MEMCPY
+#endif // NUMA
 
 #if NUMA
 	mp_pages[0] = A;
@@ -264,7 +340,8 @@ int main(int argc, char **argv)
 
 #if NUMA_MEMCPY
 	numa_node_in_is_local = ((numa_node_cpu == numa_node_in)
-				 || (numa_node_cpu + 8 == numa_node_in)) * 1;
+	                            || (numa_node_cpu + 8 == numa_node_in))
+	    * 1;
 #endif
 
 #if WITH_BENCHMARK
@@ -273,7 +350,7 @@ int main(int argc, char **argv)
 
 #if NOP_SYNC
 	for (int rep = 0; rep < 200000; rep++) {
-		asm volatile ("nop"::);
+		asm volatile("nop" ::);
 	}
 #endif
 
@@ -283,14 +360,13 @@ int main(int argc, char **argv)
 		numa_node_cpu_memcpy = p.numa_node_cpu_memcpy;
 		start(&timer, 1, 0);
 		if (!numa_node_in_is_local) {
-			A_local = (T *) numa_alloc(input_size * sizeof(T));
-			B_local = (T *) numa_alloc(input_size * sizeof(T));
+			A_local = (T*)numa_alloc(input_size * sizeof(T));
+			B_local = (T*)numa_alloc(input_size * sizeof(T));
 		}
 		stop(&timer, 1);
 		if (!numa_node_in_is_local) {
 			if (p.numa_node_cpu_memcpy != -1) {
-				if (numa_run_on_node(p.numa_node_cpu_memcpy) ==
-				    -1) {
+				if (numa_run_on_node(p.numa_node_cpu_memcpy) == -1) {
 					perror("numa_run_on_node");
 					numa_node_cpu_memcpy = -1;
 				}
@@ -321,9 +397,32 @@ int main(int argc, char **argv)
 		}
 #endif
 
+#if WITH_PERF
+		for (unsigned long int i = 0; i < sizeof(perf_attrs) / sizeof(perf_attr_t); i++) {
+			perf_measurements[i] = perf_alloc(perf_attrs[i].type, perf_attrs[i].config, i);
+		}
+		for (unsigned long int i = 0; i < sizeof(perf_attrs) / sizeof(perf_attr_t); i++) {
+			perf_open_measurement(perf_measurements[i], -1, 0);
+		}
+		for (unsigned long int i = 0; i < sizeof(perf_attrs) / sizeof(perf_attr_t); i++) {
+			perf_start_measurement(perf_measurements[i]);
+		}
+#endif
+
 		start(&timer, 0, 0);
 		vector_addition_host(input_size, p.n_threads);
 		stop(&timer, 0);
+
+#if WITH_PERF
+		for (unsigned long int i = 0; i < sizeof(perf_attrs) / sizeof(perf_attr_t); i++) {
+			perf_stop_measurement(perf_measurements[i]);
+		}
+		for (unsigned long int i = 0; i < sizeof(perf_attrs) / sizeof(perf_attr_t); i++) {
+			perf_read_measurement(perf_measurements[i], &measurements[i], sizeof(measurement_t));
+			perf_close_measurement(perf_measurements[i]);
+			free((void*)perf_measurements[i]);
+		}
+#endif
 
 #if NUMA_MEMCPY
 		start(&timer, 3, 0);
@@ -339,51 +438,70 @@ int main(int argc, char **argv)
 #pragma omp parallel
 #pragma omp atomic
 		nr_threads++;
+#endif
 
+#if WITH_PERF
+		if (rep >= p.n_warmup) {
+			printf("[::] VA-CPU | n_threads=%d e_type=%s n_elements=%ld"
+#if NUMA
+			       " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+#endif
+			       " |",
+			    nr_threads, XSTR(T), input_size
+#if NUMA
+			    ,
+			    numa_node_in, numa_node_out, numa_node_cpu,
+			    numa_distance(numa_node_in, numa_node_cpu),
+			    numa_distance(numa_node_cpu, numa_node_out)
+#endif
+			);
+			for (unsigned long int i = 0; i < sizeof(perf_attrs) / sizeof(perf_attr_t); i++) {
+				printf(" %s=%lu", perf_attrs[i].desc, measurements[i].values[0].value);
+			}
+			printf("\n");
+		}
+#elif WITH_BENCHMARK
 		if (rep >= p.n_warmup) {
 #if NUMA_MEMCPY
-			printf
-			    ("[::] VA-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%ld"
-			     " numa_node_in=%d numa_node_local=%d numa_node_out=%d numa_node_cpu=%d numa_node_cpu_memcpy=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
-			     " | throughput_MBps=%f", nr_threads, XSTR(T),
-			     input_size, numa_node_in, numa_node_local,
-			     numa_node_out, numa_node_cpu, numa_node_cpu_memcpy,
-			     numa_distance(numa_node_in, numa_node_cpu),
-			     numa_distance(numa_node_cpu, numa_node_out),
-			     input_size * 3 * sizeof(T) / timer.time[0]);
+			printf("[::] VA-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%ld"
+			       " numa_node_in=%d numa_node_local=%d numa_node_out=%d numa_node_cpu=%d numa_node_cpu_memcpy=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+			       " | throughput_MBps=%f",
+			    nr_threads, XSTR(T),
+			    input_size, numa_node_in, numa_node_local,
+			    numa_node_out, numa_node_cpu, numa_node_cpu_memcpy,
+			    numa_distance(numa_node_in, numa_node_cpu),
+			    numa_distance(numa_node_cpu, numa_node_out),
+			    input_size * 3 * sizeof(T) / timer.time[0]);
 			printf(" throughput_MOpps=%f",
-			       input_size / timer.time[0]);
-			printf
-			    (" latency_kernel_us=%f latency_alloc_us=%f latency_memcpy_us=%f latency_free_us=%f latency_total_us=%f\n",
-			     timer.time[0], timer.time[1], timer.time[2],
-			     timer.time[3],
-			     timer.time[0] + timer.time[1] + timer.time[2] +
-			     timer.time[3]);
+			    input_size / timer.time[0]);
+			printf(" latency_kernel_us=%f latency_alloc_us=%f latency_memcpy_us=%f latency_free_us=%f latency_total_us=%f\n",
+			    timer.time[0], timer.time[1], timer.time[2],
+			    timer.time[3],
+			    timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3]);
 #else
-			printf
-			    ("[::] VA-CPU | n_threads=%d e_type=%s n_elements=%ld"
+			printf("[::] VA-CPU | n_threads=%d e_type=%s n_elements=%ld"
 #if NUMA
-			     " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+			       " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
-			     " | throughput_MBps=%f",
-			     nr_threads, XSTR(T), input_size,
+			       " | throughput_MBps=%f",
+			    nr_threads, XSTR(T), input_size,
 #if NUMA
-			     numa_node_in, numa_node_out, numa_node_cpu,
-			     numa_distance(numa_node_in, numa_node_cpu),
-			     numa_distance(numa_node_cpu, numa_node_out),
+			    numa_node_in, numa_node_out, numa_node_cpu,
+			    numa_distance(numa_node_in, numa_node_cpu),
+			    numa_distance(numa_node_cpu, numa_node_out),
 #endif
-			     input_size * 3 * sizeof(T) / timer.time[0]);
+			    input_size * 3 * sizeof(T) / timer.time[0]);
 			printf(" throughput_MOpps=%f",
-			       input_size / timer.time[0]);
+			    input_size / timer.time[0]);
 			printf(" latency_us=%f\n", timer.time[0]);
-#endif				// NUMA_MEMCPY
+#endif // NUMA_MEMCPY
 		}
-#endif				// WITH_BENCHMARK
+#endif // WITH_BENCHMARK
 	}
 
 #if NOP_SYNC
 	for (int rep = 0; rep < 200000; rep++) {
-		asm volatile ("nop"::);
+		asm volatile("nop" ::);
 	}
 #endif
 

@@ -4,6 +4,7 @@ native ?= 1
 nop_sync ?= 0
 numa ?= 0
 numa_memcpy ?= 0
+perf ?= 0
 
 CFLAGS = -DDFATOOL_TIMING=1
 LDFLAGS =
@@ -20,13 +21,18 @@ ifeq (${numa}, 1)
 	LDFLAGS += -lnuma
 endif
 
+ifeq (${perf}, 1)
+	CFLAGS += -I${HOME}/var/source/perf-api/build/include
+	LDFLAGS += ${HOME}/var/source/perf-api/build/lib/perf/libperf.a -lcap
+endif
+
 .PHONY: all
 all: va
 
 TYPE ?= int32_t
 
 va: app_baseline.c
-	gcc -Wall -Wextra -pedantic ${CFLAGS} -O3 -o va -fopenmp -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_BENCHMARK=${benchmark} -DT=${TYPE} app_baseline.c ${LDFLAGS}
+	gcc -Wall -Wextra -pedantic ${CFLAGS} -O3 -o va -fopenmp -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_BENCHMARK=${benchmark} -DT=${TYPE} -DWITH_PERF=${perf} app_baseline.c ${LDFLAGS}
 
 va_O0: app_baseline.c
 	gcc -o va_O0 -fopenmp app_baseline.c
