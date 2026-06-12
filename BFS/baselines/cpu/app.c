@@ -20,16 +20,23 @@ int numa_node_in = -1;
 int numa_node_cpu = -1;
 #endif
 
-#include "../../support/common.h"
-#include "../../support/graph.h"
-#include "../../support/params.h"
-#include "../../support/utils.h"
+#include "../../include/common.h"
+#include "../../include/graph.h"
+#include "../../include/params.h"
+#include "../../include/utils.h"
 
 #if WITH_BENCHMARK
-#include "../../support/timer.h"
+#include "../../include/timer.h"
 #else
 #define startTimer(...)
 #define stopTimer(...)
+#endif
+
+#if WITH_PERF
+#include "../../../include/perf.h"
+#else
+#define perf_start(...)
+#define perf_stop(...)
 #endif
 
 int main(int argc, char** argv)
@@ -70,6 +77,7 @@ int main(int argc, char** argv)
 #endif
 
 		// Calculating result on CPU
+		perf_start();
 		startTimer(&timer, 0, 0);
 		nodeLevel[srcNode] = 0;
 		prevFrontier[0] = srcNode;
@@ -110,6 +118,7 @@ int main(int argc, char** argv)
 			numPrevFrontier = numCurrFrontier;
 		}
 		stopTimer(&timer, 0);
+		perf_stop();
 
 #if NOP_SYNC
 		for (int rep = 0; rep < 200000; rep++) {
@@ -165,7 +174,6 @@ int main(int argc, char** argv)
 		}
 		stopTimer(&timer, 1);
 
-#if WITH_BENCHMARK
 		unsigned int nr_threads = 0;
 #pragma omp parallel
 #pragma omp atomic
@@ -181,6 +189,11 @@ int main(int argc, char** argv)
 		}
 
 		if (isOK) {
+#if WITH_PERF
+			printf("[::] BFS CPU | n_threads=%d e_type=%s n_elements=%d |",
+			    nr_threads, "uint32_t", csrGraph.numNodes);
+			perf_print();
+#elif WITH_BENCHMARK
 			printf("[::] BFS CPU | n_threads=%d e_type=%s n_elements=%d "
 			       "| throughput_seq_MBps=%f throughput_MBps=%f",
 			    nr_threads, "uint32_t", csrGraph.numNodes,
@@ -192,8 +205,8 @@ int main(int argc, char** argv)
 			printf(" latency_us=%f latency_seq_us=%f\n",
 			    timer.time[0],
 			    timer.time[1]);
-		}
 #endif // WITH_BENCHMARK
+		}
 
 		freeCSRGraph(csrGraph);
 		free(nodeLevel);

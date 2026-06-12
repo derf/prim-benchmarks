@@ -3,6 +3,7 @@ debug ?= 0
 native ?= 1
 nop_sync ?= 0
 numa ?= 0
+perf ?= 0
 
 LDFLAGS =
 CFLAGS =
@@ -19,8 +20,13 @@ ifeq (${numa}, 1)
 	LDFLAGS += -lnuma
 endif
 
+ifeq (${perf}, 1)
+	CFLAGS += -I${HOME}/var/source/perf-api/build/include
+	LDFLAGS += ${HOME}/var/source/perf-api/build/lib/perf/libperf.a -lcap
+endif
+
 bfs: app.c
-	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_BENCHMARK=${benchmark} -o bfs -fopenmp app.c ${LDFLAGS}
+	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_BENCHMARK=${benchmark} -DWITH_PERF=${perf} -DDFATOOL_TIMING=${benchmark} -o bfs -fopenmp app.c ${LDFLAGS}
 
 bfs_O0: app.c
 	gcc -o bfs_O0 -fopenmp app.c
