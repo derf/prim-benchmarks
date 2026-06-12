@@ -15,6 +15,13 @@
 #define stop(...)
 #endif
 
+#if WITH_PERF
+#include "../../../include/perf.h"
+#else
+#define perf_start(...)
+#define perf_stop(...)
+#endif
+
 #if NUMA
 #include <numaif.h>
 #include <numa.h>
@@ -214,6 +221,7 @@ int main(int argc, char **argv)
 	}
 #endif
 
+	perf_start();
 	start(&timer, 0, 0);
 #if NUMA_MEMCPY
 	result_host =
@@ -222,6 +230,7 @@ int main(int argc, char **argv)
 	result_host = binarySearch(input, input_size - 1, querys, n_querys);
 #endif
 	stop(&timer, 0);
+	perf_stop();
 
 #if NOP_SYNC
 	for (int rep = 0; rep < 200000; rep++) {
@@ -246,6 +255,22 @@ int main(int argc, char **argv)
 	nr_threads++;
 
 	if (status) {
+#if WITH_PERF
+			printf("[::] binarySearch | n_threads=%d e_type=%s n_elements=%lu"
+#if NUMA
+					" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+#endif
+					" |",
+				nr_threads, "uint64_t", input_size
+#if NUMA
+				,
+				numa_node_in, numa_node_out, numa_node_cpu,
+				numa_distance(numa_node_in, numa_node_cpu),
+				numa_distance(numa_node_cpu, numa_node_out)
+#endif
+			);
+		perf_print();
+#else
 #if NUMA_MEMCPY
 		printf
 		    ("[::] BS-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%lu"
@@ -274,6 +299,7 @@ int main(int argc, char **argv)
 		       n_querys * sizeof(DTYPE) / timer.time[0]);
 		printf(" throughput_MOpps=%f latency_us=%f\n",
 		       n_querys / timer.time[0], timer.time[0]);
+#endif
 #endif
 	} else {
 		printf("[ERROR]\n");
