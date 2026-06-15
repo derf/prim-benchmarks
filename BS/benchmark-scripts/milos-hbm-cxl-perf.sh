@@ -1,10 +1,10 @@
 #!/bin/bash
 
 cd baselines/cpu
-make -B dfatool_timing=1 numa=1 perf=0
+make -B dfatool_timing=0 numa=0 perf=1
 
 mkdir -p log/$(hostname)
-fn=log/$(hostname)/milos-hbm-cxl-perf
+fn=log/$(hostname)/milos-hbm-cxl
 
 run_benchmark() {
 	local "$@"

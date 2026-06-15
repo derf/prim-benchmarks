@@ -101,17 +101,30 @@ uint64_t binarySearch(DTYPE* input, uint64_t input_size, DTYPE* querys,
  */
 int main(int argc, char** argv)
 {
-	(void)argc;
 #if WITH_BENCHMARK
 	Timer timer;
 #endif
 	uint64_t input_size = atol(argv[1]);
 	uint64_t n_querys = atol(argv[2]);
+
+	if (argc < 3) {
+		printf("Usage: ./bs_omp <input_size> <n_queries>\n");
+		return 1;
+	}
+
 #if NUMA
+	if (argc < 5) {
+		printf("Usage: ./bs_omp <input_size> <n_queries> <numa_data_in> <numa_compute>\n");
+		return 1;
+	}
 	bitmask_in = numa_parse_nodestring(argv[3]);
 	numa_node_cpu = atoi(argv[4]);
 #endif
 #if NUMA_MEMCPY
+	if (argc < 7) {
+		printf("Usage: ./bs_omp <input_size> <n_queries> <numa_data_in> <numa_compute> <numa_memcpy> <numa_memcpy>\n");
+		return 1;
+	}
 	bitmask_cpu = numa_parse_nodestring(argv[5]);
 	numa_node_cpu_memcpy = atoi(argv[6]);
 #endif
@@ -247,7 +260,6 @@ int main(int argc, char** argv)
 #endif
 
 	int status = (result_host);
-#if WITH_BENCHMARK
 	unsigned int nr_threads = 0;
 #pragma omp parallel
 #pragma omp atomic
@@ -257,19 +269,18 @@ int main(int argc, char** argv)
 #if WITH_PERF
 		printf("[::] binarySearch | n_threads=%d e_type=%s n_elements=%lu"
 #if NUMA
-		       " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+		       " numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
 #endif
 		       " |",
 		    nr_threads, "uint64_t", input_size
 #if NUMA
 		    ,
-		    numa_node_in, numa_node_out, numa_node_cpu,
-		    numa_distance(numa_node_in, numa_node_cpu),
-		    numa_distance(numa_node_cpu, numa_node_out)
+		    numa_node_in, numa_node_cpu,
+		    numa_distance(numa_node_in, numa_node_cpu)
 #endif
 		);
 		perf_print();
-#else
+#elif WITH_BENCHMARK
 #if NUMA_MEMCPY
 		printf("[::] BS-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%lu"
 		       " numa_node_in=%d numa_node_local=%d numa_node_cpu=%d numa_node_cpu_memcpy=%d numa_distance_in_cpu=%d"
@@ -295,12 +306,11 @@ int main(int argc, char** argv)
 		    n_querys * sizeof(DTYPE) / timer.time[0]);
 		printf(" throughput_MOpps=%f latency_us=%f\n",
 		    n_querys / timer.time[0], timer.time[0]);
-#endif
-#endif
+#endif // NUMA_MEMCPY
+#endif // WITH_BENCHMARK
 	} else {
 		printf("[ERROR]\n");
 	}
-#endif // WITH_BENCHMARK
 
 #if NUMA
 	numa_free(input, input_size * sizeof(DTYPE));

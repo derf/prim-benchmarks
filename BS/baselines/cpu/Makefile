@@ -32,23 +32,11 @@ all: bs_omp
 bs_omp: bs_omp.c
 	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_BENCHMARK=${dfatool_timing} -DWITH_PERF=${perf} bs_omp.c -o bs_omp -fopenmp ${LDFLAGS}
 
-bs_omp_O0: bs_omp.c
-	gcc bs_omp.c -o bs_omp_O0 -fopenmp
-
-bs_omp_O2: bs_omp.c
-	gcc -O2 bs_omp.c -o bs_omp_O2 -fopenmp
-
 # bs_omp performs a single iteration and must be run in a loop for proper benchmarks
 
-.PHONY: run run_O0 run_O2
+.PHONY: run
 run: bs_omp
 	./bs_omp 262144 16777216
-
-run_O0: bs_omp_O0
-	./bs_omp_O0 262144 16777216
-
-run_O2: bs_omp_O2
-	./bs_omp_O2 262144 16777216
 
 .PHONY: clean
 clean:
