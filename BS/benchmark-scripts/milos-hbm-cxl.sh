@@ -4,7 +4,13 @@ cd baselines/cpu
 make -B dfatool_timing=1 numa=1 perf=0
 
 mkdir -p log/$(hostname)
-fn=log/$(hostname)/milos-hbm-cxl-perf
+fn=log/$(hostname)/milos-hbm-cxl
+
+# 2^28 elements * 8 B == 2 GiB
+input_size=$((2**28))
+
+# 2^24 queries * 8 B == 128 MiB
+num_queries=$((2**24))
 
 run_benchmark() {
 	local "$@"
@@ -18,13 +24,8 @@ run_benchmark() {
 
 export -f run_benchmark
 
-# 2^28 elements * 8 B == 2 GiB
-# 2^24 queries * 8 B == 128 MiB
-
 parallel -j1 --eta --joblog ${fn}.joblog --header : \
-	run_benchmark nr_threads={nr_threads} ram={ram} cpu={cpu} \
-		::: input_size $((2**28)) \
-		::: num_queeries $((2**24)) \
+	run_benchmark nr_threads={nr_threads} ram={ram} cpu={cpu} input_size=${input_size} num_queries=${num_queries} \
 		::: nr_threads 1 2 4 8 12 16 \
 		::: cpu $(seq 0 7) \
 		::: ram $(seq 0 17) \
