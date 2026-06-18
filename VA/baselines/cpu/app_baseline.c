@@ -22,7 +22,9 @@
 #endif
 
 #if WITH_PERF_LIB
-#include "../../../include/perf.h"
+#include "../../../include/perf-lib.h"
+#elif WITH_PERF_EXT
+#include "../../../include/perf-ext.h"
 #else
 #define perf_start(...)
 #define perf_stop(...)
@@ -328,11 +330,19 @@ int main(int argc, char** argv)
 		}
 #endif
 
-		perf_start();
+		if (rep >= p.n_warmup) {
+			if (perf_start() != 0) {
+				return 1;
+			}
+		}
 		start(&timer, 0, 0);
 		vector_addition_host(input_size, p.n_threads);
 		stop(&timer, 0);
-		perf_stop();
+		if (rep >= p.n_warmup) {
+			if (perf_stop() != 0) {
+				return 1;
+			}
+		}
 
 #if NUMA_MEMCPY
 		start(&timer, 3, 0);

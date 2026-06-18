@@ -26,7 +26,7 @@ typedef struct {
  * - vector instructions
  * - stalled core cycles
  * - total core cycles
- * - reference cycles
+ * - reference cycles (→ IPC)
  * - idle FPU cycles
  * - interrupts
  * All of them normalized to #instr / #refcycles
@@ -38,6 +38,11 @@ typedef struct {
  */
 perf_attr_t perf_attrs[] = {
 	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_INSTRUCTIONS, "instr" },
+
+	/*
+	 * used by bailey2014icpp
+	 */
+	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_REF_CPU_CYCLES, "cycles" },
 	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_REFERENCES, "cache_ref" },
 	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_CACHE_MISSES, "cache_miss" },
 	{ PERF_TYPE_HARDWARE, PERF_COUNT_HW_BRANCH_INSTRUCTIONS, "branch" },
@@ -72,6 +77,10 @@ perf_attr_t perf_attrs[] = {
 	        | (PERF_COUNT_HW_CACHE_OP_READ << 8)
 	        | (PERF_COUNT_HW_CACHE_RESULT_ACCESS << 16),
 	    "tlb_read" },
+
+	/*
+	 * used by bailey2014icpp
+	 */
 	{ PERF_TYPE_HW_CACHE,
 	    PERF_COUNT_HW_CACHE_DTLB
 	        | (PERF_COUNT_HW_CACHE_OP_READ << 8)
@@ -96,7 +105,7 @@ perf_measurement_t* perf_alloc(int type, int config, unsigned long int attr_idx)
 	return ret;
 }
 
-void perf_start()
+int perf_start()
 {
 	int group = -1;
 	for (unsigned long int i = 0; i < sizeof(perf_attrs) / sizeof(perf_attr_t); i++) {
@@ -111,9 +120,10 @@ void perf_start()
 	for (unsigned long int i = 0; i < sizeof(perf_attrs) / sizeof(perf_attr_t); i++) {
 		perf_start_measurement(perf_measurements[i]);
 	}
+	return 0;
 }
 
-void perf_stop()
+int perf_stop()
 {
 	for (unsigned long int i = 0; i < sizeof(perf_attrs) / sizeof(perf_attr_t); i++) {
 		perf_stop_measurement(perf_measurements[i]);
@@ -123,6 +133,7 @@ void perf_stop()
 		perf_close_measurement(perf_measurements[i]);
 		free((void*)perf_measurements[i]);
 	}
+	return 0;
 }
 
 void perf_print()

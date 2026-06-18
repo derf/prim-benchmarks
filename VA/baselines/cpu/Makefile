@@ -4,6 +4,7 @@ native ?= 1
 nop_sync ?= 0
 numa ?= 0
 numa_memcpy ?= 0
+perf_ext ?= 0
 perf_lib ?= 0
 
 CFLAGS = -DDFATOOL_TIMING=1
@@ -32,7 +33,7 @@ all: va
 TYPE ?= int32_t
 
 va: app_baseline.c
-	gcc -Wall -Wextra -pedantic ${CFLAGS} -O3 -o va -fopenmp -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_BENCHMARK=${benchmark} -DT=${TYPE} -DWITH_PERF_LIB=${perf_lib} app_baseline.c ${LDFLAGS}
+	gcc -Wall -Wextra -pedantic ${CFLAGS} -O3 -o va -fopenmp -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_BENCHMARK=${benchmark} -DT=${TYPE} -DWITH_PERF_EXT=${perf_ext} -DWITH_PERF_LIB=${perf_lib} app_baseline.c ${LDFLAGS}
 
 .PHONY: run
 run: va
