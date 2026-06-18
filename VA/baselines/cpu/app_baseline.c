@@ -21,7 +21,7 @@
 #define stop(...)
 #endif
 
-#if WITH_PERF
+#if WITH_PERF_LIB
 #include "../../../include/perf.h"
 #else
 #define perf_start(...)
@@ -343,14 +343,12 @@ int main(int argc, char** argv)
 		stop(&timer, 3);
 #endif
 
-#if WITH_BENCHMARK
 		unsigned int nr_threads = 0;
 #pragma omp parallel
 #pragma omp atomic
 		nr_threads++;
-#endif
 
-#if WITH_PERF
+#if WITH_PERF_LIB
 		if (rep >= p.n_warmup) {
 			printf("[::] vector_addition_host | n_threads=%d e_type=%s n_elements=%ld"
 #if NUMA
