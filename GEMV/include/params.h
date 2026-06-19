@@ -1,13 +1,17 @@
 #ifndef _PARAMS_H_
 #define _PARAMS_H_
-
-#include "common.h"
+#include <unistd.h>
 
 typedef struct Params {
 	unsigned int m_size;
 	unsigned int n_size;
 	unsigned int n_warmup;
 	unsigned int n_reps;
+#if NUMA
+	struct bitmask* bitmask_in;
+	struct bitmask* bitmask_out;
+	int numa_node_cpu;
+#endif
 } Params;
 
 static void usage()
@@ -33,9 +37,14 @@ struct Params input_params(int argc, char** argv)
 	p.n_size = 8192;
 	p.n_warmup = 1;
 	p.n_reps = 3;
+#if NUMA
+	p.bitmask_in = NULL;
+	p.bitmask_out = NULL;
+	p.numa_node_cpu = -1;
+#endif
 
 	int opt;
-	while ((opt = getopt(argc, argv, "hm:n:w:e:")) >= 0) {
+	while ((opt = getopt(argc, argv, "hm:n:w:e:A:B:C:")) >= 0) {
 		switch (opt) {
 		case 'h':
 			usage();
@@ -53,6 +62,17 @@ struct Params input_params(int argc, char** argv)
 		case 'e':
 			p.n_reps = atoi(optarg);
 			break;
+#if NUMA
+		case 'A':
+			p.bitmask_in = numa_parse_nodestring(optarg);
+			break;
+		case 'B':
+			p.bitmask_out = numa_parse_nodestring(optarg);
+			break;
+		case 'C':
+			p.numa_node_cpu = atoi(optarg);
+			break;
+#endif
 		default:
 			fprintf(stderr, "\nUnrecognized option!\n");
 			usage();
