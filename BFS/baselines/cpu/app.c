@@ -25,7 +25,7 @@ int numa_node_cpu = -1;
 #include "../../include/params.h"
 #include "../../include/utils.h"
 
-#if WITH_BENCHMARK
+#if DFATOOL_TIMING
 #include "../../include/timer.h"
 #else
 #define startTimer(...)
@@ -66,7 +66,7 @@ int main(int argc, char** argv)
 	struct COOGraph cooGraph = readCOOGraph(p.fileName);
 	PRINT_INFO(p.verbosity >= 1, "    Graph has %d nodes and %d edges", cooGraph.numNodes, cooGraph.numEdges);
 
-#if WITH_BENCHMARK
+#if DFATOOL_TIMING
 	Timer timer;
 #endif
 	for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
@@ -251,7 +251,7 @@ int main(int argc, char** argv)
 #endif
 			);
 			perf_print();
-#elif WITH_BENCHMARK
+#elif DFATOOL_TIMING
 			printf("[::] BFS CPU | n_threads=%d e_type=%s n_elements=%d"
 #if NUMA
 			       " numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
@@ -269,7 +269,7 @@ int main(int argc, char** argv)
 			printf(" latency_us=%f latency_seq_us=%f\n",
 			    timer.time[0],
 			    timer.time[1]);
-#endif // WITH_BENCHMARK
+#endif // DFATOOL_TIMING
 		}
 
 		freeCSRGraph(csrGraph);

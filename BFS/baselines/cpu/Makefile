@@ -1,4 +1,4 @@
-benchmark ?= 1
+dfatool_timing ?= 1
 debug ?= 0
 native ?= 1
 nop_sync ?= 0
@@ -27,7 +27,7 @@ ifeq (${perf_lib}, 1)
 endif
 
 bfs: app.c
-	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_BENCHMARK=${benchmark} -DWITH_PERF_EXT=${perf_ext} -DWITH_PERF_LIB=${perf_lib} -DDFATOOL_TIMING=${benchmark} -o bfs -fopenmp app.c ${LDFLAGS}
+	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_PERF_EXT=${perf_ext} -DWITH_PERF_LIB=${perf_lib} -DDFATOOL_TIMING=${dfatool_timing} -o bfs -fopenmp app.c ${LDFLAGS}
 
 .PHONY: run
 run: bfs
