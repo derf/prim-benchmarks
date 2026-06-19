@@ -32,8 +32,10 @@ int numa_node_cpu = -1;
 #define stopTimer(...)
 #endif
 
-#if WITH_PERF
-#include "../../../include/perf.h"
+#if WITH_PERF_LIB
+#include "../../../include/perf-lib.h"
+#elif WITH_PERF_EXT
+#include "../../../include/perf-ext.h"
 #else
 #define perf_start(...)
 #define perf_stop(...)
@@ -45,6 +47,20 @@ int main(int argc, char** argv)
 	// Process parameters
 	struct Params p = input_params(argc, argv);
 
+#if NUMA
+	if (p.bitmask_in) {
+		numa_set_membind(p.bitmask_in);
+	}
+	if (p.numa_node_cpu != -1) {
+		if (numa_run_on_node(p.numa_node_cpu) == -1) {
+			perror("numa_run_on_node");
+			numa_node_cpu = -1;
+		} else {
+			numa_node_cpu = p.numa_node_cpu;
+		}
+	}
+#endif
+
 	// Initialize BFS data structures
 	PRINT_INFO(p.verbosity >= 1, "Reading graph %s", p.fileName);
 	struct COOGraph cooGraph = readCOOGraph(p.fileName);
@@ -53,11 +69,26 @@ int main(int argc, char** argv)
 #if WITH_BENCHMARK
 	Timer timer;
 #endif
-	for (int rep = 0; rep < 100; rep++) {
+	for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
 		struct CSRGraph csrGraph = coo2csr(cooGraph);
+#if NUMA
+		if (p.bitmask_in) {
+			mp_pages[0] = csrGraph.nodePtrs;
+			if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+				perror("move_pages(A)");
+			} else if (mp_status[0] < 0) {
+				printf("move_pages error %d\n", mp_status[0]);
+			} else {
+				numa_node_in = mp_status[0];
+			}
+		}
+		uint32_t* nodeLevel = (uint32_t*)numa_alloc(csrGraph.numNodes * sizeof(uint32_t));
+		uint32_t* nodeLevelRef = (uint32_t*)numa_alloc(csrGraph.numNodes * sizeof(uint32_t));
+#else
 		uint32_t* nodeLevel = (uint32_t*)malloc(csrGraph.numNodes * sizeof(uint32_t));
 		uint32_t* nodeLevelRef = (uint32_t*)malloc(csrGraph.numNodes * sizeof(uint32_t));
+#endif
 		for (uint32_t i = 0; i < csrGraph.numNodes; ++i) {
 			nodeLevel[i] = UINT32_MAX; // Unreachable
 			nodeLevelRef[i] = UINT32_MAX; // Unreachable
@@ -65,8 +96,13 @@ int main(int argc, char** argv)
 		uint32_t srcNode = 0;
 
 		// Initialize frontier double buffers
+#if NUMA
+		uint32_t* buffer1 = (uint32_t*)numa_alloc(csrGraph.numNodes * sizeof(uint32_t));
+		uint32_t* buffer2 = (uint32_t*)numa_alloc(csrGraph.numNodes * sizeof(uint32_t));
+#else
 		uint32_t* buffer1 = (uint32_t*)malloc(csrGraph.numNodes * sizeof(uint32_t));
 		uint32_t* buffer2 = (uint32_t*)malloc(csrGraph.numNodes * sizeof(uint32_t));
+#endif
 		uint32_t* prevFrontier = buffer1;
 		uint32_t* currFrontier = buffer2;
 
@@ -77,8 +113,10 @@ int main(int argc, char** argv)
 #endif
 
 		// Calculating result on CPU
-		perf_start();
-		startTimer(&timer, 0, 0);
+		if (rep >= p.n_warmup) {
+			perf_start();
+			startTimer(&timer, 0, 0);
+		}
 		nodeLevel[srcNode] = 0;
 		prevFrontier[0] = srcNode;
 		uint32_t numPrevFrontier = 1;
@@ -117,8 +155,10 @@ int main(int argc, char** argv)
 			currFrontier = tmp;
 			numPrevFrontier = numCurrFrontier;
 		}
-		stopTimer(&timer, 0);
-		perf_stop();
+		if (rep >= p.n_warmup) {
+			stopTimer(&timer, 0);
+			perf_stop();
+		}
 
 #if NOP_SYNC
 		for (int rep = 0; rep < 200000; rep++) {
@@ -127,8 +167,13 @@ int main(int argc, char** argv)
 #endif
 
 		freeCSRGraph(csrGraph);
+#if NUMA
+		numa_free(buffer1, csrGraph.numNodes * sizeof(uint32_t));
+		numa_free(buffer2, csrGraph.numNodes * sizeof(uint32_t));
+#else
 		free(buffer1);
 		free(buffer2);
+#endif
 
 		csrGraph = coo2csr(cooGraph);
 		srcNode = 0;
@@ -140,7 +185,9 @@ int main(int argc, char** argv)
 		currFrontier = buffer2;
 
 		// Calculating result on CPU sequentially
-		startTimer(&timer, 1, 0);
+		if (rep >= p.n_warmup) {
+			startTimer(&timer, 1, 0);
+		}
 		nodeLevelRef[srcNode] = 0;
 		prevFrontier[0] = srcNode;
 		numPrevFrontier = 1;
@@ -172,7 +219,9 @@ int main(int argc, char** argv)
 			currFrontier = tmp;
 			numPrevFrontier = numCurrFrontier;
 		}
-		stopTimer(&timer, 1);
+		if (rep >= p.n_warmup) {
+			stopTimer(&timer, 1);
+		}
 
 		unsigned int nr_threads = 0;
 #pragma omp parallel
@@ -188,15 +237,30 @@ int main(int argc, char** argv)
 			}
 		}
 
-		if (isOK) {
-#if WITH_PERF
-			printf("[::] BFS CPU | n_threads=%d e_type=%s n_elements=%d |",
-			    nr_threads, "uint32_t", csrGraph.numNodes);
+		if (isOK && (rep >= p.n_warmup)) {
+#if WITH_PERF_LIB
+			printf("[::] BFS CPU | n_threads=%d e_type=%s n_elements=%d"
+#if NUMA
+					" numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
+#endif
+				" |",
+			    nr_threads, "uint32_t", csrGraph.numNodes
+#if NUMA
+				,
+				numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu)
+#endif
+				);
 			perf_print();
 #elif WITH_BENCHMARK
-			printf("[::] BFS CPU | n_threads=%d e_type=%s n_elements=%d "
-			       "| throughput_seq_MBps=%f throughput_MBps=%f",
+			printf("[::] BFS CPU | n_threads=%d e_type=%s n_elements=%d"
+#if NUMA
+					" numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
+#endif
+			       " | throughput_seq_MBps=%f throughput_MBps=%f",
 			    nr_threads, "uint32_t", csrGraph.numNodes,
+#if NUMA
+				   numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu),
+#endif
 			    csrGraph.numNodes * sizeof(uint32_t) / timer.time[1],
 			    csrGraph.numNodes * sizeof(uint32_t) / timer.time[0]);
 			printf(" throughput_seq_MOpps=%f throughput_MOpps=%f",
@@ -209,10 +273,17 @@ int main(int argc, char** argv)
 		}
 
 		freeCSRGraph(csrGraph);
+#if NUMA
+		numa_free(nodeLevel, csrGraph.numNodes * sizeof(uint32_t));
+		numa_free(nodeLevelRef, csrGraph.numNodes * sizeof(uint32_t));
+		numa_free(buffer1, csrGraph.numNodes * sizeof(uint32_t));
+		numa_free(buffer2, csrGraph.numNodes * sizeof(uint32_t));
+#else
 		free(nodeLevel);
 		free(nodeLevelRef);
 		free(buffer1);
 		free(buffer2);
+#endif
 	}
 
 	// Deallocate data structures

@@ -49,10 +49,17 @@ static struct COOGraph readCOOGraph(const char *fileName)
 		     cooGraph.numNodes);
 	}
 	assert(fscanf(fp, "%u", &cooGraph.numEdges));
+#if NUMA
+	cooGraph.nodeIdxs =
+	    (uint32_t *) numa_alloc(cooGraph.numEdges * sizeof(uint32_t));
+	cooGraph.neighborIdxs =
+	    (uint32_t *) numa_alloc(cooGraph.numEdges * sizeof(uint32_t));
+#else
 	cooGraph.nodeIdxs =
 	    (uint32_t *) malloc(cooGraph.numEdges * sizeof(uint32_t));
 	cooGraph.neighborIdxs =
 	    (uint32_t *) malloc(cooGraph.numEdges * sizeof(uint32_t));
+#endif
 
 	// Read the neighborIdxs
 	for (uint32_t edgeIdx = 0; edgeIdx < cooGraph.numEdges; ++edgeIdx) {
@@ -70,8 +77,13 @@ static struct COOGraph readCOOGraph(const char *fileName)
 
 static void freeCOOGraph(struct COOGraph cooGraph)
 {
+#if NUMA
+	numa_free(cooGraph.nodeIdxs, cooGraph.numEdges * sizeof(uint32_t));
+	numa_free(cooGraph.neighborIdxs, cooGraph.numEdges * sizeof(uint32_t));
+#else
 	free(cooGraph.nodeIdxs);
 	free(cooGraph.neighborIdxs);
+#endif
 }
 
 static struct CSRGraph coo2csr(struct COOGraph cooGraph)
@@ -82,6 +94,16 @@ static struct CSRGraph coo2csr(struct COOGraph cooGraph)
 	// Initialize fields
 	csrGraph.numNodes = cooGraph.numNodes;
 	csrGraph.numEdges = cooGraph.numEdges;
+#if NUMA
+	csrGraph.nodePtrs =
+	    (uint32_t *)
+	    numa_alloc(ROUND_UP_TO_MULTIPLE_OF_2(csrGraph.numNodes + 1) *
+		   sizeof(uint32_t));
+	csrGraph.neighborIdxs =
+	    (uint32_t *)
+	    numa_alloc(ROUND_UP_TO_MULTIPLE_OF_8
+		   (csrGraph.numEdges * sizeof(uint32_t)));
+#else
 	csrGraph.nodePtrs =
 	    (uint32_t *)
 	    calloc(ROUND_UP_TO_MULTIPLE_OF_2(csrGraph.numNodes + 1),
@@ -90,6 +112,7 @@ static struct CSRGraph coo2csr(struct COOGraph cooGraph)
 	    (uint32_t *)
 	    malloc(ROUND_UP_TO_MULTIPLE_OF_8
 		   (csrGraph.numEdges * sizeof(uint32_t)));
+#endif
 
 	// Histogram nodeIdxs
 	for (uint32_t i = 0; i < cooGraph.numEdges; ++i) {
@@ -126,8 +149,15 @@ static struct CSRGraph coo2csr(struct COOGraph cooGraph)
 
 static void freeCSRGraph(struct CSRGraph csrGraph)
 {
+#if NUMA
+	numa_free(csrGraph.nodePtrs, ROUND_UP_TO_MULTIPLE_OF_2(csrGraph.numNodes + 1) *
+		   sizeof(uint32_t));
+	numa_free(csrGraph.neighborIdxs, ROUND_UP_TO_MULTIPLE_OF_8
+		   (csrGraph.numEdges * sizeof(uint32_t)));
+#else
 	free(csrGraph.nodePtrs);
 	free(csrGraph.neighborIdxs);
+#endif
 }
 
 #endif

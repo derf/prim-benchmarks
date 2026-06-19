@@ -12,6 +12,8 @@ static void usage()
 	      "\nBenchmark-specific options:"
 	      "\n    -d <n>    input matrix depth (only needed for dfatool)"
 	      "\n    -f <F>    input matrix file name (default=data/roadNet-CA.txt)"
+	      "\n    -w <W>    # of untimed warmup iterations (default=1)"
+	      "\n    -e <E>    # of timed repetition iterations (default=3)"
 	      "\n"
 	      "\nGeneral options:"
 	      "\n    -v <V>    verbosity" "\n    -h        help" "\n\n");
@@ -20,6 +22,8 @@ static void usage()
 typedef struct Params {
 	const char *fileName;
 	unsigned int depth;
+	int n_warmup;
+	int n_reps;
 	unsigned int verbosity;
 #if NUMA
 	struct bitmask *bitmask_in;
@@ -33,12 +37,14 @@ static struct Params input_params(int argc, char **argv)
 	p.fileName = "data/roadNet-CA.txt";
 	p.verbosity = 0;
 	p.depth = 0;
+	p.n_warmup = 1;
+	p.n_reps = 3;
 #if NUMA
 	p.bitmask_in = NULL;
 	p.numa_node_cpu = -1;
 #endif
 	int opt;
-	while ((opt = getopt(argc, argv, "d:f:v:hA:C:")) >= 0) {
+	while ((opt = getopt(argc, argv, "d:f:v:w:e:hA:C:")) >= 0) {
 		switch (opt) {
 		case 'd':
 			p.depth = atoi(optarg);
@@ -48,6 +54,12 @@ static struct Params input_params(int argc, char **argv)
 			break;
 		case 'v':
 			p.verbosity = atoi(optarg);
+			break;
+		case 'w':
+			p.n_warmup = atoi(optarg);
+			break;
+		case 'e':
+			p.n_reps = atoi(optarg);
 			break;
 #if NUMA
 		case 'A':
