@@ -12,18 +12,20 @@ typedef struct Params {
 void usage()
 {
 	fprintf(stderr,
-		"\nUsage:  ./program [options]"
-		"\n"
-		"\nGeneral options:"
-		"\n    -h        help"
-		"\n    -w <W>    # of untimed warmup iterations (default=1)"
-		"\n    -e <E>    # of timed repetition iterations (default=3)"
-		"\n"
-		"\nBenchmark-specific options:"
-		"\n    -i <I>    problem size (default=%d queries)" "\n", PROBLEM_SIZE);
+	    "\nUsage:  ./program [options]"
+	    "\n"
+	    "\nGeneral options:"
+	    "\n    -h        help"
+	    "\n    -w <W>    # of untimed warmup iterations (default=1)"
+	    "\n    -e <E>    # of timed repetition iterations (default=3)"
+	    "\n"
+	    "\nBenchmark-specific options:"
+	    "\n    -i <I>    problem size (default=%d queries)"
+	    "\n",
+	    PROBLEM_SIZE);
 }
 
-struct Params input_params(int argc, char **argv)
+struct Params input_params(int argc, char** argv)
 {
 	struct Params p;
 	p.num_querys = PROBLEM_SIZE;

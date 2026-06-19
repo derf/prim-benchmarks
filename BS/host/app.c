@@ -1,16 +1,16 @@
 /**
-* app.c
-* BS Host Application Source File
-*
-*/
+ * app.c
+ * BS Host Application Source File
+ *
+ */
+#include <assert.h>
+#include <getopt.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
-#include <unistd.h>
-#include <getopt.h>
-#include <assert.h>
 #include <time.h>
+#include <unistd.h>
 
 #if ASPECTC
 extern "C" {
@@ -39,8 +39,8 @@ extern "C" {
 #define DPU_BINARY "./bin/bs_dpu"
 
 // Create input arrays
-void create_test_file(DTYPE *input, DTYPE *querys, uint64_t nr_elements,
-		      uint64_t nr_querys)
+void create_test_file(DTYPE* input, DTYPE* querys, uint64_t nr_elements,
+    uint64_t nr_querys)
 {
 
 	input[0] = 1;
@@ -53,8 +53,8 @@ void create_test_file(DTYPE *input, DTYPE *querys, uint64_t nr_elements,
 }
 
 // Compute output in the host
-int64_t binarySearch(DTYPE *input, DTYPE *querys, DTYPE input_size,
-		     uint64_t num_querys)
+int64_t binarySearch(DTYPE* input, DTYPE* querys, DTYPE input_size,
+    uint64_t num_querys)
 {
 	uint64_t result = -1;
 	DTYPE r;
@@ -82,7 +82,7 @@ int64_t binarySearch(DTYPE *input, DTYPE *querys, DTYPE input_size,
 }
 
 // Main of the Host Application
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
 
 	struct Params p = input_params(argc, argv);
@@ -124,14 +124,12 @@ int main(int argc, char **argv)
 
 	// Query number adjustement for proper partitioning
 	if (num_querys % (nr_of_dpus * NR_TASKLETS))
-		num_querys =
-		    num_querys + (nr_of_dpus * NR_TASKLETS -
-				  num_querys % (nr_of_dpus * NR_TASKLETS));
+		num_querys = num_querys + (nr_of_dpus * NR_TASKLETS - num_querys % (nr_of_dpus * NR_TASKLETS));
 
-	assert(num_querys % (nr_of_dpus * NR_TASKLETS) == 0 && "Input dimension");	// Allocate input and querys vectors
+	assert(num_querys % (nr_of_dpus * NR_TASKLETS) == 0 && "Input dimension"); // Allocate input and querys vectors
 
-	DTYPE *input = (DTYPE*)malloc((input_size) * sizeof(DTYPE));
-	DTYPE *querys = (DTYPE*)malloc((num_querys) * sizeof(DTYPE));
+	DTYPE* input = (DTYPE*)malloc((input_size) * sizeof(DTYPE));
+	DTYPE* querys = (DTYPE*)malloc((num_querys) * sizeof(DTYPE));
 
 	// Create an input file with arbitrary data
 	create_test_file(input, querys, input_size, num_querys);
@@ -146,10 +144,9 @@ int main(int argc, char **argv)
 
 #if WITH_DPUINFO
 		printf("DPUs:");
-		DPU_FOREACH(dpu_set, dpu) {
-			int rank =
-			    dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) &
-			    DPU_TARGET_MASK;
+		DPU_FOREACH(dpu_set, dpu)
+		{
+			int rank = dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) & DPU_TARGET_MASK;
 			int slice = dpu_get_slice_id(dpu_from_set(dpu));
 			int member = dpu_get_member_id(dpu_from_set(dpu));
 			printf(" %d(%d.%d)", rank, slice, member);
@@ -159,19 +156,14 @@ int main(int argc, char **argv)
 
 		// int prev_rank_id = -1;
 		int rank_id = -1;
-		DPU_FOREACH(dpu_set, dpu) {
-			rank_id =
-			    dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) &
-			    DPU_TARGET_MASK;
+		DPU_FOREACH(dpu_set, dpu)
+		{
+			rank_id = dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) & DPU_TARGET_MASK;
 			if ((numa_node_rank != -2)
-			    && numa_node_rank !=
-			    dpu_get_rank_numa_node(dpu_get_rank
-						   (dpu_from_set(dpu)))) {
+			    && numa_node_rank != dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)))) {
 				numa_node_rank = -1;
 			} else {
-				numa_node_rank =
-				    dpu_get_rank_numa_node(dpu_get_rank
-							   (dpu_from_set(dpu)));
+				numa_node_rank = dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)));
 			}
 			/*
 			   if (rank_id != prev_rank_id) {
@@ -185,8 +177,7 @@ int main(int argc, char **argv)
 		if (rep >= p.n_warmup) {
 			start(&timer, 2, 0);
 		}
-		result_host =
-		    binarySearch(input, querys, input_size - 1, num_querys);
+		result_host = binarySearch(input, querys, input_size - 1, num_querys);
 		if (rep >= p.n_warmup) {
 			stop(&timer, 2);
 		}
@@ -195,37 +186,36 @@ int main(int argc, char **argv)
 			start(&timer, 3, 0);
 		}
 
-		DPU_FOREACH(dpu_set, dpu, i) {
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
 			DPU_ASSERT(dpu_prepare_xfer(dpu, &input_arguments));
 		}
 
-		DPU_ASSERT(dpu_push_xfer
-			   (dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0,
-			    sizeof(input_arguments), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0,
+		    sizeof(input_arguments), DPU_XFER_DEFAULT));
 
 		i = 0;
 
-		DPU_FOREACH(dpu_set, dpu, i) {
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
 			DPU_ASSERT(dpu_prepare_xfer(dpu, input));
 		}
 
-		DPU_ASSERT(dpu_push_xfer
-			   (dpu_set, DPU_XFER_TO_DPU,
-			    DPU_MRAM_HEAP_POINTER_NAME, 0,
-			    input_size * sizeof(DTYPE), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU,
+		    DPU_MRAM_HEAP_POINTER_NAME, 0,
+		    input_size * sizeof(DTYPE), DPU_XFER_DEFAULT));
 
 		i = 0;
 
-		DPU_FOREACH(dpu_set, dpu, i) {
-			DPU_ASSERT(dpu_prepare_xfer
-				   (dpu, querys + slice_per_dpu * i));
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
+			DPU_ASSERT(dpu_prepare_xfer(dpu, querys + slice_per_dpu * i));
 		}
 
-		DPU_ASSERT(dpu_push_xfer
-			   (dpu_set, DPU_XFER_TO_DPU,
-			    DPU_MRAM_HEAP_POINTER_NAME,
-			    input_size * sizeof(DTYPE),
-			    slice_per_dpu * sizeof(DTYPE), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU,
+		    DPU_MRAM_HEAP_POINTER_NAME,
+		    input_size * sizeof(DTYPE),
+		    slice_per_dpu * sizeof(DTYPE), DPU_XFER_DEFAULT));
 
 		if (rep >= p.n_warmup) {
 			stop(&timer, 3);
@@ -250,7 +240,8 @@ int main(int argc, char **argv)
 #if PRINT
 		unsigned int each_dpu = 0;
 		printf("Display DPU Logs\n");
-		DPU_FOREACH(dpu_set, dpu) {
+		DPU_FOREACH(dpu_set, dpu)
+		{
 			printf("DPU#%d:\n", each_dpu);
 			DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
 			each_dpu++;
@@ -258,31 +249,27 @@ int main(int argc, char **argv)
 #endif
 
 		// Retrieve results
-		dpu_results_t *results_retrieve[nr_of_dpus];
+		dpu_results_t* results_retrieve[nr_of_dpus];
 		if (rep >= p.n_warmup) {
 			start(&timer, 5, 0);
 		}
 		i = 0;
-		DPU_FOREACH(dpu_set, dpu, i) {
-			results_retrieve[i] =
-			    (dpu_results_t *) malloc(NR_TASKLETS *
-						     sizeof(dpu_results_t));
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
+			results_retrieve[i] = (dpu_results_t*)malloc(NR_TASKLETS * sizeof(dpu_results_t));
 			DPU_ASSERT(dpu_prepare_xfer(dpu, results_retrieve[i]));
 		}
 
-		DPU_ASSERT(dpu_push_xfer
-			   (dpu_set, DPU_XFER_FROM_DPU, "DPU_RESULTS", 0,
-			    NR_TASKLETS * sizeof(dpu_results_t),
-			    DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU, "DPU_RESULTS", 0,
+		    NR_TASKLETS * sizeof(dpu_results_t),
+		    DPU_XFER_DEFAULT));
 
-		DPU_FOREACH(dpu_set, dpu, i) {
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
 			for (unsigned int each_tasklet = 0;
-			     each_tasklet < NR_TASKLETS; each_tasklet++) {
-				if (results_retrieve[i][each_tasklet].found >
-				    result_dpu) {
-					result_dpu =
-					    results_retrieve[i][each_tasklet].
-					    found;
+			    each_tasklet < NR_TASKLETS; each_tasklet++) {
+				if (results_retrieve[i][each_tasklet].found > result_dpu) {
+					result_dpu = results_retrieve[i][each_tasklet].found;
 				}
 			}
 			free(results_retrieve[i]);
@@ -294,64 +281,32 @@ int main(int argc, char **argv)
 		int status = (result_dpu == result_host);
 		if (status) {
 			if (rep >= p.n_warmup) {
-				dfatool_printf
-				    ("[::] BS-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%lu",
-				     nr_of_dpus, nr_of_ranks, NR_TASKLETS,
-				     XSTR(DTYPE), BLOCK_SIZE, input_size);
-				dfatool_printf
-				    (" numa_node_rank=%d ",
-				     numa_node_rank);
-				dfatool_printf
-				    ("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
-				     timer.time[0], timer.time[1],
-				     timer.time[2], timer.time[3],
-				     timer.time[4], timer.time[5],
-				     timer.time[6]);
-				dfatool_printf
-				    (" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
-				     num_querys * sizeof(DTYPE) / timer.time[2],
-				     num_querys * sizeof(DTYPE) /
-				     (timer.time[4]),
-				     num_querys * sizeof(DTYPE) /
-				     (timer.time[0] + timer.time[1] +
-				      timer.time[3] + timer.time[4] +
-				      timer.time[5] + timer.time[6]));
-				dfatool_printf
-				    (" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
-				     num_querys * sizeof(DTYPE) /
-				     (timer.time[3] + timer.time[4] +
-				      timer.time[5]),
-				     num_querys * sizeof(DTYPE) /
-				     (timer.time[1] + timer.time[3] +
-				      timer.time[4] + timer.time[5]),
-				     num_querys * sizeof(DTYPE) /
-				     (timer.time[0] + timer.time[1] +
-				      timer.time[3] + timer.time[4] +
-				      timer.time[5]));
-				dfatool_printf
-				    (" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
-				     num_querys / timer.time[2],
-				     num_querys / (timer.time[4]),
-				     num_querys / (timer.time[0] +
-						   timer.time[1] +
-						   timer.time[3] +
-						   timer.time[4] +
-						   timer.time[5] +
-						   timer.time[6]));
-				dfatool_printf
-				    (" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
-				     num_querys / (timer.time[3] +
-						   timer.time[4] +
-						   timer.time[5]),
-				     num_querys / (timer.time[1] +
-						   timer.time[3] +
-						   timer.time[4] +
-						   timer.time[5]),
-				     num_querys / (timer.time[0] +
-						   timer.time[1] +
-						   timer.time[3] +
-						   timer.time[4] +
-						   timer.time[5]));
+				dfatool_printf("[::] BS-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%lu",
+				    nr_of_dpus, nr_of_ranks, NR_TASKLETS,
+				    XSTR(DTYPE), BLOCK_SIZE, input_size);
+				dfatool_printf(" numa_node_rank=%d ",
+				    numa_node_rank);
+				dfatool_printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
+				    timer.time[0], timer.time[1],
+				    timer.time[2], timer.time[3],
+				    timer.time[4], timer.time[5],
+				    timer.time[6]);
+				dfatool_printf(" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
+				    num_querys * sizeof(DTYPE) / timer.time[2],
+				    num_querys * sizeof(DTYPE) / (timer.time[4]),
+				    num_querys * sizeof(DTYPE) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
+				dfatool_printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
+				    num_querys * sizeof(DTYPE) / (timer.time[3] + timer.time[4] + timer.time[5]),
+				    num_querys * sizeof(DTYPE) / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
+				    num_querys * sizeof(DTYPE) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
+				dfatool_printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
+				    num_querys / timer.time[2],
+				    num_querys / (timer.time[4]),
+				    num_querys / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5] + timer.time[6]));
+				dfatool_printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
+				    num_querys / (timer.time[3] + timer.time[4] + timer.time[5]),
+				    num_querys / (timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]),
+				    num_querys / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[4] + timer.time[5]));
 			}
 		} else {
 			printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET
