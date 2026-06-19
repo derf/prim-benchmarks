@@ -50,7 +50,6 @@ int numa_node_cpu = -1;
 
 volatile int total_count;
 
-// Params ---------------------------------------------------------------------
 typedef struct Params {
 	int input_size;
 	int n_warmup;
@@ -58,7 +57,6 @@ typedef struct Params {
 	int n_threads;
 #if NUMA
 	struct bitmask* bitmask_in;
-	struct bitmask* bitmask_out;
 	int numa_node_cpu;
 #endif
 } Params;
@@ -118,9 +116,6 @@ void fill_column(unsigned int nr_elements)
 #endif
 }
 
-/**
- * @brief compute output in the host
- */
 static int count_host(int size, int t)
 {
 	int count = 0;
@@ -160,12 +155,11 @@ void input_params(int argc, char** argv)
 	p.n_threads = 5;
 #if NUMA
 	p.bitmask_in = NULL;
-	p.bitmask_out = NULL;
 	p.numa_node_cpu = -1;
 #endif
 
 	int opt;
-	while ((opt = getopt(argc, argv, "hi:w:e:t:A:B:C:")) >= 0) {
+	while ((opt = getopt(argc, argv, "hi:w:e:t:A:C:")) >= 0) {
 		switch (opt) {
 		case 'h':
 			usage();
@@ -186,9 +180,6 @@ void input_params(int argc, char** argv)
 #if NUMA
 		case 'A':
 			p.bitmask_in = numa_parse_nodestring(optarg);
-			break;
-		case 'B':
-			p.bitmask_out = numa_parse_nodestring(optarg);
 			break;
 		case 'C':
 			p.numa_node_cpu = atoi(optarg);
