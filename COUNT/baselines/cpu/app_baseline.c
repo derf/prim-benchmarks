@@ -1,17 +1,17 @@
 /**
-* @file app.c
-* @brief Template for a Host Application Source File.
-*
-*/
+ * @file app.c
+ * @brief Template for a Host Application Source File.
+ *
+ */
+#include <assert.h>
+#include <getopt.h>
+#include <omp.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
-#include <getopt.h>
-#include <assert.h>
-#include <stdint.h>
-#include <omp.h>
 
 #if WITH_BENCHMARK
 #include "../../support/timer.h"
@@ -30,10 +30,10 @@
 #endif
 
 #if NUMA
-#include <numaif.h>
 #include <numa.h>
+#include <numaif.h>
 
-void *mp_pages[1];
+void* mp_pages[1];
 int mp_status[1];
 int mp_nodes[1];
 int numa_node_in = -1;
@@ -57,15 +57,15 @@ typedef struct Params {
 	int n_reps;
 	int n_threads;
 #if NUMA
-	struct bitmask *bitmask_in;
-	struct bitmask *bitmask_out;
+	struct bitmask* bitmask_in;
+	struct bitmask* bitmask_out;
 	int numa_node_cpu;
 #endif
 } Params;
 
 struct Params p;
 
-static T *A;
+static T* A;
 
 bool pred(const T x)
 {
@@ -74,27 +74,27 @@ bool pred(const T x)
 
 void fill_column(unsigned int nr_elements)
 {
-	//srand(0);
+	// srand(0);
 
 #if NUMA
 	if (p.bitmask_in) {
 		numa_set_membind(p.bitmask_in);
 		numa_free_nodemask(p.bitmask_in);
 	}
-	A = (T *) numa_alloc(nr_elements * sizeof(T));
+	A = (T*)numa_alloc(nr_elements * sizeof(T));
 #else
-	A = (T *) malloc(nr_elements * sizeof(T));
+	A = (T*)malloc(nr_elements * sizeof(T));
 #endif
 
 #if NUMA
-	struct bitmask *bitmask_all = numa_allocate_nodemask();
+	struct bitmask* bitmask_all = numa_allocate_nodemask();
 	numa_bitmask_setall(bitmask_all);
 	numa_set_membind(bitmask_all);
 	numa_free_nodemask(bitmask_all);
 #endif
 
 	for (unsigned int i = 0; i < nr_elements; i++) {
-		//A[i] = (unsigned int) (rand());
+		// A[i] = (unsigned int) (rand());
 		A[i] = i + 1;
 	}
 
@@ -116,18 +116,17 @@ void fill_column(unsigned int nr_elements)
 		}
 	}
 #endif
-
 }
 
 /**
-* @brief compute output in the host
-*/
+ * @brief compute output in the host
+ */
 static int count_host(int size, int t)
 {
 	int count = 0;
 
 	omp_set_num_threads(t);
-#pragma omp parallel for reduction(+:count)
+#pragma omp parallel for reduction(+ : count)
 	for (int my = 0; my < size; my++) {
 		if (!pred(A[my])) {
 			count++;
@@ -139,20 +138,21 @@ static int count_host(int size, int t)
 void usage()
 {
 	fprintf(stderr,
-		"\nUsage:  ./program [options]"
-		"\n"
-		"\nGeneral options:"
-		"\n    -h        help"
-		"\n    -d <D>    DPU type (default=fsim)"
-		"\n    -t <T>    # of threads (default=8)"
-		"\n    -w <W>    # of untimed warmup iterations (default=2)"
-		"\n    -e <E>    # of timed repetition iterations (default=5)"
-		"\n"
-		"\nBenchmark-specific options:"
-		"\n    -i <I>    input size (default=8M elements)" "\n");
+	    "\nUsage:  ./program [options]"
+	    "\n"
+	    "\nGeneral options:"
+	    "\n    -h        help"
+	    "\n    -d <D>    DPU type (default=fsim)"
+	    "\n    -t <T>    # of threads (default=8)"
+	    "\n    -w <W>    # of untimed warmup iterations (default=2)"
+	    "\n    -e <E>    # of timed repetition iterations (default=5)"
+	    "\n"
+	    "\nBenchmark-specific options:"
+	    "\n    -i <I>    input size (default=8M elements)"
+	    "\n");
 }
 
-void input_params(int argc, char **argv)
+void input_params(int argc, char** argv)
 {
 	p.input_size = 16 << 20;
 	p.n_warmup = 1;
@@ -204,9 +204,9 @@ void input_params(int argc, char **argv)
 }
 
 /**
-* @brief Main of the Host Application.
-*/
-int main(int argc, char **argv)
+ * @brief Main of the Host Application.
+ */
+int main(int argc, char** argv)
 {
 
 	input_params(argc, argv);
@@ -222,7 +222,7 @@ int main(int argc, char **argv)
 
 #if NOP_SYNC
 	for (int rep = 0; rep < 200000; rep++) {
-		asm volatile ("nop"::);
+		asm volatile("nop" ::);
 	}
 #endif
 
@@ -244,46 +244,44 @@ int main(int argc, char **argv)
 
 		if (rep >= p.n_warmup) {
 #if WITH_PERF_LIB
-			printf
-			    ("[::] COUNT-CPU | n_threads=%d e_type=%s n_elements=%d"
+			printf("[::] COUNT-CPU | n_threads=%d e_type=%s n_elements=%d"
 #if NUMA
-			     " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+			       " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
-			     " |",
-			     nr_threads, XSTR(T), input_size
+			       " |",
+			    nr_threads, XSTR(T), input_size
 #if NUMA
-				 ,
-			     numa_node_in, numa_node_out, numa_node_cpu,
-			     numa_distance(numa_node_in, numa_node_cpu),
-			     numa_distance(numa_node_cpu, numa_node_out)
+			    ,
+			    numa_node_in, numa_node_out, numa_node_cpu,
+			    numa_distance(numa_node_in, numa_node_cpu),
+			    numa_distance(numa_node_cpu, numa_node_out)
 #endif
-				);
+			);
 			perf_print();
 #elif WITH_BENCHMARK
-			printf
-			    ("[::] COUNT-CPU | n_threads=%d e_type=%s n_elements=%d"
+			printf("[::] COUNT-CPU | n_threads=%d e_type=%s n_elements=%d"
 #if NUMA
-			     " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+			       " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
-			     " | throughput_MBps=%f",
-			     nr_threads, XSTR(T), input_size,
+			       " | throughput_MBps=%f",
+			    nr_threads, XSTR(T), input_size,
 #if NUMA
-			     numa_node_in, numa_node_out, numa_node_cpu,
-			     numa_distance(numa_node_in, numa_node_cpu),
-			     numa_distance(numa_node_cpu, numa_node_out),
+			    numa_node_in, numa_node_out, numa_node_cpu,
+			    numa_distance(numa_node_in, numa_node_cpu),
+			    numa_distance(numa_node_cpu, numa_node_out),
 #endif
-			     input_size * 2 * sizeof(T) / timer.time[0]);
+			    input_size * 2 * sizeof(T) / timer.time[0]);
 			printf(" throughput_MOpps=%f",
-			       input_size / timer.time[0]);
+			    input_size / timer.time[0]);
 			printf(" latency_us=%f\n",
-					timer.time[0]);
-#endif				// WITH_BENCHMARK
+			    timer.time[0]);
+#endif // WITH_BENCHMARK
 		}
 	}
 
 #if NOP_SYNC
 	for (int rep = 0; rep < 200000; rep++) {
-		asm volatile ("nop"::);
+		asm volatile("nop" ::);
 	}
 #endif
 
