@@ -1,10 +1,16 @@
+debug ?= 0
 native ?= 1
+nop_sync ?= 0
 numa ?= 0
 numa_memcpy ?= 0
 
 CFLAGS =
 LDFLAGS =
 TYPE ?= double
+
+ifeq (${debug}, 1)
+	CFLAGS += -g
+endif
 
 ifeq (${native}, 1)
 	CFLAGS += -march=native
@@ -18,7 +24,7 @@ endif
 all: gemv
 
 gemv: gemv_openmp.c
-	gcc -ggdb -Wall -Wextra -pedantic ${CFLAGS} -O3 -o gemv -fopenmp -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DT=${TYPE} -DTYPE_${TYPE} gemv_openmp.c ${LDFLAGS}
+	gcc -ggdb -Wall -Wextra -pedantic -O3 ${CFLAGS} -o gemv -fopenmp -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DT=${TYPE} -DTYPE_${TYPE} gemv_openmp.c ${LDFLAGS}
 
 gemv_O0: gemv_openmp.c
 	gcc -o gemv_O0 -fopenmp gemv_openmp.c

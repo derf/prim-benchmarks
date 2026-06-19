@@ -13,19 +13,20 @@ typedef struct Params {
 static void usage()
 {
 	fprintf(stderr,
-		"\nUsage:  ./program [options]"
-		"\n"
-		"\nGeneral options:"
-		"\n    -h        help"
-		"\n    -w <W>    # of untimed warmup iterations (default=1)"
-		"\n    -e <E>    # of timed repetition iterations (default=3)"
-		"\n"
-		"\nBenchmark-specific options:"
-		"\n    -m <I>    m_size (default=8192 elements)"
-		"\n    -n <I>    n_size (default=8192 elements)" "\n");
+	    "\nUsage:  ./program [options]"
+	    "\n"
+	    "\nGeneral options:"
+	    "\n    -h        help"
+	    "\n    -w <W>    # of untimed warmup iterations (default=1)"
+	    "\n    -e <E>    # of timed repetition iterations (default=3)"
+	    "\n"
+	    "\nBenchmark-specific options:"
+	    "\n    -m <I>    m_size (default=8192 elements)"
+	    "\n    -n <I>    n_size (default=8192 elements)"
+	    "\n");
 }
 
-struct Params input_params(int argc, char **argv)
+struct Params input_params(int argc, char** argv)
 {
 	struct Params p;
 	p.m_size = 8192;

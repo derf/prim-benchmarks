@@ -1,32 +1,34 @@
-void allocate_dense(size_t rows,size_t  cols, T*** dense) {
+void allocate_dense(size_t rows, size_t cols, T*** dense)
+{
 
 #if NUMA
-  *dense = numa_alloc(sizeof(void*)*rows);
-  **dense = numa_alloc(sizeof(T)*rows*cols);
+	*dense = numa_alloc(sizeof(void*) * rows);
+	**dense = numa_alloc(sizeof(T) * rows * cols);
 #else
-  *dense = malloc(sizeof(void*)*rows);
-  **dense = malloc(sizeof(T)*rows*cols);
+	*dense = malloc(sizeof(void*) * rows);
+	**dense = malloc(sizeof(T) * rows * cols);
 #endif
 
-  for (size_t i=0; i < rows; i++ ) {
-    (*dense)[i] = (*dense)[0] + i*cols;
-  }
-
+	for (size_t i = 0; i < rows; i++) {
+		(*dense)[i] = (*dense)[0] + i * cols;
+	}
 }
 
-void print_mat(T** A, size_t rows, size_t cols) {
-  for (size_t i = 0; i < rows; i++) {
-    for (size_t j = 0; j < cols; j++) {
-      printf("%f ", A[i][j]);
-    }
-    printf("\n");
-  }
+void print_mat(T** A, size_t rows, size_t cols)
+{
+	for (size_t i = 0; i < rows; i++) {
+		for (size_t j = 0; j < cols; j++) {
+			printf("%f ", A[i][j]);
+		}
+		printf("\n");
+	}
 }
 
-void print_vec(T* b, size_t rows) {
-  for (size_t i = 0; i < rows; i++) {
-    printf("%f\n", b[i]);
-  }
+void print_vec(T* b, size_t rows)
+{
+	for (size_t i = 0; i < rows; i++) {
+		printf("%f\n", b[i]);
+	}
 }
 
 void gemv(T** A, T* x, size_t rows, size_t cols, T** b);

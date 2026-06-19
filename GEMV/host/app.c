@@ -4,13 +4,13 @@
  *
  */
 
+#include <assert.h>
+#include <getopt.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
-#include <getopt.h>
-#include <assert.h>
 
 #if ASPECTC
 extern "C" {
@@ -33,23 +33,23 @@ extern "C" {
 #define STR(x) #x
 
 #include "common.h"
-#include "timer.h"
 #include "params.h"
+#include "timer.h"
 
 // Define the DPU Binary path as DPU_BINARY here
 #ifndef DPU_BINARY
 #define DPU_BINARY "./bin/gemv_dpu"
 #endif
 
-static T *A;
-static T *B;
-static T *C;
-static T *C_dpu;
+static T* A;
+static T* B;
+static T* C;
+static T* C_dpu;
 
 unsigned int kernel = 0;
 
 // Create input arrays
-static void init_data(T *A, T *B, unsigned int m_size, unsigned int n_size)
+static void init_data(T* A, T* B, unsigned int m_size, unsigned int n_size)
 {
 	srand(0);
 
@@ -63,8 +63,8 @@ static void init_data(T *A, T *B, unsigned int m_size, unsigned int n_size)
 }
 
 // Compute output in the host
-static void gemv_host(T *C, T *A, T *B, unsigned int m_size,
-		      unsigned int n_size)
+static void gemv_host(T* C, T* A, T* B, unsigned int m_size,
+    unsigned int n_size)
 {
 	for (unsigned int i = 0; i < m_size; i++) {
 		C[i] = 0;
@@ -78,7 +78,7 @@ static void gemv_host(T *C, T *A, T *B, unsigned int m_size,
 }
 
 // Main of the Host Application
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
 
 	struct Params p = input_params(argc, argv);
@@ -120,10 +120,8 @@ int main(int argc, char **argv)
 	unsigned int n_size = p.n_size;
 
 	// Initialize help data
-	dpu_info =
-	    (struct dpu_info_t *)malloc(nr_of_dpus * sizeof(struct dpu_info_t));
-	dpu_arguments_t *input_args =
-	    (dpu_arguments_t *) malloc(nr_of_dpus * sizeof(dpu_arguments_t));
+	dpu_info = (struct dpu_info_t*)malloc(nr_of_dpus * sizeof(struct dpu_info_t));
+	dpu_arguments_t* input_args = (dpu_arguments_t*)malloc(nr_of_dpus * sizeof(dpu_arguments_t));
 	uint32_t max_rows_per_dpu = 0;
 	uint32_t n_size_pad = n_size;
 	if (n_size % 2 == 1) {
@@ -140,10 +138,7 @@ int main(int argc, char **argv)
 			rows_per_dpu++;
 		if (rest_rows > 0) {
 			if (i >= rest_rows)
-				prev_rows_dpu =
-				    rest_rows * (chunks + 1) + (i -
-								rest_rows) *
-				    chunks;
+				prev_rows_dpu = rest_rows * (chunks + 1) + (i - rest_rows) * chunks;
 			else
 				prev_rows_dpu = i * (chunks + 1);
 		} else {
@@ -152,7 +147,7 @@ int main(int argc, char **argv)
 
 		// Keep max rows for parallel transfers
 		uint32_t rows_per_dpu_pad = rows_per_dpu;
-		if (rows_per_dpu_pad % 2 == 1)	// 4-byte elements
+		if (rows_per_dpu_pad % 2 == 1) // 4-byte elements
 			rows_per_dpu_pad++;
 		if (rows_per_dpu_pad > max_rows_per_dpu)
 			max_rows_per_dpu = rows_per_dpu_pad;
@@ -180,19 +175,14 @@ int main(int argc, char **argv)
 
 		// int prev_rank_id = -1;
 		int rank_id = -1;
-		DPU_FOREACH(dpu_set, dpu) {
-			rank_id =
-			    dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) &
-			    DPU_TARGET_MASK;
+		DPU_FOREACH(dpu_set, dpu)
+		{
+			rank_id = dpu_get_rank_id(dpu_get_rank(dpu_from_set(dpu))) & DPU_TARGET_MASK;
 			if ((numa_node_rank != -2)
-			    && numa_node_rank !=
-			    dpu_get_rank_numa_node(dpu_get_rank
-						   (dpu_from_set(dpu)))) {
+			    && numa_node_rank != dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)))) {
 				numa_node_rank = -1;
 			} else {
-				numa_node_rank =
-				    dpu_get_rank_numa_node(dpu_get_rank
-							   (dpu_from_set(dpu)));
+				numa_node_rank = dpu_get_rank_numa_node(dpu_get_rank(dpu_from_set(dpu)));
 			}
 			/*
 			   if (rank_id != prev_rank_id) {
@@ -214,16 +204,16 @@ int main(int argc, char **argv)
 		}
 		// Input arguments
 		i = 0;
-		DPU_FOREACH(dpu_set, dpu, i) {
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
 			// Copy input arguments to DPU
 			input_args[i].max_rows = max_rows_per_dpu;
 
 			DPU_ASSERT(dpu_prepare_xfer(dpu, input_args + i));
 		}
 
-		DPU_ASSERT(dpu_push_xfer
-			   (dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0,
-			    sizeof(dpu_arguments_t), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0,
+		    sizeof(dpu_arguments_t), DPU_XFER_DEFAULT));
 
 		if (rep >= p.n_warmup) {
 			stop(&timer, 3);
@@ -233,16 +223,15 @@ int main(int argc, char **argv)
 		}
 		// Copy input array and vector
 		i = 0;
-		DPU_FOREACH(dpu_set, dpu, i) {
-			DPU_ASSERT(dpu_prepare_xfer
-				   (dpu,
-				    A + dpu_info[i].prev_rows_dpu * n_size));
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
+			DPU_ASSERT(dpu_prepare_xfer(dpu,
+			    A + dpu_info[i].prev_rows_dpu * n_size));
 		}
-		DPU_ASSERT(dpu_push_xfer
-			   (dpu_set, DPU_XFER_TO_DPU,
-			    DPU_MRAM_HEAP_POINTER_NAME, 0,
-			    max_rows_per_dpu * n_size_pad * sizeof(T),
-			    DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU,
+		    DPU_MRAM_HEAP_POINTER_NAME, 0,
+		    max_rows_per_dpu * n_size_pad * sizeof(T),
+		    DPU_XFER_DEFAULT));
 
 		if (rep >= p.n_warmup) {
 			stop(&timer, 6);
@@ -251,14 +240,14 @@ int main(int argc, char **argv)
 			start(&timer, 7, 0);
 		}
 
-		DPU_FOREACH(dpu_set, dpu, i) {
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
 			DPU_ASSERT(dpu_prepare_xfer(dpu, B));
 		}
-		DPU_ASSERT(dpu_push_xfer
-			   (dpu_set, DPU_XFER_TO_DPU,
-			    DPU_MRAM_HEAP_POINTER_NAME,
-			    max_rows_per_dpu * n_size_pad * sizeof(T),
-			    n_size_pad * sizeof(T), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU,
+		    DPU_MRAM_HEAP_POINTER_NAME,
+		    max_rows_per_dpu * n_size_pad * sizeof(T),
+		    n_size_pad * sizeof(T), DPU_XFER_DEFAULT));
 
 		if (rep >= p.n_warmup) {
 			stop(&timer, 7);
@@ -281,7 +270,8 @@ int main(int argc, char **argv)
 		}
 #if PRINT
 		// Display DPU Logs
-		DPU_FOREACH(dpu_set, dpu) {
+		DPU_FOREACH(dpu_set, dpu)
+		{
 			DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
 		}
 #endif
@@ -290,16 +280,14 @@ int main(int argc, char **argv)
 		if (rep >= p.n_warmup)
 			start(&timer, 5, 0);
 		i = 0;
-		DPU_FOREACH(dpu_set, dpu, i) {
-			DPU_ASSERT(dpu_prepare_xfer
-				   (dpu, C_dpu + i * max_rows_per_dpu));
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
+			DPU_ASSERT(dpu_prepare_xfer(dpu, C_dpu + i * max_rows_per_dpu));
 		}
-		DPU_ASSERT(dpu_push_xfer
-			   (dpu_set, DPU_XFER_FROM_DPU,
-			    DPU_MRAM_HEAP_POINTER_NAME,
-			    max_rows_per_dpu * n_size_pad * sizeof(T) +
-			    n_size_pad * sizeof(T),
-			    max_rows_per_dpu * sizeof(T), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU,
+		    DPU_MRAM_HEAP_POINTER_NAME,
+		    max_rows_per_dpu * n_size_pad * sizeof(T) + n_size_pad * sizeof(T),
+		    max_rows_per_dpu * sizeof(T), DPU_XFER_DEFAULT));
 		if (rep >= p.n_warmup) {
 			stop(&timer, 5);
 		}
@@ -323,93 +311,43 @@ int main(int argc, char **argv)
 			printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET
 			       "] Outputs are equal\n");
 			if (rep >= p.n_warmup) {
-				dfatool_printf
-				    ("[::] GEMV-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d",
-				     nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T),
-				     BLOCK_SIZE, n_size * m_size);
-				dfatool_printf
-				    (" numa_node_rank=%d ",
-				     numa_node_rank);
-				dfatool_printf
-				    ("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
-				     timer.time[0], timer.time[1],
-				     timer.time[2],
-				     timer.time[3] + timer.time[6] +
-				     timer.time[7], timer.time[4],
-				     timer.time[5], timer.time[8]);
-				dfatool_printf
-				    (" latency_write1_us=%f latency_write2_us=%f latency_write3_us=%f",
-				     timer.time[3], timer.time[6], timer.time[7]
-				    );
-				dfatool_printf
-				    (" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
-				     n_size * m_size * sizeof(T) /
-				     timer.time[2],
-				     n_size * m_size * sizeof(T) /
-				     (timer.time[4]),
-				     n_size * m_size * sizeof(T) /
-				     (timer.time[0] + timer.time[1] +
-				      timer.time[3] + timer.time[6] +
-				      timer.time[7] + timer.time[4] +
-				      timer.time[5] + timer.time[8]));
-				dfatool_printf
-				    (" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
-				     n_size * m_size * sizeof(T) /
-				     (timer.time[3] + timer.time[6] +
-				      timer.time[7] + timer.time[4] +
-				      timer.time[5]),
-				     n_size * m_size * sizeof(T) /
-				     (timer.time[1] + timer.time[3] +
-				      timer.time[6] + timer.time[7] +
-				      timer.time[4] + timer.time[5]),
-				     n_size * m_size * sizeof(T) /
-				     (timer.time[0] + timer.time[1] +
-				      timer.time[3] + timer.time[6] +
-				      timer.time[7] + timer.time[4] +
-				      timer.time[5]));
-				dfatool_printf
-				    (" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
-				     n_size * m_size / timer.time[2],
-				     n_size * m_size / (timer.time[4]),
-				     n_size * m_size / (timer.time[0] +
-							timer.time[1] +
-							timer.time[3] +
-							timer.time[6] +
-							timer.time[7] +
-							timer.time[4] +
-							timer.time[5] +
-							timer.time[8]));
-				dfatool_printf
-				    (" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
-				     n_size * m_size / (timer.time[3] +
-							timer.time[6] +
-							timer.time[7] +
-							timer.time[4] +
-							timer.time[5]),
-				     n_size * m_size / (timer.time[1] +
-							timer.time[3] +
-							timer.time[6] +
-							timer.time[7] +
-							timer.time[4] +
-							timer.time[5]),
-				     n_size * m_size / (timer.time[0] +
-							timer.time[1] +
-							timer.time[3] +
-							timer.time[6] +
-							timer.time[7] +
-							timer.time[4] +
-							timer.time[5]));
+				dfatool_printf("[::] GEMV-UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d",
+				    nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T),
+				    BLOCK_SIZE, n_size * m_size);
+				dfatool_printf(" numa_node_rank=%d ",
+				    numa_node_rank);
+				dfatool_printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
+				    timer.time[0], timer.time[1],
+				    timer.time[2],
+				    timer.time[3] + timer.time[6] + timer.time[7], timer.time[4],
+				    timer.time[5], timer.time[8]);
+				dfatool_printf(" latency_write1_us=%f latency_write2_us=%f latency_write3_us=%f",
+				    timer.time[3], timer.time[6], timer.time[7]);
+				dfatool_printf(" throughput_cpu_MBps=%f throughput_upmem_kernel_MBps=%f throughput_upmem_total_MBps=%f",
+				    n_size * m_size * sizeof(T) / timer.time[2],
+				    n_size * m_size * sizeof(T) / (timer.time[4]),
+				    n_size * m_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5] + timer.time[8]));
+				dfatool_printf(" throughput_upmem_wxr_MBps=%f throughput_upmem_lwxr_MBps=%f throughput_upmem_alwxr_MBps=%f",
+				    n_size * m_size * sizeof(T) / (timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]),
+				    n_size * m_size * sizeof(T) / (timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]),
+				    n_size * m_size * sizeof(T) / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]));
+				dfatool_printf(" throughput_cpu_MOpps=%f throughput_upmem_kernel_MOpps=%f throughput_upmem_total_MOpps=%f",
+				    n_size * m_size / timer.time[2],
+				    n_size * m_size / (timer.time[4]),
+				    n_size * m_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5] + timer.time[8]));
+				dfatool_printf(" throughput_upmem_wxr_MOpps=%f throughput_upmem_lwxr_MOpps=%f throughput_upmem_alwxr_MOpps=%f\n",
+				    n_size * m_size / (timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]),
+				    n_size * m_size / (timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]),
+				    n_size * m_size / (timer.time[0] + timer.time[1] + timer.time[3] + timer.time[6] + timer.time[7] + timer.time[4] + timer.time[5]));
 			}
 		} else {
 			printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET
 			       "] Outputs differ!\n");
 		}
-
 	}
 #if ENERGY
 	double acc_energy, avg_energy, acc_time, avg_time;
-	DPU_ASSERT(dpu_probe_get
-		   (&probe, DPU_ENERGY, DPU_ACCUMULATE, &acc_energy));
+	DPU_ASSERT(dpu_probe_get(&probe, DPU_ENERGY, DPU_ACCUMULATE, &acc_energy));
 	DPU_ASSERT(dpu_probe_get(&probe, DPU_ENERGY, DPU_AVERAGE, &avg_energy));
 	DPU_ASSERT(dpu_probe_get(&probe, DPU_TIME, DPU_ACCUMULATE, &acc_time));
 	DPU_ASSERT(dpu_probe_get(&probe, DPU_TIME, DPU_AVERAGE, &avg_time));
