@@ -1,7 +1,7 @@
 #!/bin/bash
 
 cd baselines/cpu
-make -B dfatool_timing=1 numa=1 perf=0
+make -B dfatool_timing=1 numa=1 perf_lib=0
 
 mkdir -p log/$(hostname)
 fn=log/$(hostname)/milos-hbm-cxl
@@ -30,3 +30,5 @@ parallel -j1 --eta --joblog ${fn}.joblog --header : \
 		::: cpu $(seq 0 7) \
 		::: ram $(seq 0 17) \
 > ${fn}.txt
+
+xz -f -v -9 ${fn}.txt
