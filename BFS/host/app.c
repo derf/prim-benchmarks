@@ -56,29 +56,23 @@ int main(int argc, char **argv)
 	struct dpu_set_t dpu_set, dpu;
 	uint32_t numDPUs, numRanks;
 
-#if WITH_ALLOC_OVERHEAD
 	startTimer(&timer, 0, 0);
-#endif
+#if NR_DPUS
 	DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
-#if WITH_ALLOC_OVERHEAD
-	stopTimer(&timer, 0);
 #else
-	zeroTimer(&timer, 0);
+	DPU_ASSERT(dpu_alloc_ranks(NR_RANKS, NULL, &dpu_set));
 #endif
+	stopTimer(&timer, 0);
 
-#if WITH_LOAD_OVERHEAD
 	startTimer(&timer, 1, 0);
-#endif
 	DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
-#if WITH_LOAD_OVERHEAD
-	stopTimer(&timer, 0);
-#else
 	zeroTimer(&timer, 1);
-#endif
 
 	DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &numDPUs));
 	DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &numRanks));
+#if NR_DPUS
 	assert(NR_DPUS == numDPUs);
+#endif
 	PRINT_INFO(p.verbosity >= 1, "Allocated %d DPU(s)", numDPUs);
 
 	// Initialize BFS data structures
@@ -326,8 +320,6 @@ int main(int argc, char **argv)
 		++dpuIdx;
 	}
 	stopTimer(&timer, 5);
-	//retrieveTime += getElapsedTime(timer);
-	//if(p.verbosity == 0) PRINT("CPU-DPU Time(ms): %f    DPU Kernel Time (ms): %f    Inter-DPU Time (ms): %f    DPU-CPU Time (ms): %f", loadTime*1e3, dpuTime*1e3, hostTime*1e3, retrieveTime*1e3);
 
 	// Calculating result on CPU
 	PRINT_INFO(p.verbosity >= 1, "Calculating result on CPU");
@@ -394,15 +386,9 @@ int main(int argc, char **argv)
 	}
 	stopTimer(&timer, 6);
 
-#if WITH_FREE_OVERHEAD
 	startTimer(&timer, 7);
-#endif
 	DPU_ASSERT(dpu_free(dpu_set));
-#if WITH_FREE_OVERHEAD
 	stopTimer(&timer, 7);
-#else
-	zeroTimer(&timer, 7);
-#endif
 
 	// Verify the result
 	PRINT_INFO(p.verbosity >= 1, "Verifying the result");

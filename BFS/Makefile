@@ -1,11 +1,11 @@
-NR_DPUS ?= 1
+NR_DPUS ?= 0
+NR_RANKS ?= 0
 NR_TASKLETS ?= 16
-WITH_ALLOC_OVERHEAD ?= 0
-WITH_LOAD_OVERHEAD ?= 0
-WITH_FREE_OVERHEAD ?= 0
 
 HOST_SOURCES := $(wildcard host/*.c)
 DPU_SOURCES := $(wildcard dpu/*.c)
+
+HOST := $(shell hostname)
 
 aspectc ?= 0
 aspectc_timing ?= 0
@@ -14,7 +14,7 @@ dfatool_timing ?= 1
 HOST_CC := ${CC}
 
 COMMON_FLAGS := -Wall -Wextra -g -Iinclude
-HOST_FLAGS := ${COMMON_FLAGS} -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DWITH_ALLOC_OVERHEAD=${WITH_ALLOC_OVERHEAD} -DWITH_LOAD_OVERHEAD=${WITH_LOAD_OVERHEAD} -DWITH_FREE_OVERHEAD=${WITH_FREE_OVERHEAD} -DDFATOOL_TIMING=${dfatool_timing} -DASPECTC=${aspectc}
+HOST_FLAGS := ${COMMON_FLAGS} -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DNR_RANKS=${NR_RANKS} -DDFATOOL_TIMING=${dfatool_timing} -DASPECTC=${aspectc}
 DPU_FLAGS := ${COMMON_FLAGS} -O2 -DNR_TASKLETS=${NR_TASKLETS}
 
 ifeq (${aspectc_timing}, 1)
@@ -55,3 +55,9 @@ test: all
 	bin/host_code
 
 .PHONY: all clean test
+
+baselines/cpu/log/${HOST}/milos-hbm-cxl.txt.xz: benchmark-scripts/milos-hbm-cxl.sh baselines/cpu/app.c
+	benchmark-scripts/milos-hbm-cxl.sh
+
+baselines/cpu/log/${HOST}/milos-hbm-cxl-perf.txt.xz: benchmark-scripts/milos-hbm-cxl-perf.sh baselines/cpu/app.c
+	benchmark-scripts/milos-hbm-cxl-perf.sh
