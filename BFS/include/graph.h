@@ -11,54 +11,47 @@
 struct COOGraph {
 	uint32_t numNodes;
 	uint32_t numEdges;
-	uint32_t *nodeIdxs;
-	uint32_t *neighborIdxs;
+	uint32_t* nodeIdxs;
+	uint32_t* neighborIdxs;
 };
 
 struct CSRGraph {
 	uint32_t numNodes;
 	uint32_t numEdges;
-	uint32_t *nodePtrs;
-	uint32_t *neighborIdxs;
+	uint32_t* nodePtrs;
+	uint32_t* neighborIdxs;
 };
 
-static struct COOGraph readCOOGraph(const char *fileName)
+static struct COOGraph readCOOGraph(const char* fileName)
 {
 
 	struct COOGraph cooGraph;
 
 	// Initialize fields
-	FILE *fp = fopen(fileName, "r");
+	FILE* fp = fopen(fileName, "r");
 	uint32_t numNodes, numCols;
 	assert(fscanf(fp, "%u", &numNodes));
 	assert(fscanf(fp, "%u", &numCols));
 	if (numNodes == numCols) {
 		cooGraph.numNodes = numNodes;
 	} else {
-		PRINT_WARNING
-		    ("    Adjacency matrix is not square. Padding matrix to be square.");
+		PRINT_WARNING("    Adjacency matrix is not square. Padding matrix to be square.");
 		cooGraph.numNodes = (numNodes > numCols) ? numNodes : numCols;
 	}
 	if (cooGraph.numNodes % 64 != 0) {
-		PRINT_WARNING
-		    ("    Adjacency matrix dimension is %u which is not a multiple of 64 nodes.",
-		     cooGraph.numNodes);
+		PRINT_WARNING("    Adjacency matrix dimension is %u which is not a multiple of 64 nodes.",
+		    cooGraph.numNodes);
 		cooGraph.numNodes += (64 - cooGraph.numNodes % 64);
-		PRINT_WARNING
-		    ("        Padding to %u which is a multiple of 64 nodes.",
-		     cooGraph.numNodes);
+		PRINT_WARNING("        Padding to %u which is a multiple of 64 nodes.",
+		    cooGraph.numNodes);
 	}
 	assert(fscanf(fp, "%u", &cooGraph.numEdges));
 #if NUMA
-	cooGraph.nodeIdxs =
-	    (uint32_t *) numa_alloc(cooGraph.numEdges * sizeof(uint32_t));
-	cooGraph.neighborIdxs =
-	    (uint32_t *) numa_alloc(cooGraph.numEdges * sizeof(uint32_t));
+	cooGraph.nodeIdxs = (uint32_t*)numa_alloc(cooGraph.numEdges * sizeof(uint32_t));
+	cooGraph.neighborIdxs = (uint32_t*)numa_alloc(cooGraph.numEdges * sizeof(uint32_t));
 #else
-	cooGraph.nodeIdxs =
-	    (uint32_t *) malloc(cooGraph.numEdges * sizeof(uint32_t));
-	cooGraph.neighborIdxs =
-	    (uint32_t *) malloc(cooGraph.numEdges * sizeof(uint32_t));
+	cooGraph.nodeIdxs = (uint32_t*)malloc(cooGraph.numEdges * sizeof(uint32_t));
+	cooGraph.neighborIdxs = (uint32_t*)malloc(cooGraph.numEdges * sizeof(uint32_t));
 #endif
 
 	// Read the neighborIdxs
@@ -72,7 +65,6 @@ static struct COOGraph readCOOGraph(const char *fileName)
 	}
 
 	return cooGraph;
-
 }
 
 static void freeCOOGraph(struct COOGraph cooGraph)
@@ -95,23 +87,16 @@ static struct CSRGraph coo2csr(struct COOGraph cooGraph)
 	csrGraph.numNodes = cooGraph.numNodes;
 	csrGraph.numEdges = cooGraph.numEdges;
 #if NUMA
-	csrGraph.nodePtrs =
-	    (uint32_t *)
-	    numa_alloc(ROUND_UP_TO_MULTIPLE_OF_2(csrGraph.numNodes + 1) *
-		   sizeof(uint32_t));
-	csrGraph.neighborIdxs =
-	    (uint32_t *)
-	    numa_alloc(ROUND_UP_TO_MULTIPLE_OF_8
-		   (csrGraph.numEdges * sizeof(uint32_t)));
+	csrGraph.nodePtrs = (uint32_t*)
+	    numa_alloc(ROUND_UP_TO_MULTIPLE_OF_2(csrGraph.numNodes + 1) * sizeof(uint32_t));
+	csrGraph.neighborIdxs = (uint32_t*)
+	    numa_alloc(ROUND_UP_TO_MULTIPLE_OF_8(csrGraph.numEdges * sizeof(uint32_t)));
 #else
-	csrGraph.nodePtrs =
-	    (uint32_t *)
+	csrGraph.nodePtrs = (uint32_t*)
 	    calloc(ROUND_UP_TO_MULTIPLE_OF_2(csrGraph.numNodes + 1),
-		   sizeof(uint32_t));
-	csrGraph.neighborIdxs =
-	    (uint32_t *)
-	    malloc(ROUND_UP_TO_MULTIPLE_OF_8
-		   (csrGraph.numEdges * sizeof(uint32_t)));
+	        sizeof(uint32_t));
+	csrGraph.neighborIdxs = (uint32_t*)
+	    malloc(ROUND_UP_TO_MULTIPLE_OF_8(csrGraph.numEdges * sizeof(uint32_t)));
 #endif
 
 	// Histogram nodeIdxs
@@ -133,8 +118,7 @@ static struct CSRGraph coo2csr(struct COOGraph cooGraph)
 	for (uint32_t i = 0; i < cooGraph.numEdges; ++i) {
 		uint32_t nodeIdx = cooGraph.nodeIdxs[i];
 		uint32_t neighborListIdx = csrGraph.nodePtrs[nodeIdx]++;
-		csrGraph.neighborIdxs[neighborListIdx] =
-		    cooGraph.neighborIdxs[i];
+		csrGraph.neighborIdxs[neighborListIdx] = cooGraph.neighborIdxs[i];
 	}
 
 	// Restore nodePtrs
@@ -144,16 +128,13 @@ static struct CSRGraph coo2csr(struct COOGraph cooGraph)
 	csrGraph.nodePtrs[0] = 0;
 
 	return csrGraph;
-
 }
 
 static void freeCSRGraph(struct CSRGraph csrGraph)
 {
 #if NUMA
-	numa_free(csrGraph.nodePtrs, ROUND_UP_TO_MULTIPLE_OF_2(csrGraph.numNodes + 1) *
-		   sizeof(uint32_t));
-	numa_free(csrGraph.neighborIdxs, ROUND_UP_TO_MULTIPLE_OF_8
-		   (csrGraph.numEdges * sizeof(uint32_t)));
+	numa_free(csrGraph.nodePtrs, ROUND_UP_TO_MULTIPLE_OF_2(csrGraph.numNodes + 1) * sizeof(uint32_t));
+	numa_free(csrGraph.neighborIdxs, ROUND_UP_TO_MULTIPLE_OF_8(csrGraph.numEdges * sizeof(uint32_t)));
 #else
 	free(csrGraph.nodePtrs);
 	free(csrGraph.neighborIdxs);

@@ -16,22 +16,24 @@ static void usage()
 	      "\n    -e <E>    # of timed repetition iterations (default=3)"
 	      "\n"
 	      "\nGeneral options:"
-	      "\n    -v <V>    verbosity" "\n    -h        help" "\n\n");
+	      "\n    -v <V>    verbosity"
+	      "\n    -h        help"
+	      "\n\n");
 }
 
 typedef struct Params {
-	const char *fileName;
+	const char* fileName;
 	unsigned int depth;
 	int n_warmup;
 	int n_reps;
 	unsigned int verbosity;
 #if NUMA
-	struct bitmask *bitmask_in;
+	struct bitmask* bitmask_in;
 	int numa_node_cpu;
 #endif
 } Params;
 
-static struct Params input_params(int argc, char **argv)
+static struct Params input_params(int argc, char** argv)
 {
 	struct Params p;
 	p.fileName = "data/roadNet-CA.txt";
