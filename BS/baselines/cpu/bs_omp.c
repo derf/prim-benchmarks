@@ -15,7 +15,7 @@
 #define stop(...)
 #endif
 
-#if WITH_PERF
+#if WITH_PERF_LIB
 #include "../../../include/perf.h"
 #else
 #define perf_start(...)
@@ -136,11 +136,11 @@ int main(int argc, char** argv)
 		numa_set_membind(bitmask_in);
 		numa_free_nodemask(bitmask_in);
 	}
-	DTYPE* input = numa_alloc((input_size) * sizeof(DTYPE));
-	DTYPE* querys = numa_alloc((n_querys) * sizeof(DTYPE));
+	DTYPE* input = numa_alloc(input_size * sizeof(DTYPE));
+	DTYPE* querys = numa_alloc(n_querys * sizeof(DTYPE));
 #else
-	DTYPE* input = malloc((input_size) * sizeof(DTYPE));
-	DTYPE* querys = malloc((n_querys) * sizeof(DTYPE));
+	DTYPE* input = malloc(input_size * sizeof(DTYPE));
+	DTYPE* querys = malloc(n_querys * sizeof(DTYPE));
 #endif
 
 #if NUMA
@@ -266,7 +266,7 @@ int main(int argc, char** argv)
 	nr_threads++;
 
 	if (status) {
-#if WITH_PERF
+#if WITH_PERF_LIB
 		printf("[::] binarySearch | n_threads=%d e_type=%s n_elements=%lu"
 #if NUMA
 		       " numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
