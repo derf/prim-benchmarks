@@ -9,15 +9,15 @@ fn=log/$(hostname)/milos-hbm-cxl-perf
 # 2^28 elements * 8 B == 2 GiB
 input_size=$((2**28))
 
-# 2^24 queries * 8 B == 128 MiB
-num_queries=$((2**24))
+# 2^22 queries * 8 B == 32 MiB
+num_queries=$((2**22))
 
 run_benchmark() {
 	local "$@"
 	set -e
 	# warmup
 	OMP_NUM_THREADS=${nr_threads} ./bs_omp ${input_size} ${num_queries} $ram $cpu > /dev/null
-	for i in $(seq 1 5); do
+	for i in $(seq 1 20); do
 		OMP_NUM_THREADS=${nr_threads} ./bs_omp ${input_size} ${num_queries} $ram $cpu
 	done
 }

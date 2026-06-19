@@ -9,8 +9,8 @@ fn=log/$(hostname)/milos-hbm-cxl
 # 2^28 elements * 8 B == 2 GiB
 input_size=$((2**28))
 
-# 2^24 queries * 8 B == 128 MiB
-num_queries=$((2**24))
+# 2^22 queries * 8 B == 32 MiB
+num_queries=$((2**22))
 
 run_benchmark() {
 	local "$@"

@@ -26,11 +26,8 @@ ifeq (${perf_lib}, 1)
 	LDFLAGS += ${HOME}/var/source/perf-api/build/lib/perf/libperf.a -lcap
 endif
 
-.PHONY: all
-all: bs_omp
-
 bs_omp: bs_omp.c
-	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_BENCHMARK=${dfatool_timing} -DWITH_PERF_LIB=${perf_lib} bs_omp.c -o bs_omp -fopenmp ${LDFLAGS}
+	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DDFATOOL_TIMING=${dfatool_timing} -DWITH_PERF_LIB=${perf_lib} bs_omp.c -o bs_omp -fopenmp ${LDFLAGS}
 
 # bs_omp performs a single iteration and must be run in a loop for proper benchmarks
 

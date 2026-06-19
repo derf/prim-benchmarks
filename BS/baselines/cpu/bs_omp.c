@@ -8,15 +8,15 @@
 #include <time.h>
 #include <unistd.h>
 
-#if WITH_BENCHMARK
-#include "timer.h"
+#if DFATOOL_TIMING
+#include "../../include/timer.h"
 #else
 #define start(...)
 #define stop(...)
 #endif
 
 #if WITH_PERF_LIB
-#include "../../../include/perf.h"
+#include "../../../include/perf-lib.h"
 #else
 #define perf_start(...)
 #define perf_stop(...)
@@ -101,16 +101,17 @@ uint64_t binarySearch(DTYPE* input, uint64_t input_size, DTYPE* querys,
  */
 int main(int argc, char** argv)
 {
-#if WITH_BENCHMARK
+#if DFATOOL_TIMING
 	Timer timer;
 #endif
-	uint64_t input_size = atol(argv[1]);
-	uint64_t n_querys = atol(argv[2]);
 
 	if (argc < 3) {
 		printf("Usage: ./bs_omp <input_size> <n_queries>\n");
 		return 1;
 	}
+
+	uint64_t input_size = atol(argv[1]);
+	uint64_t n_querys = atol(argv[2]);
 
 #if NUMA
 	if (argc < 5) {
@@ -280,7 +281,7 @@ int main(int argc, char** argv)
 #endif
 		);
 		perf_print();
-#elif WITH_BENCHMARK
+#elif DFATOOL_TIMING
 #if NUMA_MEMCPY
 		printf("[::] BS-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%lu"
 		       " numa_node_in=%d numa_node_local=%d numa_node_cpu=%d numa_node_cpu_memcpy=%d numa_distance_in_cpu=%d"
@@ -307,7 +308,7 @@ int main(int argc, char** argv)
 		printf(" throughput_MOpps=%f latency_us=%f\n",
 		    n_querys / timer.time[0], timer.time[0]);
 #endif // NUMA_MEMCPY
-#endif // WITH_BENCHMARK
+#endif // DFATOOL_TIMING
 	} else {
 		printf("[ERROR]\n");
 	}
