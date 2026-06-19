@@ -241,25 +241,25 @@ int main(int argc, char** argv)
 #if WITH_PERF_LIB
 			printf("[::] BFS CPU | n_threads=%d e_type=%s n_elements=%d"
 #if NUMA
-					" numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
+			       " numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
 #endif
-				" |",
+			       " |",
 			    nr_threads, "uint32_t", csrGraph.numNodes
 #if NUMA
-				,
-				numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu)
+			    ,
+			    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu)
 #endif
-				);
+			);
 			perf_print();
 #elif WITH_BENCHMARK
 			printf("[::] BFS CPU | n_threads=%d e_type=%s n_elements=%d"
 #if NUMA
-					" numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
+			       " numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
 #endif
 			       " | throughput_seq_MBps=%f throughput_MBps=%f",
 			    nr_threads, "uint32_t", csrGraph.numNodes,
 #if NUMA
-				   numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu),
+			    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu),
 #endif
 			    csrGraph.numNodes * sizeof(uint32_t) / timer.time[1],
 			    csrGraph.numNodes * sizeof(uint32_t) / timer.time[0]);
