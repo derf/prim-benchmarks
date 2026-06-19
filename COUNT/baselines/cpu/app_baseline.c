@@ -20,6 +20,15 @@
 #define stop(...)
 #endif
 
+#if WITH_PERF_LIB
+#include "../../../include/perf-lib.h"
+#elif WITH_PERF_EXT
+#include "../../../include/perf-ext.h"
+#else
+#define perf_start(...)
+#define perf_stop(...)
+#endif
+
 #if NUMA
 #include <numaif.h>
 #include <numa.h>
@@ -43,7 +52,6 @@ volatile int total_count;
 
 // Params ---------------------------------------------------------------------
 typedef struct Params {
-	char *dpu_type;
 	int input_size;
 	int n_warmup;
 	int n_reps;
@@ -64,7 +72,7 @@ bool pred(const T x)
 	return (x % 2) == 0;
 }
 
-void create_test_file(unsigned int nr_elements)
+void fill_column(unsigned int nr_elements)
 {
 	//srand(0);
 
@@ -157,7 +165,7 @@ void input_params(int argc, char **argv)
 #endif
 
 	int opt;
-	while ((opt = getopt(argc, argv, "hi:w:e:t:a:b:c:")) >= 0) {
+	while ((opt = getopt(argc, argv, "hi:w:e:t:A:B:C:")) >= 0) {
 		switch (opt) {
 		case 'h':
 			usage();
@@ -176,13 +184,13 @@ void input_params(int argc, char **argv)
 			p.n_threads = atoi(optarg);
 			break;
 #if NUMA
-		case 'a':
+		case 'A':
 			p.bitmask_in = numa_parse_nodestring(optarg);
 			break;
-		case 'b':
+		case 'B':
 			p.bitmask_out = numa_parse_nodestring(optarg);
 			break;
-		case 'c':
+		case 'C':
 			p.numa_node_cpu = atoi(optarg);
 			break;
 #endif
@@ -192,7 +200,7 @@ void input_params(int argc, char **argv)
 			exit(0);
 		}
 	}
-	assert(p.n_threads > 0 && "Invalid # of ranks!");
+	assert(p.n_threads > 0);
 }
 
 /**
@@ -203,10 +211,10 @@ int main(int argc, char **argv)
 
 	input_params(argc, argv);
 
-	const unsigned int file_size = p.input_size;
+	const unsigned int input_size = p.input_size;
 
-	// Create an input file with arbitrary data.
-	create_test_file(file_size);
+	// Create a column with arbitrary data
+	fill_column(input_size);
 
 #if WITH_BENCHMARK
 	Timer timer;
@@ -219,35 +227,58 @@ int main(int argc, char **argv)
 #endif
 
 	for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
-		start(&timer, 0, 0);
-		total_count = count_host(file_size, p.n_threads);
-		stop(&timer, 0);
+		if (rep >= p.n_warmup) {
+			perf_start();
+			start(&timer, 0, 0);
+		}
+		total_count = count_host(input_size, p.n_threads);
+		if (rep >= p.n_warmup) {
+			stop(&timer, 0);
+			perf_stop();
+		}
 
-#if WITH_BENCHMARK
 		unsigned int nr_threads = 0;
 #pragma omp parallel
 #pragma omp atomic
 		nr_threads++;
 
 		if (rep >= p.n_warmup) {
+#if WITH_PERF_LIB
+			printf
+			    ("[::] COUNT-CPU | n_threads=%d e_type=%s n_elements=%d"
+#if NUMA
+			     " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+#endif
+			     " |",
+			     nr_threads, XSTR(T), input_size
+#if NUMA
+				 ,
+			     numa_node_in, numa_node_out, numa_node_cpu,
+			     numa_distance(numa_node_in, numa_node_cpu),
+			     numa_distance(numa_node_cpu, numa_node_out)
+#endif
+				);
+			perf_print();
+#elif WITH_BENCHMARK
 			printf
 			    ("[::] COUNT-CPU | n_threads=%d e_type=%s n_elements=%d"
 #if NUMA
 			     " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
 			     " | throughput_MBps=%f",
-			     nr_threads, XSTR(T), file_size,
+			     nr_threads, XSTR(T), input_size,
 #if NUMA
 			     numa_node_in, numa_node_out, numa_node_cpu,
 			     numa_distance(numa_node_in, numa_node_cpu),
 			     numa_distance(numa_node_cpu, numa_node_out),
 #endif
-			     file_size * 2 * sizeof(T) / timer.time[0]);
+			     input_size * 2 * sizeof(T) / timer.time[0]);
 			printf(" throughput_MOpps=%f",
-			       file_size / timer.time[0]);
-			printall(&timer, 0);
-		}
+			       input_size / timer.time[0]);
+			printf(" latency_us=%f\n",
+					timer.time[0]);
 #endif				// WITH_BENCHMARK
+		}
 	}
 
 #if NOP_SYNC
@@ -257,7 +288,7 @@ int main(int argc, char **argv)
 #endif
 
 #if NUMA
-	numa_free(A, file_size * sizeof(T));
+	numa_free(A, input_size * sizeof(T));
 #else
 	free(A);
 #endif
