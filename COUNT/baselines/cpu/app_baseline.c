@@ -13,8 +13,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#if WITH_BENCHMARK
-#include "../../support/timer.h"
+#if DFATOOL_TIMING
+#include "../../include/timer.h"
 #else
 #define start(...)
 #define stop(...)
@@ -37,7 +37,6 @@ void* mp_pages[1];
 int mp_status[1];
 int mp_nodes[1];
 int numa_node_in = -1;
-int numa_node_out = -1;
 int numa_node_cpu = -1;
 #endif
 
@@ -48,10 +47,10 @@ int numa_node_cpu = -1;
 #define T uint64_t
 #endif
 
-volatile int total_count;
+volatile unsigned long total_count;
 
 typedef struct Params {
-	int input_size;
+	unsigned long input_size;
 	int n_warmup;
 	int n_reps;
 	int n_threads;
@@ -70,12 +69,12 @@ bool pred(const T x)
 	return (x % 2) == 0;
 }
 
-void fill_column(unsigned int nr_elements)
+void fill_column(unsigned long nr_elements)
 {
 	// srand(0);
 
 #if NUMA
-	if (p.bitmask_in) {
+	if (p.bitmask_in != NULL) {
 		numa_set_membind(p.bitmask_in);
 		numa_free_nodemask(p.bitmask_in);
 	}
@@ -91,19 +90,21 @@ void fill_column(unsigned int nr_elements)
 	numa_free_nodemask(bitmask_all);
 #endif
 
-	for (unsigned int i = 0; i < nr_elements; i++) {
+	for (unsigned long i = 0; i < nr_elements; i++) {
 		// A[i] = (unsigned int) (rand());
 		A[i] = i + 1;
 	}
 
 #if NUMA
-	mp_pages[0] = A;
-	if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
-		perror("move_pages(A)");
-	} else if (mp_status[0] < 0) {
-		printf("move_pages error: %d", mp_status[0]);
-	} else {
-		numa_node_in = mp_status[0];
+	if (p.bitmask_in != NULL) {
+		mp_pages[0] = A;
+		if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
+			perror("move_pages(A)");
+		} else if (mp_status[0] < 0) {
+			printf("move_pages error: %d", mp_status[0]);
+		} else {
+			numa_node_in = mp_status[0];
+		}
 	}
 
 	numa_node_cpu = p.numa_node_cpu;
@@ -116,13 +117,13 @@ void fill_column(unsigned int nr_elements)
 #endif
 }
 
-static int count_host(int size, int t)
+static unsigned long count_host(unsigned long size, int t)
 {
-	int count = 0;
+	unsigned long count = 0;
 
 	omp_set_num_threads(t);
 #pragma omp parallel for reduction(+ : count)
-	for (int my = 0; my < size; my++) {
+	for (unsigned long my = 0; my < size; my++) {
 		if (!pred(A[my])) {
 			count++;
 		}
@@ -137,22 +138,21 @@ void usage()
 	    "\n"
 	    "\nGeneral options:"
 	    "\n    -h        help"
-	    "\n    -d <D>    DPU type (default=fsim)"
-	    "\n    -t <T>    # of threads (default=8)"
-	    "\n    -w <W>    # of untimed warmup iterations (default=2)"
-	    "\n    -e <E>    # of timed repetition iterations (default=5)"
+	    "\n    -t <T>    # of threads (default=4)"
+	    "\n    -w <W>    # of untimed warmup iterations (default=1)"
+	    "\n    -e <E>    # of timed repetition iterations (default=3)"
 	    "\n"
 	    "\nBenchmark-specific options:"
-	    "\n    -i <I>    input size (default=8M elements)"
+	    "\n    -i <I>    input size (default=2^28 elements)"
 	    "\n");
 }
 
 void input_params(int argc, char** argv)
 {
-	p.input_size = 16 << 20;
+	p.input_size = 1 << 28;
 	p.n_warmup = 1;
 	p.n_reps = 3;
-	p.n_threads = 5;
+	p.n_threads = 4;
 #if NUMA
 	p.bitmask_in = NULL;
 	p.numa_node_cpu = -1;
@@ -166,7 +166,7 @@ void input_params(int argc, char** argv)
 			exit(0);
 			break;
 		case 'i':
-			p.input_size = atoi(optarg);
+			p.input_size = atol(optarg);
 			break;
 		case 'w':
 			p.n_warmup = atoi(optarg);
@@ -202,12 +202,12 @@ int main(int argc, char** argv)
 
 	input_params(argc, argv);
 
-	const unsigned int input_size = p.input_size;
+	const unsigned long input_size = p.input_size;
 
 	// Create a column with arbitrary data
 	fill_column(input_size);
 
-#if WITH_BENCHMARK
+#if DFATOOL_TIMING
 	Timer timer;
 #endif
 
@@ -235,38 +235,36 @@ int main(int argc, char** argv)
 
 		if (rep >= p.n_warmup) {
 #if WITH_PERF_LIB
-			printf("[::] COUNT-CPU | n_threads=%d e_type=%s n_elements=%d"
+			printf("[::] COUNT-CPU | n_threads=%d e_type=%s n_elements=%lu"
 #if NUMA
-			       " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+			       " numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
 #endif
 			       " |",
 			    nr_threads, XSTR(T), input_size
 #if NUMA
 			    ,
-			    numa_node_in, numa_node_out, numa_node_cpu,
-			    numa_distance(numa_node_in, numa_node_cpu),
-			    numa_distance(numa_node_cpu, numa_node_out)
+			    numa_node_in, numa_node_cpu,
+			    numa_distance(numa_node_in, numa_node_cpu)
 #endif
 			);
 			perf_print();
-#elif WITH_BENCHMARK
-			printf("[::] COUNT-CPU | n_threads=%d e_type=%s n_elements=%d"
+#elif DFATOOL_TIMING
+			printf("[::] COUNT-CPU | n_threads=%d e_type=%s n_elements=%lu"
 #if NUMA
-			       " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+			       " numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
 #endif
 			       " | throughput_MBps=%f",
 			    nr_threads, XSTR(T), input_size,
 #if NUMA
-			    numa_node_in, numa_node_out, numa_node_cpu,
+			    numa_node_in, numa_node_cpu,
 			    numa_distance(numa_node_in, numa_node_cpu),
-			    numa_distance(numa_node_cpu, numa_node_out),
 #endif
 			    input_size * 2 * sizeof(T) / timer.time[0]);
 			printf(" throughput_MOpps=%f",
 			    input_size / timer.time[0]);
 			printf(" latency_us=%f\n",
 			    timer.time[0]);
-#endif // WITH_BENCHMARK
+#endif // DFATOOL_TIMING
 		}
 	}
 

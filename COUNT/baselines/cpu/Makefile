@@ -1,4 +1,4 @@
-benchmark ?= 1
+dfatool_timing ?= 1
 debug ?= 0
 native ?= 1
 nop_sync ?= 0
@@ -32,7 +32,7 @@ all: count
 TYPE ?= uint64_t
 
 count: app_baseline.c
-	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -o count -DT=${TYPE} -DNUMA=${numa} -DNOP_SYNC=${nop_sync} -DWITH_BENCHMARK=${benchmark} -DWITH_PERF_LIB=${perf_lib} app_baseline.c -fopenmp ${LDFLAGS}
+	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -o count -DT=${TYPE} -DNUMA=${numa} -DNOP_SYNC=${nop_sync} -DDFATOOL_TIMING=${dfatool_timing} -DWITH_PERF_LIB=${perf_lib} app_baseline.c -fopenmp ${LDFLAGS}
 
 .PHONY: run
 run: count
