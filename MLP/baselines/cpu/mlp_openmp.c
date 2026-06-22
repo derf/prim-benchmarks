@@ -11,13 +11,20 @@
 #include <getopt.h>
 #include <assert.h>
 #include <stdint.h>
-#include "../../support/common.h"
+#include "../../include/common.h"
 
-#if WITH_BENCHMARK
-#include "../../support/timer.h"
+#if DFATOOL_TIMING
+#include "../../include/timer.h"
 #else
 #define start(...)
 #define stop(...)
+#endif
+
+#if WITH_PERF_LIB
+#include "../../../include/perf-lib.h"
+#else
+#define perf_start(...)
+#define perf_stop(...)
 #endif
 
 #if NUMA
@@ -102,6 +109,7 @@ static uint64_t mlp_host_sum(uint64_t n_size)
 typedef struct Params {
 	int input_size_n;
 	int input_size_m;
+	int n_warmup;
 	int n_reps;
 #if NUMA
 	struct bitmask *bitmask;
@@ -119,14 +127,15 @@ struct Params input_params(int argc, char **argv)
 	struct Params p;
 	p.input_size_n = 8192;
 	p.input_size_m = 20480;
-	p.n_reps = 100;
+	p.n_warmup = 1;
+	p.n_reps = 3;
 #if NUMA
 	p.bitmask = NULL;
 	p.numa_node_cpu = -1;
 #endif
 
 	int opt;
-	while ((opt = getopt(argc, argv, "e:n:m:A:C:")) >= 0) {
+	while ((opt = getopt(argc, argv, "e:n:m:w:A:C:")) >= 0) {
 		switch (opt) {
 		case 'h':
 			usage();
@@ -140,6 +149,9 @@ struct Params input_params(int argc, char **argv)
 			break;
 		case 'm':
 			p.input_size_m = atoi(optarg);
+			break;
+		case 'w':
+			p.n_warmup = atoi(optarg);
 			break;
 #if NUMA
 		case 'A':
@@ -169,7 +181,7 @@ int main(int argc, char **argv)
 	uint64_t n_size = p.input_size_n;
 	uint64_t m_size = p.input_size_m;
 
-#if WITH_BENCHMARK
+#if DFATOOL_TIMING
 	Timer timer;
 #endif
 
@@ -213,19 +225,33 @@ int main(int argc, char **argv)
 	// Create an input file with arbitrary data.
 	init_data(A, m_size, n_size);
 
-	for (int i = 0; i < p.n_reps; i++) {
+	for (int i = 0; i < p.n_warmup + p.n_reps; i++) {
 		init_B(B, n_size);
 
+		perf_start();
 		start(&timer, 0, 0);
 		mlp_host(C, A, B, n_size, m_size);
 		stop(&timer, 0);
+		perf_stop();
 
-#if WITH_BENCHMARK
 		unsigned int nr_threads = 0;
 #pragma omp parallel
 #pragma omp atomic
 		nr_threads++;
 
+		if (i >= p.n_warmup) {
+#if WITH_PERF_LIB
+		printf("[::] MLP-CPU | n_threads=%d e_type=%s n_elements=%lu",
+		       nr_threads, XSTR(T), n_size * m_size);
+#if NUMA
+		printf
+		    (" numa_node_data=%d numa_node_cpu=%d numa_distance_cpu_data=%d",
+		     numa_node_data, numa_node_cpu,
+		     numa_distance(numa_node_data, numa_node_cpu));
+#endif
+		printf(" |");
+		perf_print();
+#elif DFATOOL_TIMING
 		printf("[::] MLP-CPU | n_threads=%d e_type=%s n_elements=%lu",
 		       nr_threads, XSTR(T), n_size * m_size);
 #if NUMA
@@ -238,8 +264,8 @@ int main(int argc, char **argv)
 		       n_size * m_size * sizeof(T) / timer.time[0],
 		       n_size * m_size / timer.time[0]);
 		printf(" latency_us=%f\n", timer.time[0]);
-#endif				// WITH_BENCHMARK
-	}
+#endif				// DFATOOL_TIMING
+	} }
 
 #if NOP_SYNC
 	for (int rep = 0; rep < 200000; rep++) {

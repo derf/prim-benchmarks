@@ -1,8 +1,9 @@
-benchmark ?= 1
+dfatool_timing ?= 1
 debug ?= 0
 native ?= 1
 nop_sync ?= 0
 numa ?= 0
+perf_lib ?= 0
 
 CFLAGS =
 LDFLAGS =
@@ -19,27 +20,20 @@ ifeq (${numa}, 1)
 	LDFLAGS += -lnuma
 endif
 
+ifeq (${perf_lib}, 1)
+	CFLAGS += -I${HOME}/var/source/perf-api/build/include
+	LDFLAGS += ${HOME}/var/source/perf-api/build/lib/perf/libperf.a -lcap
+endif
+
 all: mlp_openmp
 
 mlp_openmp: mlp_openmp.c
-	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} mlp_openmp.c -o mlp_openmp -DNUMA=${numa} -DNOP_SYNC=${nop_sync} -DWITH_BENCHMARK=${benchmark} -fopenmp -std=c99 ${LDFLAGS}
-
-mlp_openmp_O0: mlp_openmp.c
-	gcc mlp_openmp.c -o mlp_openmp_O0 -fopenmp -std=c99
-
-mlp_openmp_O2: mlp_openmp.c
-	gcc -O2 mlp_openmp.c -o mlp_openmp_O2 -fopenmp -std=c99
+	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} mlp_openmp.c -o mlp_openmp -DNUMA=${numa} -DNOP_SYNC=${nop_sync} -DDFATOOL_TIMING=${dfatool_timing} -DWITH_PERF_LIB=${perf_lib} -fopenmp -std=c99 ${LDFLAGS}
 
 run: mlp_openmp
 	./mlp_openmp
 
-run_O0: mlp_openmp_O0
-	./mlp_openmp_O0
-
-run_O2: mlp_openmp_O2
-	./mlp_openmp_O2
-
 clean:
-	rm -f mlp_openmp mlp_openmp_O0 mlp_openmp_O2
+	rm -f mlp_openmp
 
-.PHONY: all run run_O0 run_O2 clean
+.PHONY: all run clean

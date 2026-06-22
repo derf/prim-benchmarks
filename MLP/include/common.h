@@ -15,7 +15,6 @@ struct dpu_info_t {
 	uint32_t rows_per_dpu_pad;
 	uint32_t prev_rows_dpu;
 };
-struct dpu_info_t *dpu_info;
 
 #define NUM_LAYERS 3
 #define max(x, y) (x > y ? x : y)

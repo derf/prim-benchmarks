@@ -115,7 +115,7 @@ int main(int argc, char **argv)
 	unsigned int n_size = p.n_size;
 
 	// Initialize help data
-	dpu_info =
+	struct dpu_info_t *dpu_info =
 	    (struct dpu_info_t *)malloc(nr_of_dpus * sizeof(struct dpu_info_t));
 	dpu_arguments_t *input_args =
 	    (dpu_arguments_t *) malloc(nr_of_dpus * sizeof(dpu_arguments_t));
