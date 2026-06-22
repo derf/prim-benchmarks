@@ -4,13 +4,13 @@
  *
  */
 
+#include <assert.h>
+#include <getopt.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
-#include <getopt.h>
-#include <assert.h>
 
 #if ASPECTC
 extern "C" {
@@ -28,24 +28,24 @@ extern "C" {
 #endif
 
 #include "common.h"
-#include "timer.h"
 #include "params.h"
+#include "timer.h"
 
 // Define the DPU Binary path as DPU_BINARY here
 #ifndef DPU_BINARY
 #define DPU_BINARY "./bin/mlp_dpu"
 #endif
 
-static T **A;
-static T *B;
-static T *B_host;
-static T *B_tmp;
-static T *C;
-static T *C_dpu;
+static T** A;
+static T* B;
+static T* B_host;
+static T* B_tmp;
+static T* C;
+static T* C_dpu;
 
 // Create input arrays
-static void init_data(T **A, T *B, T *B_host, unsigned int m_size,
-		      unsigned int n_size)
+static void init_data(T** A, T* B, T* B_host, unsigned int m_size,
+    unsigned int n_size)
 {
 	for (unsigned int l = 0; l < NUM_LAYERS; l++)
 		for (unsigned int i = 0; i < m_size * n_size; i++) {
@@ -66,8 +66,8 @@ static void init_data(T **A, T *B, T *B_host, unsigned int m_size,
 }
 
 // Compute output in the host
-static void mlp_host(T *C, T **A, T *B, unsigned int m_size,
-		     unsigned int n_size)
+static void mlp_host(T* C, T** A, T* B, unsigned int m_size,
+    unsigned int n_size)
 {
 
 	for (unsigned int nl = 0; nl < NUM_LAYERS; nl++) {
@@ -87,7 +87,7 @@ static void mlp_host(T *C, T **A, T *B, unsigned int m_size,
 }
 
 // Main of the Host Application
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
 
 	struct Params p = input_params(argc, argv);
@@ -115,10 +115,8 @@ int main(int argc, char **argv)
 	unsigned int n_size = p.n_size;
 
 	// Initialize help data
-	struct dpu_info_t *dpu_info =
-	    (struct dpu_info_t *)malloc(nr_of_dpus * sizeof(struct dpu_info_t));
-	dpu_arguments_t *input_args =
-	    (dpu_arguments_t *) malloc(nr_of_dpus * sizeof(dpu_arguments_t));
+	struct dpu_info_t* dpu_info = (struct dpu_info_t*)malloc(nr_of_dpus * sizeof(struct dpu_info_t));
+	dpu_arguments_t* input_args = (dpu_arguments_t*)malloc(nr_of_dpus * sizeof(dpu_arguments_t));
 	uint32_t max_rows_per_dpu = 0;
 	uint32_t n_size_pad = n_size;
 	if (n_size % 2 == 1) {
@@ -127,7 +125,8 @@ int main(int argc, char **argv)
 	// Timer
 	Timer timer;
 	i = 0;
-	DPU_FOREACH(dpu_set, dpu, i) {
+	DPU_FOREACH(dpu_set, dpu, i)
+	{
 		uint32_t rows_per_dpu;
 		uint32_t prev_rows_dpu = 0;
 		uint32_t chunks = m_size / nr_of_dpus;
@@ -137,10 +136,7 @@ int main(int argc, char **argv)
 			rows_per_dpu++;
 		if (rest_rows > 0) {
 			if (i >= rest_rows)
-				prev_rows_dpu =
-				    rest_rows * (chunks + 1) + (i -
-								rest_rows) *
-				    chunks;
+				prev_rows_dpu = rest_rows * (chunks + 1) + (i - rest_rows) * chunks;
 			else
 				prev_rows_dpu = i * (chunks + 1);
 		} else {
@@ -149,7 +145,7 @@ int main(int argc, char **argv)
 
 		// Keep max rows for parallel transfers
 		uint32_t rows_per_dpu_pad = rows_per_dpu;
-		if (rows_per_dpu_pad % 2 == 1)	// 4-byte elements
+		if (rows_per_dpu_pad % 2 == 1) // 4-byte elements
 			rows_per_dpu_pad++;
 		if (rows_per_dpu_pad > max_rows_per_dpu)
 			max_rows_per_dpu = rows_per_dpu_pad;
@@ -164,15 +160,13 @@ int main(int argc, char **argv)
 		input_args[i].nr_rows = rows_per_dpu;
 	}
 
-	A = (T **) malloc(NUM_LAYERS * sizeof(T *));
+	A = (T**)malloc(NUM_LAYERS * sizeof(T*));
 	for (l = 0; l < NUM_LAYERS; l++)
-		A[l] =
-		    (T *) malloc(max_rows_per_dpu * nr_of_dpus * n_size_pad *
-				 sizeof(T));
+		A[l] = (T*)malloc(max_rows_per_dpu * nr_of_dpus * n_size_pad * sizeof(T));
 
-	B = (T *) malloc(n_size * sizeof(T));
-	B_host = (T *) malloc(n_size * sizeof(T));
-	C = (T *) malloc(m_size * sizeof(T));
+	B = (T*)malloc(n_size * sizeof(T));
+	B_host = (T*)malloc(n_size * sizeof(T));
+	C = (T*)malloc(m_size * sizeof(T));
 	C_dpu = (T*)malloc(max_rows_per_dpu * nr_of_dpus * sizeof(T));
 	B_tmp = (T*)malloc(max_rows_per_dpu * nr_of_dpus * sizeof(T));
 
@@ -189,35 +183,34 @@ int main(int argc, char **argv)
 		// Input arguments
 		i = 0;
 		// Copy input arguments to DPU
-		DPU_FOREACH(dpu_set, dpu, i) {
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
 			input_args[i].max_rows = max_rows_per_dpu;
 			DPU_ASSERT(dpu_prepare_xfer(dpu, input_args + i));
 		}
-		DPU_ASSERT(dpu_push_xfer
-			   (dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0,
-			    sizeof(dpu_arguments_t), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU, "DPU_INPUT_ARGUMENTS", 0,
+		    sizeof(dpu_arguments_t), DPU_XFER_DEFAULT));
 
 		// Copy input array and vector
 		i = 0;
-		DPU_FOREACH(dpu_set, dpu, i) {
-			DPU_ASSERT(dpu_prepare_xfer
-				   (dpu,
-				    A[0] + dpu_info[i].prev_rows_dpu * n_size));
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
+			DPU_ASSERT(dpu_prepare_xfer(dpu,
+			    A[0] + dpu_info[i].prev_rows_dpu * n_size));
 		}
-		DPU_ASSERT(dpu_push_xfer
-			   (dpu_set, DPU_XFER_TO_DPU,
-			    DPU_MRAM_HEAP_POINTER_NAME, 0,
-			    max_rows_per_dpu * n_size_pad * sizeof(T),
-			    DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU,
+		    DPU_MRAM_HEAP_POINTER_NAME, 0,
+		    max_rows_per_dpu * n_size_pad * sizeof(T),
+		    DPU_XFER_DEFAULT));
 		i = 0;
-		DPU_FOREACH(dpu_set, dpu, i) {
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
 			DPU_ASSERT(dpu_prepare_xfer(dpu, B));
 		}
-		DPU_ASSERT(dpu_push_xfer
-			   (dpu_set, DPU_XFER_TO_DPU,
-			    DPU_MRAM_HEAP_POINTER_NAME,
-			    max_rows_per_dpu * n_size_pad * sizeof(T),
-			    n_size_pad * sizeof(T), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU,
+		    DPU_MRAM_HEAP_POINTER_NAME,
+		    max_rows_per_dpu * n_size_pad * sizeof(T),
+		    n_size_pad * sizeof(T), DPU_XFER_DEFAULT));
 		if (rep >= p.n_warmup)
 			stop(&timer, 1);
 
@@ -244,52 +237,46 @@ int main(int argc, char **argv)
 			i = 0;
 
 			// Copy C_dpu
-			DPU_FOREACH(dpu_set, dpu, i) {
-				DPU_ASSERT(dpu_prepare_xfer
-					   (dpu, C_dpu + i * max_rows_per_dpu));
+			DPU_FOREACH(dpu_set, dpu, i)
+			{
+				DPU_ASSERT(dpu_prepare_xfer(dpu, C_dpu + i * max_rows_per_dpu));
 			}
-			DPU_ASSERT(dpu_push_xfer
-				   (dpu_set, DPU_XFER_FROM_DPU,
-				    DPU_MRAM_HEAP_POINTER_NAME,
-				    max_rows_per_dpu * n_size_pad * sizeof(T) +
-				    n_size_pad * sizeof(T),
-				    max_rows_per_dpu * sizeof(T),
-				    DPU_XFER_DEFAULT));
+			DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU,
+			    DPU_MRAM_HEAP_POINTER_NAME,
+			    max_rows_per_dpu * n_size_pad * sizeof(T) + n_size_pad * sizeof(T),
+			    max_rows_per_dpu * sizeof(T),
+			    DPU_XFER_DEFAULT));
 
 			// B = C
 			unsigned int n, j;
 			i = 0;
 			for (n = 0; n < nr_of_dpus; n++) {
 				for (j = 0; j < dpu_info[n].rows_per_dpu; j++) {
-					B_tmp[i] =
-					    C_dpu[n * max_rows_per_dpu + j];
+					B_tmp[i] = C_dpu[n * max_rows_per_dpu + j];
 					i++;
 				}
 			}
 			i = 0;
-			DPU_FOREACH(dpu_set, dpu, i) {
+			DPU_FOREACH(dpu_set, dpu, i)
+			{
 				DPU_ASSERT(dpu_prepare_xfer(dpu, B_tmp));
 			}
-			DPU_ASSERT(dpu_push_xfer
-				   (dpu_set, DPU_XFER_TO_DPU,
-				    DPU_MRAM_HEAP_POINTER_NAME,
-				    max_rows_per_dpu * n_size_pad * sizeof(T),
-				    n_size_pad * sizeof(T), DPU_XFER_DEFAULT));
+			DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU,
+			    DPU_MRAM_HEAP_POINTER_NAME,
+			    max_rows_per_dpu * n_size_pad * sizeof(T),
+			    n_size_pad * sizeof(T), DPU_XFER_DEFAULT));
 
 			// Copy next matrix of weights
 			i = 0;
-			DPU_FOREACH(dpu_set, dpu, i) {
-				DPU_ASSERT(dpu_prepare_xfer
-					   (dpu,
-					    A[lay] +
-					    dpu_info[i].prev_rows_dpu *
-					    n_size));
+			DPU_FOREACH(dpu_set, dpu, i)
+			{
+				DPU_ASSERT(dpu_prepare_xfer(dpu,
+				    A[lay] + dpu_info[i].prev_rows_dpu * n_size));
 			}
-			DPU_ASSERT(dpu_push_xfer
-				   (dpu_set, DPU_XFER_TO_DPU,
-				    DPU_MRAM_HEAP_POINTER_NAME, 0,
-				    max_rows_per_dpu * n_size_pad * sizeof(T),
-				    DPU_XFER_DEFAULT));
+			DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_TO_DPU,
+			    DPU_MRAM_HEAP_POINTER_NAME, 0,
+			    max_rows_per_dpu * n_size_pad * sizeof(T),
+			    DPU_XFER_DEFAULT));
 
 			if (rep >= p.n_warmup)
 				stop(&timer, 4);
@@ -313,7 +300,8 @@ int main(int argc, char **argv)
 
 #if PRINT
 		// Display DPU Logs
-		DPU_FOREACH(dpu_set, dpu) {
+		DPU_FOREACH(dpu_set, dpu)
+		{
 			DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
 		}
 #endif
@@ -322,24 +310,21 @@ int main(int argc, char **argv)
 		if (rep >= p.n_warmup)
 			start(&timer, 3, rep - p.n_warmup);
 		i = 0;
-		DPU_FOREACH(dpu_set, dpu, i) {
-			DPU_ASSERT(dpu_prepare_xfer
-				   (dpu, C_dpu + i * max_rows_per_dpu));
+		DPU_FOREACH(dpu_set, dpu, i)
+		{
+			DPU_ASSERT(dpu_prepare_xfer(dpu, C_dpu + i * max_rows_per_dpu));
 		}
-		DPU_ASSERT(dpu_push_xfer
-			   (dpu_set, DPU_XFER_FROM_DPU,
-			    DPU_MRAM_HEAP_POINTER_NAME,
-			    max_rows_per_dpu * n_size_pad * sizeof(T) +
-			    n_size_pad * sizeof(T),
-			    max_rows_per_dpu * sizeof(T), DPU_XFER_DEFAULT));
+		DPU_ASSERT(dpu_push_xfer(dpu_set, DPU_XFER_FROM_DPU,
+		    DPU_MRAM_HEAP_POINTER_NAME,
+		    max_rows_per_dpu * n_size_pad * sizeof(T) + n_size_pad * sizeof(T),
+		    max_rows_per_dpu * sizeof(T), DPU_XFER_DEFAULT));
 		if (rep >= p.n_warmup)
 			stop(&timer, 3);
 	}
 
 #if ENERGY
 	double acc_energy, avg_energy, acc_time, avg_time;
-	DPU_ASSERT(dpu_probe_get
-		   (&probe, DPU_ENERGY, DPU_ACCUMULATE, &acc_energy));
+	DPU_ASSERT(dpu_probe_get(&probe, DPU_ENERGY, DPU_ACCUMULATE, &acc_energy));
 	DPU_ASSERT(dpu_probe_get(&probe, DPU_ENERGY, DPU_AVERAGE, &avg_energy));
 	DPU_ASSERT(dpu_probe_get(&probe, DPU_TIME, DPU_ACCUMULATE, &acc_time));
 	DPU_ASSERT(dpu_probe_get(&probe, DPU_TIME, DPU_AVERAGE, &avg_time));
@@ -359,7 +344,7 @@ int main(int argc, char **argv)
 				status = false;
 #if PRINT
 				printf("%d: %d -- %d\n", i, C[i],
-				       C_dpu[n * max_rows_per_dpu + j]);
+				    C_dpu[n * max_rows_per_dpu + j]);
 #endif
 			}
 			i++;

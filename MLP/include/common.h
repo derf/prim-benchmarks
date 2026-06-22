@@ -1,7 +1,7 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
-// Structures used by both the host and the dpu to communicate information 
+// Structures used by both the host and the dpu to communicate information
 typedef struct {
 	uint32_t n_size;
 	uint32_t n_size_pad;
@@ -38,7 +38,7 @@ struct dpu_info_t {
 #endif
 #define PRINT 0
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
+#define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_GREEN "\x1b[32m"
+#define ANSI_COLOR_RESET "\x1b[0m"
 #endif

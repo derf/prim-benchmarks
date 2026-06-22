@@ -1,17 +1,17 @@
 /**
-* @file app.c
-* @brief Template for a Host Application Source File.
-*
-*/
+ * @file app.c
+ * @brief Template for a Host Application Source File.
+ *
+ */
+#include "../../include/common.h"
+#include <assert.h>
+#include <getopt.h>
+#include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <string.h>
 #include <unistd.h>
-#include <getopt.h>
-#include <assert.h>
-#include <stdint.h>
-#include "../../include/common.h"
 
 #if DFATOOL_TIMING
 #include "../../include/timer.h"
@@ -28,10 +28,10 @@
 #endif
 
 #if NUMA
-#include <numaif.h>
 #include <numa.h>
+#include <numaif.h>
 
-void *mp_pages[1];
+void* mp_pages[1];
 int mp_status[1];
 int mp_nodes[1];
 int numa_node_data = -1;
@@ -42,16 +42,16 @@ int numa_node_cpu = -1;
 #define STR(x) #x
 
 // weights
-T **A;
+T** A;
 
 // input/output
-T *B;
+T* B;
 
 // intermediate
-T *C;
+T* C;
 
 // Create input arrays
-static void init_data(T **A, unsigned int m_size, unsigned int n_size)
+static void init_data(T** A, unsigned int m_size, unsigned int n_size)
 {
 	for (unsigned int l = 0; l < NUM_LAYERS; l++) {
 		for (unsigned int i = 0; i < m_size * n_size; i++) {
@@ -64,7 +64,7 @@ static void init_data(T **A, unsigned int m_size, unsigned int n_size)
 	}
 }
 
-static void init_B(T *B, unsigned int n_size)
+static void init_B(T* B, unsigned int n_size)
 {
 	for (unsigned int i = 0; i < n_size; i++) {
 		if (i % 50 < 48) {
@@ -76,8 +76,8 @@ static void init_B(T *B, unsigned int n_size)
 }
 
 // Compute output in the host
-static void mlp_host(T *C, T **A, T *B, unsigned int m_size,
-		     unsigned int n_size)
+static void mlp_host(T* C, T** A, T* B, unsigned int m_size,
+    unsigned int n_size)
 {
 	for (unsigned int nl = 0; nl < NUM_LAYERS; nl++) {
 		for (unsigned int m = 0; m < m_size; m++) {
@@ -112,17 +112,18 @@ typedef struct Params {
 	int n_warmup;
 	int n_reps;
 #if NUMA
-	struct bitmask *bitmask;
+	struct bitmask* bitmask;
 	int numa_node_cpu;
 #endif
 } Params;
 
 void usage()
 {
-	fprintf(stderr, "\nUsage:  ./program [options]" "\n");
+	fprintf(stderr, "\nUsage:  ./program [options]"
+	                "\n");
 }
 
-struct Params input_params(int argc, char **argv)
+struct Params input_params(int argc, char** argv)
 {
 	struct Params p;
 	p.input_size_n = 8192;
@@ -171,10 +172,10 @@ struct Params input_params(int argc, char **argv)
 	return p;
 }
 
-  /**
-  * @brief Main of the Host Application.
-  */
-int main(int argc, char **argv)
+/**
+ * @brief Main of the Host Application.
+ */
+int main(int argc, char** argv)
 {
 
 	struct Params p = input_params(argc, argv);
@@ -190,7 +191,7 @@ int main(int argc, char **argv)
 		numa_set_membind(p.bitmask);
 		numa_free_nodemask(p.bitmask);
 	}
-	A = numa_alloc(NUM_LAYERS * sizeof(T *));
+	A = numa_alloc(NUM_LAYERS * sizeof(T*));
 	for (int l = 0; l < NUM_LAYERS; l++) {
 		A[l] = numa_alloc(n_size * m_size * sizeof(unsigned int));
 	}
@@ -214,7 +215,7 @@ int main(int argc, char **argv)
 		}
 	}
 #else
-	A = malloc(NUM_LAYERS * sizeof(T *));
+	A = malloc(NUM_LAYERS * sizeof(T*));
 	for (int l = 0; l < NUM_LAYERS; l++) {
 		A[l] = malloc(n_size * m_size * sizeof(unsigned int));
 	}
@@ -241,35 +242,34 @@ int main(int argc, char **argv)
 
 		if (i >= p.n_warmup) {
 #if WITH_PERF_LIB
-		printf("[::] MLP-CPU | n_threads=%d e_type=%s n_elements=%lu",
-		       nr_threads, XSTR(T), n_size * m_size);
+			printf("[::] MLP-CPU | n_threads=%d e_type=%s n_elements=%lu",
+			    nr_threads, XSTR(T), n_size * m_size);
 #if NUMA
-		printf
-		    (" numa_node_data=%d numa_node_cpu=%d numa_distance_cpu_data=%d",
-		     numa_node_data, numa_node_cpu,
-		     numa_distance(numa_node_data, numa_node_cpu));
+			printf(" numa_node_data=%d numa_node_cpu=%d numa_distance_cpu_data=%d",
+			    numa_node_data, numa_node_cpu,
+			    numa_distance(numa_node_data, numa_node_cpu));
 #endif
-		printf(" |");
-		perf_print();
+			printf(" |");
+			perf_print();
 #elif DFATOOL_TIMING
-		printf("[::] MLP-CPU | n_threads=%d e_type=%s n_elements=%lu",
-		       nr_threads, XSTR(T), n_size * m_size);
+			printf("[::] MLP-CPU | n_threads=%d e_type=%s n_elements=%lu",
+			    nr_threads, XSTR(T), n_size * m_size);
 #if NUMA
-		printf
-		    (" numa_node_data=%d numa_node_cpu=%d numa_distance_cpu_data=%d",
-		     numa_node_data, numa_node_cpu,
-		     numa_distance(numa_node_data, numa_node_cpu));
+			printf(" numa_node_data=%d numa_node_cpu=%d numa_distance_cpu_data=%d",
+			    numa_node_data, numa_node_cpu,
+			    numa_distance(numa_node_data, numa_node_cpu));
 #endif
-		printf(" | throughput_MBps=%f throughput_MOpps=%f",
-		       n_size * m_size * sizeof(T) / timer.time[0],
-		       n_size * m_size / timer.time[0]);
-		printf(" latency_us=%f\n", timer.time[0]);
-#endif				// DFATOOL_TIMING
-	} }
+			printf(" | throughput_MBps=%f throughput_MOpps=%f",
+			    n_size * m_size * sizeof(T) / timer.time[0],
+			    n_size * m_size / timer.time[0]);
+			printf(" latency_us=%f\n", timer.time[0]);
+#endif // DFATOOL_TIMING
+		}
+	}
 
 #if NOP_SYNC
 	for (int rep = 0; rep < 200000; rep++) {
-		asm volatile ("nop"::);
+		asm volatile("nop" ::);
 	}
 #endif
 
@@ -281,7 +281,7 @@ int main(int argc, char **argv)
 	for (int l = 0; l < NUM_LAYERS; l++) {
 		numa_free(A[l], n_size * m_size * sizeof(unsigned int));
 	}
-	numa_free(A, NUM_LAYERS * sizeof(T *));
+	numa_free(A, NUM_LAYERS * sizeof(T*));
 	numa_free(B, m_size * sizeof(unsigned int));
 	numa_free(C, m_size * sizeof(unsigned int));
 #else
