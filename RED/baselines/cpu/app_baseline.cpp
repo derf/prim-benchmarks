@@ -31,8 +31,28 @@
 
 #include <omp.h>
 
-#include "../../support/common.h"
-#include "../../support/timer.h"
+#include "../../include/common.h"
+
+#if DFATOOL_TIMING
+#include "../../include/timer.h"
+Timer timer;
+#else
+#define start(...)
+#define stop(...)
+#endif
+
+#if WITH_PERF_LIB
+extern "C" {
+#include "../../../include/perf-lib.h"
+};
+#elif WITH_PERF_EXT
+extern "C" {
+#include "../../../include/perf-ext.h"
+};
+#else
+#define perf_start(...)
+#define perf_stop(...)
+#endif
 
 #if NUMA
 #include <numaif.h>
@@ -55,28 +75,18 @@ int numa_node_cpu = -1;
 // Pointer declaration
 static T* A;
 
+volatile T count;
+
 /**
 * @brief creates input arrays
 * @param nr_elements how many elements in input arrays
 */
 static void read_input(T* A, unsigned int nr_elements) {
     //srand(0);
-    printf("nr_elements\t%u\t", nr_elements);
     for (unsigned int i = 0; i < nr_elements; i++) {
         //A[i] = (T) (rand()) % 2;
         A[i] = i;
     }
-}
-
-/**
-* @brief compute output in the host
-*/
-static T reduction_host(T* A, unsigned int nr_elements) {
-    T count = 0;
-    for (unsigned int i = 0; i < nr_elements; i++) {
-        count += A[i];
-    }
-    return count;
 }
 
 // Params ---------------------------------------------------------------------
@@ -115,7 +125,7 @@ struct Params input_params(int argc, char **argv) {
     p.n_warmup      = 1;
     p.n_reps        = 3;
     p.exp           = 0;
-    p.n_threads     = 1;
+    p.n_threads     = 4;
 #if NUMA
     p.bitmask_in     = NULL;
     p.bitmask_out    = NULL;
@@ -123,7 +133,7 @@ struct Params input_params(int argc, char **argv) {
 #endif
 
     int opt;
-    while((opt = getopt(argc, argv, "hi:w:e:x:t:a:b:c:")) >= 0) {
+    while((opt = getopt(argc, argv, "hi:w:e:x:t:A:B:C:")) >= 0) {
         switch(opt) {
         case 'h':
         usage();
@@ -135,9 +145,9 @@ struct Params input_params(int argc, char **argv) {
         case 'x': p.exp           = atoi(optarg); break;
         case 't': p.n_threads     = atoi(optarg); break;
 #if NUMA
-        case 'a': p.bitmask_in    = numa_parse_nodestring(optarg); break;
-        case 'b': p.bitmask_out   = numa_parse_nodestring(optarg); break;
-        case 'c': p.numa_node_cpu = atoi(optarg); break;
+        case 'A': p.bitmask_in    = numa_parse_nodestring(optarg); break;
+        case 'B': p.bitmask_out   = numa_parse_nodestring(optarg); break;
+        case 'C': p.numa_node_cpu = atoi(optarg); break;
 #endif
         default:
             fprintf(stderr, "\nUnrecognized option!\n");
@@ -172,9 +182,6 @@ int main(int argc, char **argv) {
     A = (T*)malloc(input_size * sizeof(T));
 #endif
 
-    T count = 0;
-    T count_host = 0;
-
     // Create an input file with arbitrary data.
     read_input(A, input_size);
 
@@ -199,20 +206,8 @@ int main(int argc, char **argv) {
     }
 #endif
 
-    // Timer declaration
-    Timer timer;
-
-    thrust::omp::vector<T> h_output(input_size);
-
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
-
-        // Compute output on CPU (performance comparison and verification purposes)
-        if(rep >= p.n_warmup)
-            start(&timer, 0, 0);
-        count_host = reduction_host(A, input_size);
-        if(rep >= p.n_warmup)
-            stop(&timer, 0);
 
         thrust::omp::vector<T> d_input(input_size);
         memcpy(thrust::raw_pointer_cast(&d_input[0]), A, input_size * sizeof(T));
@@ -224,48 +219,40 @@ int main(int argc, char **argv) {
 #pragma omp atomic
         nr_threads++;
 
-        if(rep >= p.n_warmup)
-            start(&timer, 1, 0);
+		perf_start();
+		start(&timer, 0, 0);
         count = thrust::reduce(thrust::omp::par, d_input.begin(), d_input.end());
-        if(rep >= p.n_warmup)
-            stop(&timer, 1);
-        h_output = d_input;
+		stop(&timer, 0);
+		perf_stop();
 
-        // Check output
-        bool status = true;
-        if(count_host != count){ 
-            status = false;
-            printf("%lu -- %lu\n", count, count_host);
-        }
-        if (status) {
-            printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
-            if(rep >= p.n_warmup) {
+        if (rep >= p.n_warmup) {
+#if WITH_PERF_LIB
+                printf("[::] RED-CPU | n_threads=%d e_type=%s n_elements=%u",
+                    nr_threads, XSTR(T), input_size);
+#if NUMA
+                    printf(" numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d",
+                    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu)
+						  );
+#endif
+					printf(" |");
+					perf_print();
+#elif DFATOOL_TIMING
                 printf("[::] RED-CPU | n_threads=%d e_type=%s n_elements=%u"
 #if NUMA
                     " numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
 #endif
-                    " | throughput_seq_MBps=%f throughput_MBps=%f",
+                    " | throughput_MBps=%f",
                     nr_threads, XSTR(T), input_size,
 #if NUMA
                     numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu),
 #endif
-                    input_size * sizeof(T) / timer.time[0],
-                    input_size * sizeof(T) / timer.time[1]);
-                printf(" throughput_seq_MOpps=%f throughput_MOpps=%f",
+                    input_size * sizeof(T) / timer.time[0]);
+                printf(" throughput_MOpps=%f latency_us=%f\n",
                     input_size / timer.time[0],
-                    input_size / timer.time[1]);
-                printall(&timer, 1);
+					timer.time[0]);
+#endif // DFATOOL_TIMING
             }
-        } else {
-            printf("[" ANSI_COLOR_RED "ERROR" ANSI_COLOR_RESET "] Outputs differ!\n");
-        }
     }
-
-    // Print timing results
-    //printf("CPU ");
-    //print(&timer, 0, p.n_reps);
-    //printf("Kernel ");
-    //print(&timer, 1, p.n_reps);
 
 
     // Deallocation
