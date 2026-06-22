@@ -77,20 +77,22 @@ int main(int argc, char **argv) {
     int numa_node_rank = -2;
 
     // Allocate DPUs and load binary
-#if !WITH_ALLOC_OVERHEAD
+    start(&timer, 0, 0);
+#if NR_DPUS
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
-    zero(&timer, 0); // alloc
+#else
+    DPU_ASSERT(dpu_alloc_ranks(NR_RANKS, NULL, &dpu_set));
 #endif
-#if !WITH_LOAD_OVERHEAD
+    stop(&timer, 0); // alloc
+    start(&timer, 1, 0);
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
+    stop(&timer, 1); // load
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
     DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
+#if NR_DPUS
     assert(nr_of_dpus == NR_DPUS);
-    zero(&timer, 1); // load
 #endif
-#if !WITH_FREE_OVERHEAD
     zero(&timer, 6); // free
-#endif
 
 #if ENERGY
     struct dpu_probe_t probe;
@@ -103,15 +105,15 @@ int main(int argc, char **argv) {
     double cc_min = 0;
 #endif
 
-    const unsigned int input_size = p.exp == 0 ? p.input_size * NR_DPUS : p.input_size; // Total input size (weak or strong scaling)
+    const unsigned int input_size = p.exp == 0 ? p.input_size * nr_of_dpus : p.input_size; // Total input size (weak or strong scaling)
     const unsigned int input_size_8bytes = 
         ((input_size * sizeof(T)) % 8) != 0 ? roundup(input_size, 8) : input_size; // Input size per DPU (max.), 8-byte aligned
-    const unsigned int input_size_dpu = divceil(input_size, NR_DPUS); // Input size per DPU (max.)
+    const unsigned int input_size_dpu = divceil(input_size, nr_of_dpus); // Input size per DPU (max.)
     const unsigned int input_size_dpu_8bytes = 
         ((input_size_dpu * sizeof(T)) % 8) != 0 ? roundup(input_size_dpu, 8) : input_size_dpu; // Input size per DPU (max.), 8-byte aligned
 
     // Input/output allocation
-    A = (T*)malloc(input_size_dpu_8bytes * NR_DPUS * sizeof(T));
+    A = (T*)malloc(input_size_dpu_8bytes * nr_of_dpus * sizeof(T));
     T *bufferA = A;
     T count = 0;
     T count_host = 0;
@@ -123,28 +125,6 @@ int main(int argc, char **argv) {
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
-
-#if WITH_ALLOC_OVERHEAD
-        if(rep >= p.n_warmup) {
-            start(&timer, 0, 0);
-        }
-        DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &dpu_set));
-        if(rep >= p.n_warmup) {
-            stop(&timer, 0);
-        }
-#endif
-#if WITH_LOAD_OVERHEAD
-        if(rep >= p.n_warmup) {
-            start(&timer, 1, 0);
-        }
-        DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
-        if(rep >= p.n_warmup) {
-            stop(&timer, 1);
-        }
-        DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
-        DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
-        assert(nr_of_dpus == NR_DPUS);
-#endif
 
         // int prev_rank_id = -1;
         int rank_id = -1;
@@ -176,13 +156,13 @@ int main(int argc, char **argv) {
         count = 0;
         // Input arguments
         unsigned int kernel = 0;
-        dpu_arguments_t input_arguments[NR_DPUS];
-        for(int j=0; j<NR_DPUS-1; j++) {
+        dpu_arguments_t input_arguments[nr_of_dpus];
+        for(unsigned int j=0; j<nr_of_dpus-1; j++) {
             input_arguments[j].size=input_size_dpu_8bytes * sizeof(T); 
             input_arguments[j].kernel=(enum kernels)kernel;
         }
-        input_arguments[NR_DPUS-1].size=(input_size_8bytes - input_size_dpu_8bytes * (NR_DPUS-1)) * sizeof(T); 
-        input_arguments[NR_DPUS-1].kernel=(enum kernels)kernel;
+        input_arguments[nr_of_dpus-1].size=(input_size_8bytes - input_size_dpu_8bytes * (nr_of_dpus-1)) * sizeof(T); 
+        input_arguments[nr_of_dpus-1].kernel=(enum kernels)kernel;
         // Copy input arrays
         i = 0;
         DPU_FOREACH(dpu_set, dpu, i) {
@@ -226,13 +206,13 @@ int main(int argc, char **argv) {
 #endif
 
         //printf("Retrieve results\n");
-        dpu_results_t results[NR_DPUS];
-        T* results_count = (T*)malloc(NR_DPUS * sizeof(T));
+        dpu_results_t results[nr_of_dpus];
+        T* results_count = (T*)malloc(nr_of_dpus * sizeof(T));
         if(rep >= p.n_warmup)
             start(&timer, 5, 0);
         i = 0;
         // PARALLEL RETRIEVE TRANSFER
-        dpu_results_t* results_retrieve[NR_DPUS];
+        dpu_results_t* results_retrieve[nr_of_dpus];
 
         DPU_FOREACH(dpu_set, dpu, i) {
             results_retrieve[i] = (dpu_results_t*)malloc(NR_TASKLETS * sizeof(dpu_results_t));
@@ -291,20 +271,6 @@ int main(int argc, char **argv) {
         // Free memory
         free(results_count);
 
-#if WITH_ALLOC_OVERHEAD
-#if WITH_FREE_OVERHEAD
-        if(rep >= p.n_warmup) {
-            start(&timer, 6, 0);
-        }
-#endif
-        DPU_ASSERT(dpu_free(dpu_set));
-#if WITH_FREE_OVERHEAD
-        if(rep >= p.n_warmup) {
-            stop(&timer, 6);
-        }
-#endif
-#endif
-
         // Check output
         bool status = true;
         if(count != count_host) status = false;
@@ -312,9 +278,9 @@ int main(int argc, char **argv) {
             printf("[" ANSI_COLOR_GREEN "OK" ANSI_COLOR_RESET "] Outputs are equal\n");
             if (rep >= p.n_warmup) {
                 dfatool_printf("[::] RED UPMEM | n_dpus=%d n_ranks=%d n_tasklets=%d e_type=%s block_size_B=%d n_elements=%d",
-                    NR_DPUS, nr_of_ranks, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size);
-                dfatool_printf(" b_with_alloc_overhead=%d b_with_load_overhead=%d b_with_free_overhead=%d numa_node_rank=%d ",
-                    WITH_ALLOC_OVERHEAD, WITH_LOAD_OVERHEAD, WITH_FREE_OVERHEAD, numa_node_rank);
+                    nr_of_dpus, nr_of_ranks, NR_TASKLETS, XSTR(T), BLOCK_SIZE, input_size);
+                dfatool_printf(" numa_node_rank=%d ",
+                    numa_node_rank);
                 dfatool_printf("| latency_alloc_us=%f latency_load_us=%f latency_cpu_us=%f latency_write_us=%f latency_kernel_us=%f latency_read_us=%f latency_free_us=%f",
                     timer.time[0],
                     timer.time[1],
@@ -357,9 +323,7 @@ int main(int argc, char **argv) {
 
     // Deallocation
     free(A);
-#if !WITH_ALLOC_OVERHEAD
     DPU_ASSERT(dpu_free(dpu_set));
-#endif
 
     return 0;
 }

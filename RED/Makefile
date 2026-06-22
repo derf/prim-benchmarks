@@ -1,12 +1,10 @@
 NR_TASKLETS ?= 16
 BL ?= 10
-NR_DPUS ?= 1
+NR_DPUS ?= 0
+NR_RANKS ?= 0
 TYPE ?= INT64
 ENERGY ?= 0
 PERF ?= 0
-WITH_ALLOC_OVERHEAD ?= 0
-WITH_LOAD_OVERHEAD ?= 0
-WITH_FREE_OVERHEAD ?= 0
 
 HOST_SOURCES := $(wildcard host/*.c)
 DPU_SOURCES := $(wildcard dpu/*.c)
@@ -18,7 +16,7 @@ dfatool_timing ?= 1
 HOST_CC := ${CC}
 
 COMMON_FLAGS := -Wall -Wextra -g -Iinclude
-HOST_FLAGS := ${COMMON_FLAGS} -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DBL=${BL} -D${TYPE} -DENERGY=${ENERGY} -DPERF=${PERF} -DWITH_ALLOC_OVERHEAD=${WITH_ALLOC_OVERHEAD} -DWITH_LOAD_OVERHEAD=${WITH_LOAD_OVERHEAD} -DWITH_FREE_OVERHEAD=${WITH_FREE_OVERHEAD} -DASPECTC=${aspectc} -DDFATOOL_TIMING=${dfatool_timing}
+HOST_FLAGS := ${COMMON_FLAGS} -O3 `dpu-pkg-config --cflags --libs dpu` -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DNR_RANKS=${NR_RANKS} -DBL=${BL} -D${TYPE} -DENERGY=${ENERGY} -DPERF=${PERF} -DASPECTC=${aspectc} -DDFATOOL_TIMING=${dfatool_timing}
 DPU_FLAGS := ${COMMON_FLAGS} -O2 -DNR_TASKLETS=${NR_TASKLETS} -DBL=${BL} -D${TYPE} -DPERF=${PERF}
 
 ifeq (${aspectc_timing}, 1)
