@@ -13,14 +13,14 @@
 
 // Data type
 #define T uint32_t
-#define DIV 2			// Shift right to divide by sizeof(T)
-#define REGS (BLOCK_SIZE >> 2)	// 32 bits
+#define DIV 2 // Shift right to divide by sizeof(T)
+#define REGS (BLOCK_SIZE >> 2) // 32 bits
 
 // Pixel depth
 #define DEPTH 12
 #define ByteSwap16(n) (((((unsigned int)n) << 8) & 0xFF00) | ((((unsigned int)n) >> 8) & 0x00FF))
 
-// Structures used by both the host and the dpu to communicate information 
+// Structures used by both the host and the dpu to communicate information
 typedef struct {
 	uint32_t size;
 	uint32_t transfer_size;
@@ -36,10 +36,10 @@ typedef struct {
 #endif
 #define PRINT 0
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
+#define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_GREEN "\x1b[32m"
+#define ANSI_COLOR_RESET "\x1b[0m"
 
-#define divceil(n, m) (((n)-1) / (m) + 1)
+#define divceil(n, m) (((n) - 1) / (m) + 1)
 #define roundup(n, m) ((n / m) * m + m)
 #endif
