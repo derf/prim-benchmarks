@@ -1,6 +1,8 @@
 #ifndef _COMMON_H_
 #define _COMMON_H_
 
+#include <stdint.h>
+
 // Structures used by both the host and the dpu to communicate information
 typedef struct {
 	uint32_t n_size;
