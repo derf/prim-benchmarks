@@ -147,6 +147,9 @@ int main(int argc, char** argv)
 
 	const unsigned long input_size = p.input_size;
 
+	printf("Allocating arrays for A + B = C: %.3f GiB per array\n",
+			(double)input_size * sizeof(T) / (1<<30));
+
 	A = (T*) numa_bind_alloc(input_size * sizeof(T), p.bitmask_in);
 	B = (T*) numa_bind_alloc(input_size * sizeof(T), p.bitmask_in);
 	C = (T*) numa_bind_alloc(input_size * sizeof(T), p.bitmask_out);
