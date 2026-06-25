@@ -32,7 +32,6 @@
 // Pointer declaration
 static T* A;
 static T* C;
-static T* C2;
 
 // Create input arrays
 static void read_input(T* A, unsigned int nr_elements, unsigned int nr_elements_round) {
@@ -68,6 +67,7 @@ int main(int argc, char **argv) {
 
     struct dpu_set_t dpu_set, dpu;
     uint32_t nr_of_dpus;
+    uint32_t nr_of_ranks;
     
 #if ENERGY
     struct dpu_probe_t probe;
@@ -85,6 +85,7 @@ int main(int argc, char **argv) {
 #if !WITH_LOAD_OVERHEAD
     DPU_ASSERT(dpu_load(dpu_set, DPU_BINARY, NULL));
     DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+    DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
     assert(nr_of_dpus == NR_DPUS);
     timer.time[1] = 0; // load
 #endif
@@ -104,9 +105,8 @@ int main(int argc, char **argv) {
     // Input/output allocation
     A = malloc(input_size_dpu_round * NR_DPUS * sizeof(T));
     C = malloc(input_size_dpu_round * NR_DPUS * sizeof(T));
-    C2 = malloc(input_size_dpu_round * NR_DPUS * sizeof(T));
     T *bufferA = A;
-    T *bufferC = C2;
+    T *bufferC = C;
 
     // Create an input file with arbitrary data
     read_input(A, input_size, input_size_dpu_round * NR_DPUS);
@@ -132,6 +132,7 @@ int main(int argc, char **argv) {
             stop(&timer, 1);
         }
         DPU_ASSERT(dpu_get_nr_dpus(dpu_set, &nr_of_dpus));
+        DPU_ASSERT(dpu_get_nr_ranks(dpu_set, &nr_of_ranks));
         assert(nr_of_dpus == NR_DPUS);
 #endif
 
@@ -355,7 +356,6 @@ int main(int argc, char **argv) {
     // Deallocation
     free(A);
     free(C);
-    free(C2);
 #if !WITH_ALLOC_OVERHEAD
     DPU_ASSERT(dpu_free(dpu_set));
 #endif
