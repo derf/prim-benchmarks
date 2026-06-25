@@ -26,7 +26,6 @@ Timer timer;
 #define perf_stop(...)
 #endif
 
-
 #if NUMA
 #include "../../../include/numa.h"
 #else

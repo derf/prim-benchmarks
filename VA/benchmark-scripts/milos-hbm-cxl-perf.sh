@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 cd baselines/cpu
 make -B dfatool_timing=0 numa=1 perf_lib=1
