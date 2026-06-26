@@ -86,11 +86,10 @@ static void read_input(T* A, unsigned int nr_elements) {
 
 // Params ---------------------------------------------------------------------
 typedef struct Params {
-    unsigned int   input_size;
+    unsigned long   input_size;
     int   n_warmup;
     int   n_reps;
     int   n_threads;
-    int   exp;
 #if NUMA
     struct bitmask* bitmask_in;
     struct bitmask* bitmask_out;
@@ -106,7 +105,6 @@ void usage() {
         "\n    -h        help"
         "\n    -w <W>    # of untimed warmup iterations (default=1)"
         "\n    -e <E>    # of timed repetition iterations (default=3)"
-        "\n    -x <X>    Weak (0) or strong (1) scaling (default=0)"
         "\n    -t <T>    # of threads (default=8)"
         "\n"
         "\nBenchmark-specific options:"
@@ -119,7 +117,6 @@ struct Params input_params(int argc, char **argv) {
     p.input_size    = 2 << 20;
     p.n_warmup      = 1;
     p.n_reps        = 3;
-    p.exp           = 0;
     p.n_threads     = 8;
 #if NUMA
     p.bitmask_in     = NULL;
@@ -128,16 +125,15 @@ struct Params input_params(int argc, char **argv) {
 #endif
 
     int opt;
-    while((opt = getopt(argc, argv, "hi:w:e:x:t:A:B:C:")) >= 0) {
+    while((opt = getopt(argc, argv, "hi:w:e:t:A:B:C:")) >= 0) {
         switch(opt) {
         case 'h':
         usage();
         exit(0);
         break;
-        case 'i': p.input_size    = atoi(optarg); break;
+        case 'i': p.input_size    = atol(optarg); break;
         case 'w': p.n_warmup      = atoi(optarg); break;
         case 'e': p.n_reps        = atoi(optarg); break;
-        case 'x': p.exp           = atoi(optarg); break;
         case 't': p.n_threads     = atoi(optarg); break;
 #if NUMA
         case 'A': p.bitmask_in    = numa_parse_nodestring(optarg); break;
@@ -162,14 +158,13 @@ int main(int argc, char **argv) {
 
     struct Params p = input_params(argc, argv);
 
-    const unsigned int input_size = p.exp == 0 ? p.input_size * p.n_threads : p.input_size;
-    assert(input_size % (p.n_threads) == 0 && "Input size!");
+    assert(p.input_size % (p.n_threads) == 0 && "Input size!");
 
     // Input/output allocation
 
-	A = (T*) numa_bind_alloc(input_size * sizeof(T), p.bitmask_in);
+	A = (T*) numa_bind_alloc(p.input_size * sizeof(T), p.bitmask_in);
 
-	C = (T*) numa_bind_alloc(input_size * sizeof(T), p.bitmask_out);
+	C = (T*) numa_bind_alloc(p.input_size * sizeof(T), p.bitmask_out);
 
 #if NUMA
 	numa_free_nodemask(p.bitmask_in);
@@ -177,19 +172,19 @@ int main(int argc, char **argv) {
 #endif
 
     // Create an input file with arbitrary data.
-    read_input(A, input_size);
+    read_input(A, p.input_size);
 
 #if NUMA
 	numa_mem_unbind();
 	numa_node_cpu = numa_cpu_bind(p.numa_node_cpu);
 #endif
 
-    thrust::omp::vector<T> h_output(input_size);
+    thrust::omp::vector<T> h_output(p.input_size);
 
     // Loop over main kernel
     for(int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
-        memcpy(thrust::raw_pointer_cast(&h_output[0]), A, input_size * sizeof(T));
+        memcpy(thrust::raw_pointer_cast(&h_output[0]), A, p.input_size * sizeof(T));
 
         omp_set_num_threads(p.n_threads);
 
@@ -210,12 +205,12 @@ int main(int argc, char **argv) {
 				numa_node_out = numa_get_node_of_page(C, "C");
 #endif
 #if WITH_PERF_LIB
-                printf("[::] SCAN-RSS-CPU | n_threads=%d e_type=%s n_elements=%d"
+                printf("[::] SCAN-RSS-CPU | n_threads=%d e_type=%s n_elements=%lu"
 #if NUMA
                     " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
 					" |",
-                    nr_threads, XSTR(T), input_size
+                    nr_threads, XSTR(T), p.input_size
 #if NUMA
 					,
                     numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out)
@@ -223,31 +218,26 @@ int main(int argc, char **argv) {
 					);
 				perf_print();
 #elif DFATOOL_TIMING
-                printf("[::] SCAN-RSS-CPU | n_threads=%d e_type=%s n_elements=%d"
+                printf("[::] SCAN-RSS-CPU | n_threads=%d e_type=%s n_elements=%lu"
 #if NUMA
                     " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
                     " | throughput_MBps=%f",
-                    nr_threads, XSTR(T), input_size,
+                    nr_threads, XSTR(T), p.input_size,
 #if NUMA
                     numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
 #endif
-                    input_size * sizeof(T) / timer.time[0]);
+                    p.input_size * sizeof(T) / timer.time[0]);
                 printf(" throughput_MOpps=%f latency_us=%f\n",
-                    input_size / timer.time[0], timer.time[0]);
+                    p.input_size / timer.time[0], timer.time[0]);
 #endif // DFATOOL_TIMING
         }
 
     }
 
     // Deallocation
-#if NUMA
-    numa_free(A, input_size * sizeof(T));
-    numa_free(C, input_size * sizeof(T));
-#else
-    free(A);
-    free(C);
-#endif
+    numa_free(A, p.input_size * sizeof(T));
+    numa_free(C, p.input_size * sizeof(T));
 
     return 0;
 }
