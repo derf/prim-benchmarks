@@ -55,15 +55,10 @@ extern "C" {
 #endif
 
 #if NUMA
-#include <numaif.h>
-#include <numa.h>
-
-void* mp_pages[1];
-int mp_status[1];
-int mp_nodes[1];
-int numa_node_in = -1;
-int numa_node_out = -1;
-int numa_node_cpu = -1;
+#include "../../../include/numa.h"
+#else
+#define numa_bind_alloc(size, bitmask) malloc(size)
+#define numa_free(data, size) free(size)
 #endif
 
 #define XSTR(x) STR(x)
@@ -172,66 +167,21 @@ int main(int argc, char **argv) {
 
     // Input/output allocation
 
-#if NUMA
-    if (p.bitmask_in) {
-        numa_set_membind(p.bitmask_in);
-        numa_free_nodemask(p.bitmask_in);
-    }
-    A = (T*) numa_alloc(input_size * sizeof(T));
-#else
-    A = (T*)malloc(input_size * sizeof(T));
-#endif
+	A = (T*) numa_bind_alloc(input_size * sizeof(T), p.bitmask_in);
+
+	C = (T*) numa_bind_alloc(input_size * sizeof(T), p.bitmask_out);
 
 #if NUMA
-    if (p.bitmask_out) {
-        numa_set_membind(p.bitmask_out);
-        numa_free_nodemask(p.bitmask_out);
-    }
-    C = (T*) numa_alloc(input_size * sizeof(T));
-#else
-    C = (T*) malloc(input_size * sizeof(T));
+	numa_free_nodemask(p.bitmask_in);
+	numa_free_nodemask(p.bitmask_out);
 #endif
 
     // Create an input file with arbitrary data.
     read_input(A, input_size);
 
 #if NUMA
-    struct bitmask *bitmask_all = numa_allocate_nodemask();
-    numa_bitmask_setall(bitmask_all);
-    numa_set_membind(bitmask_all);
-    numa_free_nodemask(bitmask_all);
-#endif
-
-#if NUMA
-    mp_pages[0] = A;
-    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
-        perror("move_pages(A)");
-    }
-    else if (mp_status[0] < 0) {
-        printf("move_pages error: %d", mp_status[0]);
-    }
-    else {
-        numa_node_in = mp_status[0];
-    }
-
-    mp_pages[0] = C;
-    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
-        perror("move_pages(C)");
-    }
-    else if (mp_status[0] < 0) {
-        printf("move_pages error: %d", mp_status[0]);
-    }
-    else {
-        numa_node_out = mp_status[0];
-    }
-
-    numa_node_cpu = p.numa_node_cpu;
-    if (numa_node_cpu != -1) {
-        if (numa_run_on_node(numa_node_cpu) == -1) {
-            perror("numa_run_on_node");
-            numa_node_cpu = -1;
-        }
-    }
+	numa_mem_unbind();
+	numa_node_cpu = numa_cpu_bind(p.numa_node_cpu);
 #endif
 
     thrust::omp::vector<T> h_output(input_size);
@@ -255,6 +205,10 @@ int main(int argc, char **argv) {
 		perf_stop();
 
             if(rep >= p.n_warmup) {
+#if NUMA
+				numa_node_in = numa_get_node_of_page(A, "A");
+				numa_node_out = numa_get_node_of_page(C, "C");
+#endif
 #if WITH_PERF_LIB
                 printf("[::] SCAN-RSS-CPU | n_threads=%d e_type=%s n_elements=%d"
 #if NUMA

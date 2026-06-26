@@ -28,8 +28,6 @@ endif
 
 TYPE ?= UINT64
 
-all: scan
-
 scan: app_baseline.cpp
 	g++ -Wall -Wextra -pedantic -O3 ${CFLAGS} app_baseline.cpp -fopenmp -DTHRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_CPP -DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_OMP -lgomp -I/usr/local/cuda-8.0/include -lm -o scan -DDFATOOL_TIMING=${dfatool_timing} -DNUMA=${numa} -DNOP_SYNC=${nop_sync} -DWITH_PERF_LIB=${perf_lib} -D${TYPE} ${LDFLAGS}
 
@@ -39,4 +37,4 @@ run: scan
 clean:
 	rm -f scan
 
-.PHONY: all run clean
+.PHONY: run clean
