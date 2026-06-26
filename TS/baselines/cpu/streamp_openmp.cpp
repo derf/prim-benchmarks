@@ -23,427 +23,538 @@ SCRIMP_PLUS_PLUS_New_MatrixProfile_and_Index_50_ts_1000.txt                    T
 The first column of the output file is the matrix profile value.
 The second column of the output file is the matrix profile index.
 */
-#include <stdio.h>
-#include <stdlib.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <math.h>
-#include <iostream>
+#include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 #include <limits>
-#include <vector>
-#include <algorithm>
-#include <string.h>
-#include <sstream>
-#include <chrono>
+#include <math.h>
 #include <omp.h>
+#include <signal.h>
+#include <sstream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <vector>
+
+#include <getopt.h>
+
+#if DFATOOL_TIMING
+#include "../../include/timer.h"
+Timer timer;
+#else
+#define start(...)
+#define stop(...)
+#endif
+
+#if WITH_PERF_LIB
+extern "C" {
+#include "../../../include/perf-lib.h"
+};
+#elif WITH_PERF_EXT
+extern "C" {
+#include "../../../include/perf-ext.h"
+};
+#else
+#define perf_start(...)
+#define perf_stop(...)
+#endif
+
+#if NUMA
+#include "../../../include/numa.h"
+#else
+#define numa_bind_alloc(size, bitmask) malloc(size)
+#define numa_free(data, size) free(data)
+#endif
 
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
-#if NUMA
-#include <numaif.h>
-#include <numa.h>
+#include "mprofile.h"
 
-void* mp_pages[1];
-int mp_status[1];
-int mp_nodes[1];
-struct bitmask* bitmask_in = NULL;
-int numa_node_in = -1;
-int numa_node_cpu = -1;
+typedef struct Params {
+	char* input_file;
+	int window_size;
+	int n_warmup;
+	int n_reps;
+	int exp;
+	int n_threads;
+#if NUMA
+	struct bitmask* bitmask_in;
+	struct bitmask* bitmask_out;
+	int numa_node_cpu;
+#endif
+} Params;
+
+struct Params input_params(int argc, char** argv)
+{
+	struct Params p;
+	p.input_file = (char*)"inputs/randomlist33M.txt";
+	p.window_size = 256;
+	p.n_warmup = 1;
+	p.n_reps = 3;
+	p.n_threads = 4;
+#if NUMA
+	p.bitmask_in = NULL;
+	p.bitmask_out = NULL;
+	p.numa_node_cpu = -1;
 #endif
 
-#include "mprofile.h"
+	int opt;
+	while ((opt = getopt(argc, argv, "f:i:w:e:x:t:A:B:C:")) >= 0) {
+		switch (opt) {
+		case 'f':
+			p.input_file = strdup(optarg);
+			break;
+		case 'i':
+			p.window_size = atol(optarg);
+			break;
+		case 'w':
+			p.n_warmup = atoi(optarg);
+			break;
+		case 'e':
+			p.n_reps = atoi(optarg);
+			break;
+		case 't':
+			p.n_threads = atoi(optarg);
+			break;
+#if NUMA
+		case 'A':
+			p.bitmask_in = numa_parse_nodestring(optarg);
+			break;
+		case 'B':
+			p.bitmask_out = numa_parse_nodestring(optarg);
+			break;
+		case 'C':
+			p.numa_node_cpu = atoi(optarg);
+			break;
+#endif // NUMA
+		default:
+			fprintf(stderr, "\nUnrecognized option!\n");
+			exit(1);
+		}
+	}
+
+	return p;
+}
 
 bool interrupt = false;
 int numThreads, exclusionZone;
 int windowSize, timeSeriesLength, ProfileLength;
-int* profileIndex, *profileIndex_tmp;
+int *profileIndex, *profileIndex_tmp;
 DTYPE *AMean, *ASigma, *profile, *profile_tmp;
 std::vector<int> idx;
 std::vector<DTYPE> A;
 
-
-void intHandler(int) {
-    std::cout << '\n' << "[>>] Interrupt request by user..." << '\n';
-    interrupt = true;
+void intHandler(int)
+{
+	std::cout << '\n'
+	          << "[>>] Interrupt request by user..." << '\n';
+	interrupt = true;
 }
-
 
 void preprocess()
 {
-  DTYPE* ACumSum   = new DTYPE[timeSeriesLength];
-  DTYPE* ASqCumSum = new DTYPE[timeSeriesLength];
-  DTYPE* ASum      = new DTYPE[ProfileLength];
-  DTYPE* ASumSq    = new DTYPE[ProfileLength];
-  DTYPE* ASigmaSq  = new DTYPE[ProfileLength];
+	DTYPE* ACumSum = new DTYPE[timeSeriesLength];
+	DTYPE* ASqCumSum = new DTYPE[timeSeriesLength];
+	DTYPE* ASum = new DTYPE[ProfileLength];
+	DTYPE* ASumSq = new DTYPE[ProfileLength];
+	DTYPE* ASigmaSq = new DTYPE[ProfileLength];
 
-  AMean  = new DTYPE[ProfileLength];
-  ASigma = new DTYPE[ProfileLength];
+	AMean = new DTYPE[ProfileLength];
+	ASigma = new DTYPE[ProfileLength];
 
-  ACumSum[0]   = A[0];
-  ASqCumSum[0] = A[0] * A[0];
+	ACumSum[0] = A[0];
+	ASqCumSum[0] = A[0] * A[0];
 
-  for (int i = 1; i < timeSeriesLength; i++)
-  {
-    ACumSum[i]   = A[i] + ACumSum[i - 1];
-    ASqCumSum[i] = A[i] * A[i] + ASqCumSum[i - 1];
-  }
+	for (int i = 1; i < timeSeriesLength; i++) {
+		ACumSum[i] = A[i] + ACumSum[i - 1];
+		ASqCumSum[i] = A[i] * A[i] + ASqCumSum[i - 1];
+	}
 
-  ASum[0] = ACumSum[windowSize - 1];
-  ASumSq[0] = ASqCumSum[windowSize - 1];
+	ASum[0] = ACumSum[windowSize - 1];
+	ASumSq[0] = ASqCumSum[windowSize - 1];
 
-  for (int i = 0; i < timeSeriesLength - windowSize; i++)
-  {
-    ASum[i + 1]   = ACumSum[windowSize + i] - ACumSum[i];
-    ASumSq[i + 1] = ASqCumSum[windowSize + i] - ASqCumSum[i];
-  }
+	for (int i = 0; i < timeSeriesLength - windowSize; i++) {
+		ASum[i + 1] = ACumSum[windowSize + i] - ACumSum[i];
+		ASumSq[i + 1] = ASqCumSum[windowSize + i] - ASqCumSum[i];
+	}
 
-  for (int i = 0; i < ProfileLength; i++)
-  {
-      AMean[i] = ASum[i]/ windowSize;
-      ASigmaSq[i] = ASumSq[i] / windowSize - AMean[i] * AMean[i];
-      ASigma[i] = sqrt(ASigmaSq[i]);
-  }
+	for (int i = 0; i < ProfileLength; i++) {
+		AMean[i] = ASum[i] / windowSize;
+		ASigmaSq[i] = ASumSq[i] / windowSize - AMean[i] * AMean[i];
+		ASigma[i] = sqrt(ASigmaSq[i]);
+	}
 
-  delete ACumSum;
-  delete ASqCumSum;
-  delete ASum;
-  delete ASumSq;
-  delete ASigmaSq;
+	delete[] ACumSum;
+	delete[] ASqCumSum;
+	delete[] ASum;
+	delete[] ASumSq;
+	delete[] ASigmaSq;
 }
 
 void streamp()
 {
 
-  #pragma omp parallel
-  {
-    DTYPE  lastz, distance, windowSizeDTYPE;
-    DTYPE  * distances, * lastzs;
-    int diag, my_offset, i, j;
-    size_t ri;
+#pragma omp parallel
+	{
+		DTYPE lastz, distance, windowSizeDTYPE;
+		DTYPE *distances, *lastzs;
+		int diag, my_offset, i, j;
+		size_t ri;
 
-    distances = new DTYPE[ARIT_FACT];
-    lastzs    = new DTYPE[ARIT_FACT];
+		distances = new DTYPE[ARIT_FACT];
+		lastzs = new DTYPE[ARIT_FACT];
 
-    windowSizeDTYPE = (DTYPE) windowSize;
+		windowSizeDTYPE = (DTYPE)windowSize;
 
-    my_offset = omp_get_thread_num() * ProfileLength;
+		my_offset = omp_get_thread_num() * ProfileLength;
 
-    #pragma omp for schedule(dynamic)
-    for (ri = 0; ri < idx.size(); ri++)
-    {
-      //select a diagonal
+#pragma omp for schedule(dynamic)
+		for (ri = 0; ri < idx.size(); ri++) {
+			// select a diagonal
 
-      if(!interrupt){
+			if (!interrupt) {
 
-      diag = idx[ri];
+				diag = idx[ri];
 
-      lastz = 0;
+				lastz = 0;
 
-      //calculate the dot product of every two time series values that ar diag away
-      #pragma omp simd
-      for (j = diag; j < windowSize + diag; j++)
-      {
-        lastz += A[j] * A[j-diag];
-      }
+// calculate the dot product of every two time series values that ar diag away
+#pragma omp simd
+				for (j = diag; j < windowSize + diag; j++) {
+					lastz += A[j] * A[j - diag];
+				}
 
-      //j is the column index, i is the row index of the current distance value in the distance matrix
-      j = diag;
-      i = 0;
+				// j is the column index, i is the row index of the current distance value in the distance matrix
+				j = diag;
+				i = 0;
 
-      //evaluate the distance based on the dot product
-      distance = 2 * (windowSizeDTYPE - (lastz - windowSizeDTYPE* AMean[j] * AMean[i]) / (ASigma[j] * ASigma[i]));
+				// evaluate the distance based on the dot product
+				distance = 2 * (windowSizeDTYPE - (lastz - windowSizeDTYPE * AMean[j] * AMean[i]) / (ASigma[j] * ASigma[i]));
 
-      //update matrix profile and matrix profile index if the current distance value is smaller
-      if (distance < profile_tmp[my_offset + j])
-      {
-        profile_tmp[my_offset + j] = distance;
-        profileIndex_tmp [my_offset+j] = i;
-      }
+				// update matrix profile and matrix profile index if the current distance value is smaller
+				if (distance < profile_tmp[my_offset + j]) {
+					profile_tmp[my_offset + j] = distance;
+					profileIndex_tmp[my_offset + j] = i;
+				}
 
-      if (distance < profile_tmp[my_offset + i])
-      {
-        profile_tmp[my_offset + i] = distance;
-        profileIndex_tmp [my_offset + i] = j;
-      }
-      i = 1;
-      j = diag + 1;
+				if (distance < profile_tmp[my_offset + i]) {
+					profile_tmp[my_offset + i] = distance;
+					profileIndex_tmp[my_offset + i] = j;
+				}
+				i = 1;
+				j = diag + 1;
 
-      /*while(j < (ProfileLength - ARIT_FACT))
-      {
-        #pragma omp simd
-        for(int k = 0; k < ARIT_FACT; k++)
-        {
-          lastzs[k] = (A[k + j + windowSize - 1] * A[k + i + windowSize - 1]) - (A[k + j - 1] * A[k + i - 1]);
-        }
+				/*while(j < (ProfileLength - ARIT_FACT))
+				{
+				  #pragma omp simd
+				  for(int k = 0; k < ARIT_FACT; k++)
+				  {
+				    lastzs[k] = (A[k + j + windowSize - 1] * A[k + i + windowSize - 1]) - (A[k + j - 1] * A[k + i - 1]);
+				  }
 
-        lastzs[0] += lastz;
-        #pragma unroll (ARIT_FACT - 1)
-        for(int k = 1; k < ARIT_FACT; k++)
-        {
-          lastzs[k] += lastzs[k-1];
-        }
-        lastz = lastzs[ARIT_FACT - 1];
+				  lastzs[0] += lastz;
+				  #pragma unroll (ARIT_FACT - 1)
+				  for(int k = 1; k < ARIT_FACT; k++)
+				  {
+				    lastzs[k] += lastzs[k-1];
+				  }
+				  lastz = lastzs[ARIT_FACT - 1];
 
-        #pragma omp simd
-        for(int k = 0; k < ARIT_FACT; k++)
-        {
-          distances[k] =  2 * (windowSizeDTYPE - (lastzs[k] -  AMean[k+j]  * AMean[k+i] * windowSizeDTYPE) / (ASigma[k+j] * ASigma[k+i]));
-        }
+				  #pragma omp simd
+				  for(int k = 0; k < ARIT_FACT; k++)
+				  {
+				    distances[k] =  2 * (windowSizeDTYPE - (lastzs[k] -  AMean[k+j]  * AMean[k+i] * windowSizeDTYPE) / (ASigma[k+j] * ASigma[k+i]));
+				  }
 
-        #pragma omp simd
-        for(int k = 0; k < ARIT_FACT; k++)
-        {
-          if (distances[k] < profile_tmp[k + my_offset + j])
-          {
-            profile_tmp[k + my_offset + j] = distances[k];
-            profileIndex_tmp [k + my_offset+ j] = i + k;
-          }
+				  #pragma omp simd
+				  for(int k = 0; k < ARIT_FACT; k++)
+				  {
+				    if (distances[k] < profile_tmp[k + my_offset + j])
+				    {
+				      profile_tmp[k + my_offset + j] = distances[k];
+				      profileIndex_tmp [k + my_offset+ j] = i + k;
+				    }
 
-         if (distances[k] < profile_tmp[k + my_offset + i])
-          {
-            profile_tmp[k + my_offset + i] = distances[k];
-            profileIndex_tmp[k + my_offset + i] = j + k;
-          }
-        }
-        i+=ARIT_FACT;
-        j+=ARIT_FACT;
-      }
+				   if (distances[k] < profile_tmp[k + my_offset + i])
+				    {
+				      profile_tmp[k + my_offset + i] = distances[k];
+				      profileIndex_tmp[k + my_offset + i] = j + k;
+				    }
+				  }
+				  i+=ARIT_FACT;
+				  j+=ARIT_FACT;
+				}
 
-      while(j < ProfileLength)
-      {
-        lastz   = lastz + (A[j + windowSize - 1] * A[i + windowSize - 1]) - (A[j - 1] * A[i - 1]);
-        distance = 2 * (windowSizeDTYPE - (lastz -  AMean[j]  * AMean[i] * windowSizeDTYPE) / (ASigma[j] * ASigma[i]));
+				while(j < ProfileLength)
+				{
+				  lastz   = lastz + (A[j + windowSize - 1] * A[i + windowSize - 1]) - (A[j - 1] * A[i - 1]);
+				  distance = 2 * (windowSizeDTYPE - (lastz -  AMean[j]  * AMean[i] * windowSizeDTYPE) / (ASigma[j] * ASigma[i]));
 
-        if (distance < profile_tmp[my_offset + j])
-        {
-          profile_tmp[my_offset + j] = distance;
-          profileIndex_tmp [my_offset+ j] = i;
-        }
+				  if (distance < profile_tmp[my_offset + j])
+				  {
+				    profile_tmp[my_offset + j] = distance;
+				    profileIndex_tmp [my_offset+ j] = i;
+				  }
 
-        if (distance < profile_tmp[my_offset + i])
-        {
-          profile_tmp[my_offset + i] = distance;
-          profileIndex_tmp[my_offset + i] = j;
-        }
-        i++;
-        j++;
-      }*/
-    }
-    }
+				  if (distance < profile_tmp[my_offset + i])
+				  {
+				    profile_tmp[my_offset + i] = distance;
+				    profileIndex_tmp[my_offset + i] = j;
+				  }
+				  i++;
+				  j++;
+				}*/
+			}
+		}
 
-    delete(lastzs);
-    delete(distances);
+		delete[] lastzs;
+		delete[] distances;
 
-    #pragma omp barrier
+#pragma omp barrier
 
-    // Reduce the (partial) result
-    DTYPE min_distance;
-    int min_index;
+		// Reduce the (partial) result
+		DTYPE min_distance;
+		int min_index;
 
-    #pragma omp for schedule(static)
-    for (int colum = 0; colum < ProfileLength; colum++)
-    {
-      min_distance = std::numeric_limits<DTYPE>::infinity();
-      min_index = 0;
-      #pragma unroll(256)
-      for(int row = 0; row < numThreads; row++)
-      {
-        if(profile_tmp[colum + (row*ProfileLength)] < min_distance)
-        {
-          min_distance = profile_tmp[colum + (row * ProfileLength)];
-          min_index    = profileIndex_tmp[colum + (row * ProfileLength)];
-        }
-      }
-      profile[colum]      = min_distance;
-      profileIndex[colum] = min_index;
-    }
-    #pragma omp barrier
-  }
+#pragma omp for schedule(static)
+		for (int colum = 0; colum < ProfileLength; colum++) {
+			min_distance = std::numeric_limits<DTYPE>::infinity();
+			min_index = 0;
+#pragma unroll(256)
+			for (int row = 0; row < numThreads; row++) {
+				if (profile_tmp[colum + (row * ProfileLength)] < min_distance) {
+					min_distance = profile_tmp[colum + (row * ProfileLength)];
+					min_index = profileIndex_tmp[colum + (row * ProfileLength)];
+				}
+			}
+			profile[colum] = min_distance;
+			profileIndex[colum] = min_index;
+		}
+#pragma omp barrier
+	}
 
-  delete(AMean);
-  delete(ASigma);
-  delete(profile_tmp);
-  delete(profileIndex_tmp);
+	delete (AMean);
+	delete (ASigma);
+	delete (profile_tmp);
+	delete (profileIndex_tmp);
 }
 
 int main(int argc, char* argv[])
 {
-  bool sequentialDiags = false;
-  // Creation of time meassure structures
-  std::chrono::high_resolution_clock::time_point tprogstart, tstart, tend;
-  std::chrono::duration<double> time_elapsed;
+	bool sequentialDiags = false;
+	// Creation of time meassure structures
+	std::chrono::high_resolution_clock::time_point tprogstart, tstart, tend;
+	std::chrono::duration<double> time_load, time_preprocess, time_alloc, time_kernel;
 
-  // Creation of interrupt handler
-  struct sigaction act;
-  act.sa_handler = intHandler;
-  sigaction(SIGINT, &act, NULL);
+	// Creation of interrupt handler
+	struct sigaction act;
+	act.sa_handler = intHandler;
+	sigaction(SIGINT, &act, NULL);
 
-  // Set window size
-  windowSize = atoi(argv[2]);
+	struct Params p = input_params(argc, argv);
 
-#if NUMA
-  bitmask_in    = numa_parse_nodestring(argv[3]);
-  numa_node_cpu = atoi(argv[4]);
+	omp_set_num_threads(p.n_threads);
+	windowSize = p.window_size;
 
-  if (bitmask_in) {
-    numa_set_membind(bitmask_in);
-    numa_free_nodemask(bitmask_in);
-  }
-#endif
+	// Set the exclusion zone
+	exclusionZone = (int)(windowSize * 0.25);
 
-  // Set the exclusion zone
-  exclusionZone = (int) (windowSize * 0.25);
+	// Set the thread number
+	// numThreads = atoi(argv[3]);
+	// omp_set_num_threads(numThreads);
 
-  // Set the thread number
-  //numThreads = atoi(argv[3]);
-  //omp_set_num_threads(numThreads);
+	numThreads = omp_get_max_threads();
 
-  numThreads = omp_get_max_threads();
+	// Set computational order
+	if (argc > 4)
+		sequentialDiags = (strcmp(argv[4], "-s") == 0);
 
-  // Set computational order
-  if(argc > 4)
-  	sequentialDiags = (strcmp(argv[4], "-s") == 0);
-
-  // Display info through console
-  std::cout << std::endl;
-  std::cout << "############################################################" << std::endl;
-  std::cout << "///////////////////////// STREAMP //////////////////////////" << std::endl;
-  std::cout << "############################################################" << std::endl;
-  std::cout << std::endl;
-  //std::cout << "[>>] Reading File..." << std::endl;
-
-  /* Read time series file */
-  tstart = std::chrono::high_resolution_clock::now();
-//  tprogstart = tstart;
-
-  std::stringstream outfilename_num;
-  outfilename_num << windowSize;
-  std::string outfilenamenum = outfilename_num.str();
-  std::string inputfilename  = argv[1];
-  std::string outfilename = "SCRIMP_PLUS_PLUS_New_MatrixProfile_and_Index_" + outfilenamenum + "_" + inputfilename;
-
-  loadTimeSeriesFromFile(inputfilename, A, timeSeriesLength);
-
-  tend = std::chrono::high_resolution_clock::now();
-  time_elapsed = tend - tstart;
-  std::cout << "[OK] Read File Time: " << std::setprecision(std::numeric_limits<double>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
+	// Display info through console
+	/*
+	std::cout << std::endl;
+	std::cout << "############################################################" << std::endl;
+	std::cout << "///////////////////////// STREAMP //////////////////////////" << std::endl;
+	std::cout << "############################################################" << std::endl;
+	std::cout << std::endl;
+	*/
+	// std::cout << "[>>] Reading File..." << std::endl;
 
 #if NUMA
-    mp_pages[0] = static_cast<void*>(A.data());
-    if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
-        perror("move_pages(A)");
-    }
-    else if (mp_status[0] < 0) {
-        printf("move_pages error: %d", mp_status[0]);
-    }
-    else {
-        numa_node_in = mp_status[0];
-    }
-
-    if (numa_node_cpu != -1) {
-        if (numa_run_on_node(numa_node_cpu) == -1) {
-            perror("numa_run_on_node");
-            numa_node_cpu = -1;
-        }
-    }
+	numa_node_cpu = numa_cpu_bind(p.numa_node_cpu);
+	if (p.bitmask_in != NULL) {
+		numa_set_membind(p.bitmask_in);
+	}
 #endif
 
-  // Set Matrix Profile Length
-  ProfileLength = timeSeriesLength - windowSize + 1;
+	/* Read time series file */
+	tstart = std::chrono::high_resolution_clock::now();
+	//  tprogstart = tstart;
 
-  // Display info through console
-  std::cout << std::endl;
-  std::cout << "------------------------------------------------------------" << std::endl;
-  std::cout << "************************** INFO ****************************" << std::endl;
-  std::cout << std::endl;
-  std::cout << " Time series length: " << timeSeriesLength << std::endl;
-  std::cout << " Window size:        " << windowSize       << std::endl;
-  std::cout << " Exclusion zone:     " << exclusionZone    << std::endl;
-  std::cout << " Profile length:     " << timeSeriesLength << std::endl;
-  std::cout << " Max avail. threads: " << numThreads       << std::endl;
-  std::cout << " Sequential order:   ";
-  if(sequentialDiags) std::cout << "true" << std::endl;
-  else std::cout << "false" << std::endl;
-  std::cout << std::endl;
-  std::cout << "------------------------------------------------------------" << std::endl;
-  std::cout << std::endl;
+	std::stringstream outfilename_num;
+	outfilename_num << windowSize;
+	std::string outfilenamenum = outfilename_num.str();
+	std::string inputfilename = p.input_file;
+	std::string outfilename = "SCRIMP_PLUS_PLUS_New_MatrixProfile_and_Index_" + outfilenamenum + "_" + inputfilename;
 
-  // Preprocess, statistics, get the mean and standard deviation of every subsequence in the time series
-  //std::cout << "[>>] Preprocessing..." << std::endl;
-  tstart = std::chrono::high_resolution_clock::now();
+	loadTimeSeriesFromFile(inputfilename, A, timeSeriesLength);
 
-  tprogstart = tstart;
-  preprocess();
+	tend = std::chrono::high_resolution_clock::now();
+	time_load = tend - tstart;
+	// std::cout << "[OK] Read File Time: " << std::setprecision(std::numeric_limits<double>::digits10 + 2) << time_load.count() << " seconds." << std::endl;
 
-  tend = std::chrono::high_resolution_clock::now();
-  time_elapsed = tend - tstart;
-  //std::cout << "[OK] Preprocess Time:         " << std::setprecision(std::numeric_limits<double>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
-  printf("[::] TS CPU | n_threads=%d e_type=%s n_elements=%d"
 #if NUMA
-    " numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d"
+	numa_node_in = numa_get_node_of_page(static_cast<void*>(A.data()), "A");
 #endif
-    " | throughput_preproc_MBps=%f throughput_preproc_MOpps=%f latency_preproc_s=%f",
-    numThreads, XSTR(DTYPE), timeSeriesLength,
+
+	// Set Matrix Profile Length
+	ProfileLength = timeSeriesLength - windowSize + 1;
+
+	// Display info through console
+	/*
+	std::cout << std::endl;
+	std::cout << "------------------------------------------------------------" << std::endl;
+	std::cout << "************************** INFO ****************************" << std::endl;
+	std::cout << std::endl;
+	std::cout << " Time series length: " << timeSeriesLength << std::endl;
+	std::cout << " Window size:        " << windowSize << std::endl;
+	std::cout << " Exclusion zone:     " << exclusionZone << std::endl;
+	std::cout << " Profile length:     " << timeSeriesLength << std::endl;
+	std::cout << " Max avail. threads: " << numThreads << std::endl;
+	std::cout << " Sequential order:   ";
+	if (sequentialDiags)
+	        std::cout << "true" << std::endl;
+	else
+	        std::cout << "false" << std::endl;
+	std::cout << std::endl;
+	std::cout << "------------------------------------------------------------" << std::endl;
+	std::cout << std::endl;
+	*/
+
 #if NUMA
-    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu),
+	if (p.bitmask_out != NULL) {
+		numa_set_membind(p.bitmask_out);
+	}
 #endif
-    timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6), time_elapsed.count());
 
-  //Initialize Matrix Profile and Matrix Profile Index
-  //std::cout << "[>>] Initializing Profile..." << std::endl;
+	for (int i = 0; (i < p.n_warmup + p.n_reps) && !interrupt; i++) {
 
-  tstart = std::chrono::high_resolution_clock::now();
-  profile          = new DTYPE[ProfileLength];
-  profileIndex     = new int[ProfileLength];
+		tstart = std::chrono::high_resolution_clock::now();
+		tprogstart = tstart;
+		perf_start();
 
-  profile_tmp      = new DTYPE[ProfileLength * numThreads];
-  profileIndex_tmp = new int[ProfileLength * numThreads];
+		preprocess();
 
-  for (int i=0; i<ProfileLength*numThreads; i++) profile_tmp[i] = std::numeric_limits<DTYPE>::infinity();
+		perf_stop();
+		tend = std::chrono::high_resolution_clock::now();
+		time_preprocess = tend - tstart;
 
-  tend = std::chrono::high_resolution_clock::now();
-  time_elapsed = tend - tstart;
-  //std::cout << "[OK] Initialize Profile Time: " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
-  printf(" throughput_init_MBps=%f throughput_init_MOpps=%f latency_init_s=%f", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6), time_elapsed.count());
+#if NUMA
+		numa_node_out = numa_get_node_of_page(AMean, "AMean");
+#endif
 
-  // Random shuffle the diagonals
-  idx.clear();
-  for (int i = exclusionZone+1; i < ProfileLength; i++)
-    idx.push_back(i);
+#if WITH_PERF_LIB
+		if (i >= p.n_warmup) {
+			printf("[::] TS-CPU-preprocess | n_threads=%d e_type=%s n_elements=%d",
+			    numThreads, XSTR(DTYPE), timeSeriesLength);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
+			    numa_node_in, numa_node_out, numa_node_cpu,
+			    numa_distance(numa_node_in, numa_node_cpu),
+			    numa_distance(numa_node_cpu, numa_node_out));
+#endif
+			printf(" |");
+			perf_print();
+		}
+#endif
 
-  if(!sequentialDiags)
-    std::random_shuffle(idx.begin(), idx.end());
+		tstart = std::chrono::high_resolution_clock::now();
+		perf_start();
+		profile = new DTYPE[ProfileLength];
+		profileIndex = new int[ProfileLength];
 
-  /******************** SCRIMP ********************/
-  //std::cout << "[>>] Performing STREAMP..." << std::endl;
-  tstart = std::chrono::high_resolution_clock::now();
+		profile_tmp = new DTYPE[ProfileLength * numThreads];
+		profileIndex_tmp = new int[ProfileLength * numThreads];
 
-  streamp();
+		for (int i = 0; i < ProfileLength * numThreads; i++)
+			profile_tmp[i] = std::numeric_limits<DTYPE>::infinity();
 
-  tend = std::chrono::high_resolution_clock::now();
-  time_elapsed = tend - tstart;
-  //std::cout << "[OK] STREAMP Time:            " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
-  printf(" throughput_streamp_MBps=%f throughput_streamp_MOpps=%f latency_streamp_s=%f", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6), time_elapsed.count());
+		perf_stop();
+		tend = std::chrono::high_resolution_clock::now();
+		time_alloc = tend - tstart;
 
-  // Save profile to file
-  //std::cout << "[>>] Saving Profile..." << std::endl;
-  //tstart = std::chrono::high_resolution_clock::now();
+#if WITH_PERF_LIB
+		if (i >= p.n_warmup) {
+			printf("[::] TS-CPU-alloc | n_threads=%d e_type=%s n_elements=%d",
+			    numThreads, XSTR(DTYPE), timeSeriesLength);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
+			    numa_node_in, numa_node_out, numa_node_cpu,
+			    numa_distance(numa_node_in, numa_node_cpu),
+			    numa_distance(numa_node_cpu, numa_node_out));
+#endif
+			printf(" |");
+			perf_print();
+		}
+#endif
 
-  //aveProfileToFile(outfilename.c_str(), profile, profileIndex, timeSeriesLength, windowSize);
+		// Random shuffle the diagonals
+		idx.clear();
+		for (int i = exclusionZone + 1; i < ProfileLength; i++)
+			idx.push_back(i);
 
-  //tend = std::chrono::high_resolution_clock::now();
-  //time_elapsed = tend - tstart;
- // std::cout << "[OK] Save Profile Time:       " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
+		if (!sequentialDiags)
+			std::random_shuffle(idx.begin(), idx.end());
 
-  // Calculate total time
-  time_elapsed = tend - tprogstart;
-  //std::cout << "[OK] Total Time:              " << std::setprecision(std::numeric_limits<DTYPE>::digits10 + 2) << time_elapsed.count() << " seconds." << std::endl;
-  printf(" throughput_MBps=%f throughput_MOpps=%f latency_s=%f\n", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6), time_elapsed.count());
-  //std::cout << std::endl;
+		/******************** SCRIMP ********************/
+		// std::cout << "[>>] Performing STREAMP..." << std::endl;
+		tstart = std::chrono::high_resolution_clock::now();
+		perf_start();
 
-  delete profile;
-  delete profileIndex;
+		streamp();
+
+		perf_stop();
+		tend = std::chrono::high_resolution_clock::now();
+		time_kernel = tend - tstart;
+
+#if WITH_PERF_LIB
+		if (i >= p.n_warmup) {
+			printf("[::] TS-CPU-streamp | n_threads=%d e_type=%s n_elements=%d",
+			    numThreads, XSTR(DTYPE), timeSeriesLength);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
+			    numa_node_in, numa_node_out, numa_node_cpu,
+			    numa_distance(numa_node_in, numa_node_cpu),
+			    numa_distance(numa_node_cpu, numa_node_out));
+#endif
+			printf(" |");
+			perf_print();
+		}
+#endif
+
+#if DFATOOL_TIMING
+		if (i >= p.n_warmup) {
+			std::chrono::duration<double> time_elapsed = tend - tprogstart;
+			printf("[::] TS-CPU | n_threads=%d e_type=%s n_elements=%d",
+			    numThreads, XSTR(DTYPE), timeSeriesLength);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
+			    numa_node_in, numa_node_out, numa_node_cpu,
+			    numa_distance(numa_node_in, numa_node_cpu),
+			    numa_distance(numa_node_cpu, numa_node_out));
+#endif
+			printf(" | throughput_preproc_MBps=%f throughput_preproc_MOpps=%f latency_preproc_s=%f",
+			    timeSeriesLength * sizeof(DTYPE) / (time_preprocess.count() * 1e6), timeSeriesLength / (time_preprocess.count() * 1e6), time_preprocess.count());
+			printf(" throughput_alloc_MBps=%f throughput_alloc_MOpps=%f latency_alloc_s=%f",
+			    timeSeriesLength * sizeof(DTYPE) / (time_alloc.count() * 1e6), timeSeriesLength / (time_alloc.count() * 1e6), time_alloc.count());
+			printf(" throughput_streamp_MBps=%f throughput_streamp_MOpps=%f latency_streamp_s=%f", timeSeriesLength * sizeof(DTYPE) / (time_kernel.count() * 1e6), timeSeriesLength / (time_kernel.count() * 1e6), time_kernel.count());
+			printf(" throughput_MBps=%f throughput_MOpps=%f latency_s=%f\n", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6), time_elapsed.count());
+		}
+#endif
+
+		delete profile;
+		delete profileIndex;
+	}
 }

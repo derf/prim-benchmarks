@@ -14,19 +14,20 @@ typedef struct Params {
 void usage()
 {
 	fprintf(stderr,
-		"\nUsage:  ./program [options]"
-		"\n"
-		"\nGeneral options:"
-		"\n    -h        help"
-		"\n    -w <W>    # of untimed warmup iterations (default=1)"
-		"\n    -e <E>    # of timed repetition iterations (default=3)"
-		"\n"
-		"\nBenchmark-specific options:"
-		"\n    -n <n>    n (TS length. Default=64K elements)"
-		"\n    -m <m>    m (Query length. Default=256 elements)" "\n");
+	    "\nUsage:  ./program [options]"
+	    "\n"
+	    "\nGeneral options:"
+	    "\n    -h        help"
+	    "\n    -w <W>    # of untimed warmup iterations (default=1)"
+	    "\n    -e <E>    # of timed repetition iterations (default=3)"
+	    "\n"
+	    "\nBenchmark-specific options:"
+	    "\n    -n <n>    n (TS length. Default=64K elements)"
+	    "\n    -m <m>    m (Query length. Default=256 elements)"
+	    "\n");
 }
 
-struct Params input_params(int argc, char **argv)
+struct Params input_params(int argc, char** argv)
 {
 	struct Params p;
 	p.input_size_n = 1 << 16;
