@@ -5,19 +5,22 @@
 
 #if DFATOOL_TIMING
 
-#define dfatool_printf(fmt, ...) do { printf(fmt, __VA_ARGS__); } while (0)
+#define dfatool_printf(fmt, ...)          \
+	do {                              \
+		printf(fmt, __VA_ARGS__); \
+	} while (0)
 
 typedef struct Timer {
 	struct timeval startTime;
 	struct timeval endTime;
 } Timer;
 
-static void startTimer(Timer *timer)
+static void startTimer(Timer* timer)
 {
 	gettimeofday(&(timer->startTime), NULL);
 }
 
-static void stopTimer(Timer *timer)
+static void stopTimer(Timer* timer)
 {
 	gettimeofday(&(timer->endTime), NULL);
 }
@@ -25,13 +28,14 @@ static void stopTimer(Timer *timer)
 static double getElapsedTime(Timer timer)
 {
 	return ((double)((timer.endTime.tv_sec - timer.startTime.tv_sec)
-			 + (timer.endTime.tv_usec -
-			    timer.startTime.tv_usec) / 1.0e6));
+	    + (timer.endTime.tv_usec - timer.startTime.tv_usec) / 1.0e6));
 }
 
 #else
 
-#define dfatool_printf(fmt, ...) do {} while (0)
+#define dfatool_printf(fmt, ...) \
+	do {                     \
+	} while (0)
 
 typedef int Timer;
 

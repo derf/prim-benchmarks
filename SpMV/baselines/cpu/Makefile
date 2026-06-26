@@ -1,33 +1,32 @@
 dfatool_timing ?= 1
 native ?= 1
+numa ?= 0
+perf_ext ?= 0
+perf_lib ?= 0
 
-CFLAGS = -DDFATOOL_TIMING=${dfatool_timing}
+CFLAGS = -DDFATOOL_TIMING=${dfatool_timing} -DNUMA=${numa} -DWITH_PERF_EXT=${perf_ext} -DWITH_PERF_LIB=${perf_lib}
+LDFLAGS =
 
 ifeq (${native}, 1)
 	CFLAGS += -march=native
 endif
 
-all: spmv
+ifeq (${numa}, 1)
+	LDFLAGS += -lnuma
+endif
+
+ifeq (${perf_lib}, 1)
+	CFLAGS += -I${HOME}/var/source/perf-api/build/include
+	LDFLAGS += ${HOME}/var/source/perf-api/build/lib/perf/libperf.a -lcap
+endif
 
 spmv: app.c
-	gcc -Wall -Wextra -pedantic ${CFLAGS} -O3 -o spmv -fopenmp app.c
-
-spmv_O0: app.c
-	gcc -o spmv_O0 -fopenmp app.c
-
-spmv_O2: app.c
-	gcc -O2 -o spmv_O2 -fopenmp app.c
+	gcc -Wall -Wextra -pedantic ${CFLAGS} -O3 -o spmv -fopenmp app.c ${LDFLAGS}
 
 run: spmv
-	OMP_NUM_THREADS=4 ./spmv -f ../../data/bcsstk30.mtx -v 0
-
-run_O0: spmv_O0
-	OMP_NUM_THREADS=4 ./spmv_O0 -f ../../data/bcsstk30.mtx -v 0
-
-run_O2: spmv_O2
-	OMP_NUM_THREADS=4 ./spmv_O2 -f ../../data/bcsstk30.mtx -v 0
+	./spmv -f ../../data/bcsstk30.mtx
 
 clean:
-	rm -f spmv spmv_O0 spmv_O2
+	rm -f spmv
 
-.PHONY: all run run_O0 run_O2 clean
+.PHONY: run clean

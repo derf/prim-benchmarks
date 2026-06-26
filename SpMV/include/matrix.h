@@ -12,56 +12,50 @@ struct COOMatrix {
 	uint32_t numRows;
 	uint32_t numCols;
 	uint32_t numNonzeros;
-	uint32_t *rowIdxs;
-	struct Nonzero *nonzeros;
+	uint32_t* rowIdxs;
+	struct Nonzero* nonzeros;
 };
 
 struct CSRMatrix {
 	uint32_t numRows;
 	uint32_t numCols;
 	uint32_t numNonzeros;
-	uint32_t *rowPtrs;
-	struct Nonzero *nonzeros;
+	uint32_t* rowPtrs;
+	struct Nonzero* nonzeros;
 };
 
-static struct COOMatrix readCOOMatrix(const char *fileName)
+static struct COOMatrix readCOOMatrix(const char* fileName)
 {
 
 	struct COOMatrix cooMatrix;
 
 	// Initialize fields
-	FILE *fp = fopen(fileName, "r");
+	FILE* fp = fopen(fileName, "r");
 	assert(fscanf(fp, "%u", &cooMatrix.numRows));
 	if (cooMatrix.numRows % 2 == 1) {
-		PRINT_WARNING
-		    ("Reading matrix %s: number of rows must be even. Padding with an extra row.",
-		     fileName);
+		PRINT_WARNING("Reading matrix %s: number of rows must be even. Padding with an extra row.",
+		    fileName);
 		cooMatrix.numRows++;
 	}
 	assert(fscanf(fp, "%u", &cooMatrix.numCols));
 	assert(fscanf(fp, "%u", &cooMatrix.numNonzeros));
-	cooMatrix.rowIdxs =
-	    (uint32_t *)
-	    malloc(ROUND_UP_TO_MULTIPLE_OF_8
-		   (cooMatrix.numNonzeros * sizeof(uint32_t)));
-	cooMatrix.nonzeros =
-	    (struct Nonzero *)
-	    malloc(ROUND_UP_TO_MULTIPLE_OF_8
-		   (cooMatrix.numNonzeros * sizeof(struct Nonzero)));
+	cooMatrix.rowIdxs = (uint32_t*)
+	    malloc(ROUND_UP_TO_MULTIPLE_OF_8(cooMatrix.numNonzeros * sizeof(uint32_t)));
+	cooMatrix.nonzeros = (struct Nonzero*)
+	    malloc(ROUND_UP_TO_MULTIPLE_OF_8(cooMatrix.numNonzeros * sizeof(struct Nonzero)));
 
 	// Read the nonzeros
 	for (uint32_t i = 0; i < cooMatrix.numNonzeros; ++i) {
 		uint32_t rowIdx;
 		assert(fscanf(fp, "%u", &rowIdx));
-		cooMatrix.rowIdxs[i] = rowIdx - 1;	// File format indexes begin at 1
+		cooMatrix.rowIdxs[i] = rowIdx - 1; // File format indexes begin at 1
 		uint32_t colIdx;
 		assert(fscanf(fp, "%u", &colIdx));
-		cooMatrix.nonzeros[i].col = colIdx - 1;	// File format indexes begin at 1
+		cooMatrix.nonzeros[i].col = colIdx - 1; // File format indexes begin at 1
 		cooMatrix.nonzeros[i].value = 1.0f;
 	}
 
 	return cooMatrix;
-
 }
 
 static void freeCOOMatrix(struct COOMatrix cooMatrix)
@@ -79,18 +73,14 @@ static struct CSRMatrix coo2csr(struct COOMatrix cooMatrix)
 	csrMatrix.numRows = cooMatrix.numRows;
 	csrMatrix.numCols = cooMatrix.numCols;
 	csrMatrix.numNonzeros = cooMatrix.numNonzeros;
-	csrMatrix.rowPtrs =
-	    (uint32_t *)
-	    malloc(ROUND_UP_TO_MULTIPLE_OF_8
-		   ((csrMatrix.numRows + 1) * sizeof(uint32_t)));
-	csrMatrix.nonzeros =
-	    (struct Nonzero *)
-	    malloc(ROUND_UP_TO_MULTIPLE_OF_8
-		   (csrMatrix.numNonzeros * sizeof(struct Nonzero)));
+	csrMatrix.rowPtrs = (uint32_t*)
+	    malloc(ROUND_UP_TO_MULTIPLE_OF_8((csrMatrix.numRows + 1) * sizeof(uint32_t)));
+	csrMatrix.nonzeros = (struct Nonzero*)
+	    malloc(ROUND_UP_TO_MULTIPLE_OF_8(csrMatrix.numNonzeros * sizeof(struct Nonzero)));
 
 	// Histogram rowIdxs
 	memset(csrMatrix.rowPtrs, 0,
-	       (csrMatrix.numRows + 1) * sizeof(uint32_t));
+	    (csrMatrix.numRows + 1) * sizeof(uint32_t));
 	for (uint32_t i = 0; i < cooMatrix.numNonzeros; ++i) {
 		uint32_t rowIdx = cooMatrix.rowIdxs[i];
 		csrMatrix.rowPtrs[rowIdx]++;
@@ -119,7 +109,6 @@ static struct CSRMatrix coo2csr(struct COOMatrix cooMatrix)
 	csrMatrix.rowPtrs[0] = 0;
 
 	return csrMatrix;
-
 }
 
 static void freeCSRMatrix(struct CSRMatrix csrMatrix)
@@ -128,7 +117,7 @@ static void freeCSRMatrix(struct CSRMatrix csrMatrix)
 	free(csrMatrix.nonzeros);
 }
 
-static void initVector(float *vec, uint32_t size)
+static void initVector(float* vec, uint32_t size)
 {
 	for (uint32_t i = 0; i < size; ++i) {
 		vec[i] = 1.0f;
