@@ -20,23 +20,23 @@ enum kernels {
 	nr_kernels = 2,
 };
 
-// Structures used by both the host and the dpu to communicate information 
+// Structures used by both the host and the dpu to communicate information
 typedef struct {
-    uint32_t m;
-    uint32_t n;
-    uint32_t M_;
+	uint32_t m;
+	uint32_t n;
+	uint32_t M_;
 	enum kernels kernel;
 } dpu_arguments_t;
 
 #ifndef ENERGY
 #define ENERGY 0
 #endif
-#define PRINT 0 
+#define PRINT 0
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
+#define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_GREEN "\x1b[32m"
+#define ANSI_COLOR_RESET "\x1b[0m"
 
-#define divceil(n, m) (((n)-1) / (m) + 1)
+#define divceil(n, m) (((n) - 1) / (m) + 1)
 #define roundup(n, m) ((n / m) * m + m)
 #endif

@@ -7,7 +7,8 @@ native ?= 1
 nop_sync ?= 0
 numa ?= 0
 numa_memcpy ?= 0
-perf ?= 0
+perf_ext ?= 0
+perf_lib ?= 0
 
 CFLAGS =
 LDFLAGS =
@@ -24,13 +25,13 @@ ifeq (${numa}, 1)
 	LDFLAGS += -lnuma
 endif
 
-ifeq (${perf}, 1)
+ifeq (${perf_lib}, 1)
 	CFLAGS += -I${HOME}/var/source/perf-api/build/include
 	LDFLAGS += ${HOME}/var/source/perf-api/build/lib/perf/libperf.a -lcap
 endif
 
 CXX=g++
-CXX_FLAGS=-std=c++11 -Wall -Wextra -pedantic -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_BENCHMARK=${dfatool_timing} -DASPECTC=${aspectc} -DWITH_PERF=${perf}
+CXX_FLAGS=-std=c++11 -Wall -Wextra -pedantic -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DDFATOOL_TIMING=${dfatool_timing} -DASPECTC=${aspectc} -DWITH_PERF_LIB=${perf_lib}
 
 ifeq (${aspectc_timing}, 1)
 	ASPECTC_HOST_FLAGS += -ainclude/dfatool.ah

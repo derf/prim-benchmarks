@@ -38,7 +38,7 @@
 #include "support/setup.h"
 #include "support/verify.h"
 
-#if WITH_BENCHMARK || 1
+#if DFATOOL_TIMING
 #include "support/timer.h"
 #else
 #include <string>
@@ -48,9 +48,9 @@ struct Timer {
 };
 #endif
 
-#if WITH_PERF
+#if WITH_PERF_LIB
 extern "C" {
-#include "../../../include/perf.h"
+#include "../../../include/perf-lib.h"
 };
 #else
 #define perf_start(...)
@@ -66,20 +66,10 @@ extern "C" {
 #define STR(x) #x
 
 #if NUMA
-#include <numa.h>
-#include <numaif.h>
-
-void* mp_pages[1];
-int mp_status[1];
-int mp_nodes[1];
-int numa_node_in = -1;
-int numa_node_cpu = -1;
-#endif
-
-#if NUMA_MEMCPY
-int numa_node_cpu_memcpy = -1;
-int numa_node_local = -1;
-int numa_node_in_is_local = 0;
+#include "../../../include/numa.h"
+#else
+#define numa_bind_alloc(size, bitmask) malloc(size)
+#define numa_free(data, size) free(data)
 #endif
 
 // Params ---------------------------------------------------------------------
@@ -96,16 +86,12 @@ struct Params {
 	struct bitmask* bitmask_in;
 	int numa_node_cpu;
 #endif
-#if NUMA_MEMCPY
-	int numa_node_cpu_memcpy;
-	struct bitmask* bitmask_cpu;
-#endif
 
 	Params(int argc, char** argv)
 	{
 		n_threads = 4;
-		n_warmup = 5;
-		n_reps = 50;
+		n_warmup = 1;
+		n_reps = 3;
 		M_ = 128;
 		m = 16;
 		N_ = 128;
@@ -114,12 +100,8 @@ struct Params {
 		bitmask_in = NULL;
 		numa_node_cpu = -1;
 #endif
-#if NUMA_MEMCPY
-		numa_node_cpu_memcpy = -1;
-		bitmask_cpu = NULL;
-#endif
 		int opt;
-		while ((opt = getopt(argc, argv, "ht:w:r:m:n:o:p:a:c:C:M:")) >= 0) {
+		while ((opt = getopt(argc, argv, "ht:w:e:m:n:o:p:A:C:")) >= 0) {
 			switch (opt) {
 			case 'h':
 				usage();
@@ -131,7 +113,7 @@ struct Params {
 			case 'w':
 				n_warmup = atoi(optarg);
 				break;
-			case 'r':
+			case 'e':
 				n_reps = atoi(optarg);
 				break;
 			case 'm':
@@ -147,20 +129,12 @@ struct Params {
 				N_ = atoi(optarg);
 				break;
 #if NUMA
-			case 'a':
+			case 'A':
 				bitmask_in = numa_parse_nodestring(optarg);
 				break;
-			case 'c':
+			case 'C':
 				numa_node_cpu = atoi(optarg);
 				break;
-#if NUMA_MEMCPY
-			case 'C':
-				bitmask_cpu = numa_parse_nodestring(optarg);
-				break;
-			case 'M':
-				numa_node_cpu_memcpy = atoi(optarg);
-				break;
-#endif // NUMA_MEMCPY
 #endif // NUMA
 			default:
 				fprintf(stderr, "\nUnrecognized option!\n");
@@ -196,9 +170,9 @@ struct Params {
 // Input Data -----------------------------------------------------------------
 void read_input(T* x_vector, const Params& p)
 {
-	int in_size = p.M_ * p.m * p.N_ * p.n;
+	unsigned long in_size = p.M_ * p.m * p.N_ * p.n;
 	srand(5432);
-	for (int i = 0; i < in_size; i++) {
+	for (unsigned long i = 0; i < in_size; i++) {
 		x_vector[i] = ((T)(rand() % 100) / 100);
 	}
 }
@@ -215,46 +189,21 @@ int main(int argc, char** argv)
 	int m = p.m;
 	int N_ = p.N_;
 	int n = p.n;
-	int in_size = M_ * m * N_ * n;
-	int finished_size = M_ * m * N_;
+	unsigned long in_size = M_ * m * N_ * n;
+	unsigned long finished_size = M_ * m * N_;
 
-#if !NUMA_MEMCPY
+#if NUMA
+	numa_node_cpu = numa_cpu_bind(p.numa_node_cpu);
+#endif
+
 	T* h_in_backup = (T*)malloc(in_size * sizeof(T));
 	ALLOC_ERR(h_in_backup);
-#endif
 
-#if NUMA
-	if (p.bitmask_in) {
-		numa_set_membind(p.bitmask_in);
-		numa_free_nodemask(p.bitmask_in);
-	}
-	T* h_in_out = (T*)numa_alloc(in_size * sizeof(T));
-#else
-	T* h_in_out = (T*)malloc(in_size * sizeof(T));
-#endif
-
+	T* h_in_out = (T*)numa_bind_alloc(in_size * sizeof(T), p.bitmask_in);
 	T* h_local = h_in_out;
 
-#if NUMA
-#if NUMA_MEMCPY
-	if (p.bitmask_cpu) {
-		numa_set_membind(p.bitmask_cpu);
-		numa_free_nodemask(p.bitmask_cpu);
-	}
-#endif // NUMA_MEMCPY
-	std::atomic_int* h_finished = (std::atomic_int*)numa_alloc(sizeof(std::atomic_int) * finished_size);
-	std::atomic_int* h_head = (std::atomic_int*)numa_alloc(N_ * sizeof(std::atomic_int));
-#if !NUMA_MEMCPY
-	struct bitmask* bitmask_all = numa_allocate_nodemask();
-	numa_bitmask_setall(bitmask_all);
-	numa_set_membind(bitmask_all);
-	numa_free_nodemask(bitmask_all);
-#endif // !NUMA_MEMCPY
-#else // NUMA
-	std::atomic_int* h_finished = (std::atomic_int*)malloc(sizeof(std::atomic_int) * finished_size);
-	std::atomic_int* h_head = (std::atomic_int*)malloc(N_ * sizeof(std::atomic_int));
-
-#endif // NUMA
+	std::atomic_int* h_finished = (std::atomic_int*)numa_bind_alloc(sizeof(std::atomic_int) * finished_size, p.bitmask_in);
+	std::atomic_int* h_head = (std::atomic_int*)numa_bind_alloc(N_ * sizeof(std::atomic_int), p.bitmask_in);
 
 	ALLOC_ERR(h_in_out, h_finished, h_head);
 
@@ -264,104 +213,35 @@ int main(int argc, char** argv)
 	for (int i = 0; i < N_; i++)
 		h_head[i].store(0);
 
-#if !NUMA_MEMCPY
 	memcpy(h_in_backup, h_in_out, in_size * sizeof(T)); // Backup for reuse across iterations
-#endif
 
 #if NUMA
-	mp_pages[0] = h_in_out;
-	if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
-		perror("move_pages(A)");
-	} else if (mp_status[0] < 0) {
-		printf("move_pages error: %d", mp_status[0]);
-	} else {
-		numa_node_in = mp_status[0];
-	}
-
-	numa_node_cpu = p.numa_node_cpu;
-	if (numa_node_cpu != -1) {
-		if (numa_run_on_node(numa_node_cpu) == -1) {
-			perror("numa_run_on_node");
-			numa_node_cpu = -1;
-		}
-	}
-#endif
-
-#if NUMA_MEMCPY
-	numa_node_in_is_local = ((numa_node_cpu == numa_node_in) || (numa_node_cpu + 8 == numa_node_in)) * 1;
+	numa_node_in = numa_get_node_of_page(h_in_out, "h_in_out");
 #endif
 
 	// Loop over main kernel
 	for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
-
-#if NUMA_MEMCPY
-		numa_node_cpu_memcpy = p.numa_node_cpu_memcpy;
-		if (rep >= p.n_warmup)
-			timer.start("local alloc");
-		if (!numa_node_in_is_local) {
-			h_local = (T*)numa_alloc(in_size * sizeof(T));
-		}
-		if (rep >= p.n_warmup)
-			timer.stop("local alloc");
-
-		if (!numa_node_in_is_local) {
-			if (p.numa_node_cpu_memcpy != -1) {
-				if (numa_run_on_node(p.numa_node_cpu_memcpy) == -1) {
-					perror("numa_run_on_node");
-					numa_node_cpu_memcpy = -1;
-				}
-			}
-		}
-
-		if (rep >= p.n_warmup)
-			timer.start("memcpy");
-		if (!numa_node_in_is_local) {
-			memcpy(h_local, h_in_out, in_size * sizeof(T));
-		}
-		if (rep >= p.n_warmup)
-			timer.stop("memcpy");
-
-		if (p.numa_node_cpu != -1) {
-			if (numa_run_on_node(p.numa_node_cpu) == -1) {
-				perror("numa_run_on_node");
-				numa_node_cpu = -1;
-			}
-		}
-
-		mp_pages[0] = h_local;
-		if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
-			perror("move_pages(A_local)");
-		} else if (mp_status[0] < 0) {
-			printf("move_pages error: %d", mp_status[0]);
-		} else {
-			numa_node_local = mp_status[0];
-		}
-#else
-		h_local = h_in_out;
-		memcpy(h_local, h_in_backup, in_size * sizeof(T));
-#endif
 
 		// Reset
 		memset((void*)h_finished, 0, sizeof(std::atomic_int) * finished_size);
 		for (int i = 0; i < N_; i++)
 			h_head[i].store(0);
 
-		// start timer
-		if (rep >= p.n_warmup)
-			timer.start("Step 1");
-		// Launch CPU threads
+		timer.start("Step 1");
 		perf_start();
 		std::thread main_thread_1(run_cpu_threads_100, h_local, h_finished, h_head, M_ * m, N_, n, p.n_threads); // M_ * m * N_);
 		main_thread_1.join();
 		perf_stop();
-		// end timer
-		if (rep >= p.n_warmup)
-			timer.stop("Step 1");
+		timer.stop("Step 1");
 
-#if WITH_PERF
-		printf("[::] run_cpu_threads_100 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d |",
-		    __FILE__, __LINE__,
-		    M_ * m, N_, n, p.n_threads);
+#if WITH_PERF_LIB
+		printf("[::] TRNS-CPU-kernel1 | n_threads=%d e_type=%s n_elements=%lu",
+		    p.n_threads, XSTR(T), in_size);
+#if NUMA
+		printf(" numa_node_inout=%d numa_node_cpu=%d numa_distance_inout_cpu=%d",
+		    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu));
+#endif
+		printf(" |");
 		perf_print();
 #endif
 
@@ -375,22 +255,21 @@ int main(int argc, char** argv)
 		for (int i = 0; i < N_; i++)
 			h_head[i].store(0);
 
-		// start timer
-		if (rep >= p.n_warmup)
-			timer.start("Step 2");
-		// Launch CPU threads
+		timer.start("Step 2");
 		perf_start();
 		std::thread main_thread_2(run_cpu_threads_010, h_local, h_head, m, n, M_ * N_, p.n_threads);
 		main_thread_2.join();
 		perf_stop();
-		// end timer
-		if (rep >= p.n_warmup)
-			timer.stop("Step 2");
+		timer.stop("Step 2");
 
-#if WITH_PERF
-		printf("[::] run_cpu_threads_010 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d |",
-		    __FILE__, __LINE__,
-		    M_ * m, N_, n, p.n_threads);
+#if WITH_PERF_LIB
+		printf("[::] TRNS-CPU-kernel2 | n_threads=%d e_type=%s n_elements=%lu",
+		    p.n_threads, XSTR(T), in_size);
+#if NUMA
+		printf(" numa_node_inout=%d numa_node_cpu=%d numa_distance_inout_cpu=%d",
+		    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu));
+#endif
+		printf(" |");
 		perf_print();
 #endif
 
@@ -405,17 +284,16 @@ int main(int argc, char** argv)
 		for (int i = 0; i < N_; i++)
 			h_head[i].store(0);
 
-		// start timer
-		// Launch CPU threads
+		timer.start("Step 3");
 		perf_start();
 		for (int i = 0; i < N_; i++) {
-			if (rep >= p.n_warmup)
-				timer.start("Step 3");
+#if ASPECTC
+			timer.start("Step 3");
+#endif
 			std::thread main_thread_3(run_cpu_threads_100, h_local + i * M_ * n * m, h_finished + i * M_ * n, h_head + i, M_, n, m, p.n_threads); // M_ * n);
 			main_thread_3.join();
-			if (rep >= p.n_warmup)
-				timer.stop("Step 3");
 #if ASPECTC
+			timer.stop("Step 3");
 			printf("[::] run_cpu_threads_100 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d | latency_us=%f\n",
 			    __FILE__, __LINE__,
 			    M_ * m, N_, n, p.n_threads,
@@ -423,76 +301,45 @@ int main(int argc, char** argv)
 #endif
 		}
 		perf_stop();
+		timer.stop("Step 3");
 		// end timer
 
-#if WITH_PERF
-		printf("[::] run_cpu_threads_100 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d |",
-		    __FILE__, __LINE__,
-		    M_ * m, N_, n, p.n_threads);
+#if WITH_PERF_LIB
+		printf("[::] TRNS-CPU-kernel3 | n_threads=%d e_type=%s n_elements=%lu",
+		    p.n_threads, XSTR(T), in_size);
+#if NUMA
+		printf(" numa_node_inout=%d numa_node_cpu=%d numa_distance_inout_cpu=%d",
+		    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu));
+#endif
+		printf(" |");
 		perf_print();
 #endif
 
-#if NUMA_MEMCPY
-		if (rep >= p.n_warmup)
-			timer.start("free");
-		if (!numa_node_in_is_local) {
-			numa_free(h_local, in_size * sizeof(T));
-		}
-		if (rep >= p.n_warmup)
-			timer.stop("free");
+#if DFATOOL_TIMING
+		if (rep >= p.n_warmup) {
+			printf("[::] TRNS-CPU | n_threads=%d e_type=%s n_elements=%lu",
+			    p.n_threads, XSTR(T), in_size);
+#if NUMA
+			printf(" numa_node_inout=%d numa_node_cpu=%d numa_distance_inout_cpu=%d",
+			    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu));
 #endif
-
-		/*
-		#if WITH_BENCHMARK
-		        if (rep >= p.n_warmup) {
-		#if NUMA_MEMCPY
-		            printf("[::] TRNS-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%d"
-		                " numa_node_inout=%d numa_node_cpu=%d numa_node_cpu_memcpy=%d numa_distance_inout_cpu=%d"
-		                " | throughput_MBps=%f",
-		                p.n_threads, XSTR(T), in_size,
-		                numa_node_in, numa_node_cpu, numa_node_cpu_memcpy, numa_distance(numa_node_in, numa_node_cpu),
-		                in_size * sizeof(T) / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));
-		            printf(" throughput_MOpps=%f",
-		                in_size / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));
-		            double latency_kernel = timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3");
-		            printf(" latency_step1_us=%f latency_step2_us=%f latency_step3_us=%f",
-		                timer.get("Step 1"), timer.get("Step 2"), timer.get("Step 3"));
-		            printf(" latency_kernel_us=%f latency_alloc_us=%f latency_memcpy_us=%f latency_free_us=%f latency_total_us=%f\n",
-		                latency_kernel, timer.get("local alloc"), timer.get("memcpy"), timer.get("free"),
-		                latency_kernel + timer.get("local alloc") + timer.get("memcpy") + timer.get("free"));
-		#else
-		            printf("[::] TRNS-CPU | n_threads=%d e_type=%s n_elements=%d"
-		#if NUMA
-		                " numa_node_inout=%d numa_node_cpu=%d numa_distance_inout_cpu=%d"
-		#endif
-		                " | throughput_MBps=%f",
-		                p.n_threads, XSTR(T), in_size,
-		#if NUMA
-		                numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu),
-		#endif
-		                in_size * sizeof(T) / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));
-		            printf(" throughput_MOpps=%f",
-		                in_size / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));
-		            printf(" latency_step1_us=%f latency_step2_us=%f latency_step3_us=%f latency_total_us=%f\n",
-		                timer.get("Step 1"), timer.get("Step 2"), timer.get("Step 3"),
-		                timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3"));
-		#endif // NUMA_MEMCPY
-		        }
-		#endif // WITH_BENCHMARK
-		*/
+			printf(" | throughput_MBps=%f",
+			    in_size * sizeof(T) / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));
+			printf(" throughput_MOpps=%f",
+			    in_size / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));
+			printf(" latency_step1_us=%f latency_step2_us=%f latency_step3_us=%f latency_us=%f\n",
+			    timer.get("Step 1"), timer.get("Step 2"), timer.get("Step 3"),
+			    timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3"));
+		}
+#endif
 	}
-
-	// Verify answer
-	// verify(h_local, h_in_backup, M_ * m, N_ * n, 1);
 
 	// Free memory
 #if NUMA
 	numa_free(h_in_out, in_size * sizeof(T));
 	numa_free(h_finished, sizeof(std::atomic_int) * finished_size);
 	numa_free(h_head, N_ * sizeof(std::atomic_int));
-#if !NUMA_MEMCPY
 	numa_free(h_in_backup, in_size * sizeof(T));
-#endif
 #else
 	free(h_in_out);
 	free(h_finished);
