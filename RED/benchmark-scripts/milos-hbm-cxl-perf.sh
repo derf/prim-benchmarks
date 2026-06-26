@@ -6,6 +6,7 @@ make -B dfatool_timing=0 numa=1 perf_lib=1
 mkdir -p log/$(hostname)
 fn=log/$(hostname)/milos-hbm-cxl-perf
 
+# 2 GiB input data
 parallel -j1 --eta --joblog ${fn}.joblog --header : \
 	./red -w 1 -e 20 -i $(( 2 ** 28 )) -t {nr_threads} -A {numa_data_in} -C {numa_compute} \
 		::: nr_threads 1 2 4 8 12 16 \

@@ -64,12 +64,12 @@ typedef struct {
 #ifndef ENERGY
 #define ENERGY 0
 #endif
-#define PRINT 0 
+#define PRINT 0
 
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
+#define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_GREEN "\x1b[32m"
+#define ANSI_COLOR_RESET "\x1b[0m"
 
-#define divceil(n, m) (((n)-1) / (m) + 1)
+#define divceil(n, m) (((n) - 1) / (m) + 1)
 #define roundup(n, m) ((n / m) * m + m)
 #endif
