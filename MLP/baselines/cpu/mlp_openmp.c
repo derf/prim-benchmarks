@@ -6,6 +6,7 @@
 #include "../../include/common.h"
 #include <assert.h>
 #include <getopt.h>
+#include <omp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -15,6 +16,7 @@
 
 #if DFATOOL_TIMING
 #include "../../include/timer.h"
+Timer timer;
 #else
 #define start(...)
 #define stop(...)
@@ -28,26 +30,22 @@
 #endif
 
 #if NUMA
-#include <numa.h>
-#include <numaif.h>
-
-void* mp_pages[1];
-int mp_status[1];
-int mp_nodes[1];
-int numa_node_data = -1;
-int numa_node_cpu = -1;
+#include "../../../include/numa.h"
+#else
+#define numa_bind_alloc(size, bitmask) malloc(size)
+#define numa_free(data, size) free(data)
 #endif
 
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
-// weights
+// weights - bitmask_in
 T** A;
 
-// input/output
+// input/output - bitmask_out
 T* B;
 
-// intermediate
+// intermediate - bitmask_out
 T* C;
 
 // Create input arrays
@@ -96,23 +94,16 @@ static void mlp_host(T* C, T** A, T* B, unsigned int m_size,
 	}
 }
 
-static uint64_t mlp_host_sum(uint64_t n_size)
-{
-	uint64_t sum = 0;
-	for (uint64_t m = 0; m < n_size; m++) {
-		sum += B[m];
-	}
-	return sum;
-}
-
 // Params ---------------------------------------------------------------------
 typedef struct Params {
 	int input_size_n;
 	int input_size_m;
 	int n_warmup;
 	int n_reps;
+	int n_threads;
 #if NUMA
-	struct bitmask* bitmask;
+	struct bitmask* bitmask_in;
+	struct bitmask* bitmask_out;
 	int numa_node_cpu;
 #endif
 } Params;
@@ -130,13 +121,15 @@ struct Params input_params(int argc, char** argv)
 	p.input_size_m = 20480;
 	p.n_warmup = 1;
 	p.n_reps = 3;
+	p.n_threads = 4;
 #if NUMA
-	p.bitmask = NULL;
+	p.bitmask_in = NULL;
+	p.bitmask_out = NULL;
 	p.numa_node_cpu = -1;
 #endif
 
 	int opt;
-	while ((opt = getopt(argc, argv, "e:n:m:w:A:C:")) >= 0) {
+	while ((opt = getopt(argc, argv, "e:n:m:t:w:A:B:C:")) >= 0) {
 		switch (opt) {
 		case 'h':
 			usage();
@@ -151,12 +144,18 @@ struct Params input_params(int argc, char** argv)
 		case 'm':
 			p.input_size_m = atoi(optarg);
 			break;
+		case 't':
+			p.n_threads = atoi(optarg);
+			break;
 		case 'w':
 			p.n_warmup = atoi(optarg);
 			break;
 #if NUMA
 		case 'A':
-			p.bitmask = numa_parse_nodestring(optarg);
+			p.bitmask_in = numa_parse_nodestring(optarg);
+			break;
+		case 'B':
+			p.bitmask_out = numa_parse_nodestring(optarg);
 			break;
 		case 'C':
 			p.numa_node_cpu = atoi(optarg);
@@ -182,45 +181,17 @@ int main(int argc, char** argv)
 	uint64_t n_size = p.input_size_n;
 	uint64_t m_size = p.input_size_m;
 
-#if DFATOOL_TIMING
-	Timer timer;
-#endif
+	omp_set_num_threads(p.n_threads);
+
+	A = numa_bind_alloc(NUM_LAYERS * sizeof(T*), p.bitmask_in);
+	for (int l = 0; l < NUM_LAYERS; l++) {
+		A[l] = numa_bind_alloc(n_size * m_size * sizeof(unsigned int), p.bitmask_in);
+	}
+	B = numa_bind_alloc(m_size * sizeof(unsigned int), p.bitmask_out);
+	C = numa_bind_alloc(m_size * sizeof(unsigned int), p.bitmask_out);
 
 #if NUMA
-	if (p.bitmask) {
-		numa_set_membind(p.bitmask);
-		numa_free_nodemask(p.bitmask);
-	}
-	A = numa_alloc(NUM_LAYERS * sizeof(T*));
-	for (int l = 0; l < NUM_LAYERS; l++) {
-		A[l] = numa_alloc(n_size * m_size * sizeof(unsigned int));
-	}
-	B = numa_alloc(m_size * sizeof(unsigned int));
-	C = numa_alloc(m_size * sizeof(unsigned int));
-
-	mp_pages[0] = A;
-	if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
-		perror("move_pages(A)");
-	} else if (mp_status[0] < 0) {
-		printf("move_pages error: %d", mp_status[0]);
-	} else {
-		numa_node_data = mp_status[0];
-	}
-
-	numa_node_cpu = p.numa_node_cpu;
-	if (numa_node_cpu != -1) {
-		if (numa_run_on_node(numa_node_cpu) == -1) {
-			perror("numa_run_on_node");
-			numa_node_cpu = -1;
-		}
-	}
-#else
-	A = malloc(NUM_LAYERS * sizeof(T*));
-	for (int l = 0; l < NUM_LAYERS; l++) {
-		A[l] = malloc(n_size * m_size * sizeof(unsigned int));
-	}
-	B = malloc(m_size * sizeof(unsigned int));
-	C = malloc(m_size * sizeof(unsigned int));
+	numa_node_cpu = numa_cpu_bind(p.numa_node_cpu);
 #endif
 
 	// Create an input file with arbitrary data.
@@ -240,14 +211,21 @@ int main(int argc, char** argv)
 #pragma omp atomic
 		nr_threads++;
 
+#if NUMA
+		numa_node_in = numa_get_node_of_page(A, "A");
+		numa_node_out = numa_get_node_of_page(B, "B");
+#endif
+
 		if (i >= p.n_warmup) {
 #if WITH_PERF_LIB
 			printf("[::] MLP-CPU | n_threads=%d e_type=%s n_elements=%lu",
 			    nr_threads, XSTR(T), n_size * m_size);
 #if NUMA
-			printf(" numa_node_data=%d numa_node_cpu=%d numa_distance_cpu_data=%d",
-			    numa_node_data, numa_node_cpu,
-			    numa_distance(numa_node_data, numa_node_cpu));
+			printf(" numa_node_in=%d numa_node_cpu=%d numa_node_out=%d"
+			       " numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
+			    numa_node_in, numa_node_cpu, numa_node_out,
+			    numa_distance(numa_node_in, numa_node_cpu),
+			    numa_distance(numa_node_cpu, numa_node_out));
 #endif
 			printf(" |");
 			perf_print();
@@ -255,9 +233,11 @@ int main(int argc, char** argv)
 			printf("[::] MLP-CPU | n_threads=%d e_type=%s n_elements=%lu",
 			    nr_threads, XSTR(T), n_size * m_size);
 #if NUMA
-			printf(" numa_node_data=%d numa_node_cpu=%d numa_distance_cpu_data=%d",
-			    numa_node_data, numa_node_cpu,
-			    numa_distance(numa_node_data, numa_node_cpu));
+			printf(" numa_node_in=%d numa_node_cpu=%d numa_node_out=%d"
+			       " numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
+			    numa_node_in, numa_node_cpu, numa_node_out,
+			    numa_distance(numa_node_in, numa_node_cpu),
+			    numa_distance(numa_node_cpu, numa_node_out));
 #endif
 			printf(" | throughput_MBps=%f throughput_MOpps=%f",
 			    n_size * m_size * sizeof(T) / timer.time[0],
@@ -273,25 +253,12 @@ int main(int argc, char** argv)
 	}
 #endif
 
-	uint32_t sum = mlp_host_sum(n_size);
-
-	printf("SUM = %d \n", sum);
-
-#if NUMA
 	for (int l = 0; l < NUM_LAYERS; l++) {
 		numa_free(A[l], n_size * m_size * sizeof(unsigned int));
 	}
 	numa_free(A, NUM_LAYERS * sizeof(T*));
 	numa_free(B, m_size * sizeof(unsigned int));
 	numa_free(C, m_size * sizeof(unsigned int));
-#else
-	for (int l = 0; l < NUM_LAYERS; l++) {
-		free(A[l]);
-	}
-	free(A);
-	free(B);
-	free(C);
-#endif
 
 	return 0;
 }

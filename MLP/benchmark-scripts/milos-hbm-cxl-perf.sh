@@ -6,16 +6,8 @@ make -B dfatool_timing=0 numa=1 perf_lib=1
 mkdir -p log/$(hostname)
 fn=log/$(hostname)/milos-hbm-cxl-perf
 
-run_benchmark() {
-	local "$@"
-	set -e
-	OMP_NUM_THREADS=${nr_threads} ./mlp_openmp -w 1 -e 20 -A ${numa_data_in} -C ${numa_compute}
-}
-
-export -f run_benchmark
-
 parallel -j1 --eta --joblog ${fn}.joblog --header : \
-	run_benchmark nr_threads={nr_threads} numa_data_in={numa_data_in} numa_compute={numa_compute} \
+	./mlp_openmp -w 1 -e 20 -t {nr_threads} -A {numa_data_in} -C {numa_compute} \
 		::: nr_threads 1 2 4 8 12 16 \
 		::: numa_compute 4 \
 		::: numa_data_in 4 \
