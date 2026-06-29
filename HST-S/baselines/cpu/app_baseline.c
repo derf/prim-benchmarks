@@ -1,14 +1,3 @@
-/*
- * JGL@SAFARI
- */
-
-/**
- * @file app.c
- * @brief Template for a Host Application Source File.
- *
- * The macros DPU_BINARY and NR_TASKLETS are directly
- * used in the static functions, and are not passed as arguments of these functions.
- */
 #include <assert.h>
 #include <getopt.h>
 #include <stdbool.h>
@@ -35,24 +24,10 @@
 #endif
 
 #if NUMA
-#include <numa.h>
-#include <numaif.h>
-
-struct bitmask* bitmask_in;
-struct bitmask* bitmask_out;
-
-void* mp_pages[1];
-int mp_status[1];
-int mp_nodes[1];
-int numa_node_in = -1;
-int numa_node_out = -1;
-int numa_node_cpu = -1;
-#endif
-
-#if NUMA_MEMCPY
-int numa_node_cpu_memcpy = -1;
-int numa_node_local = -1;
-int numa_node_in_is_local = 0;
+#include "../../../include/numa.h"
+#else
+#define numa_bind_alloc(size, bitmask) malloc(size)
+#define numa_free(data, size) free(size)
 #endif
 
 #include "../../include/common.h"
@@ -71,16 +46,11 @@ typedef struct Params {
 	int n_warmup;
 	int n_reps;
 	const char* file_name;
-	int exp;
 	int n_threads;
 #if NUMA
 	struct bitmask* bitmask_in;
 	struct bitmask* bitmask_out;
 	int numa_node_cpu;
-#endif
-#if NUMA_MEMCPY
-	int numa_node_cpu_memcpy;
-	struct bitmask* bitmask_cpu;
 #endif
 } Params;
 
@@ -119,27 +89,17 @@ static void read_input(T* A, const Params p)
  * @brief compute output in the host
  */
 static void histogram_host(unsigned int* histo, T* A, unsigned int bins,
-    unsigned long nr_elements, int exp,
+    unsigned long nr_elements,
     unsigned int nr_threads, int t)
 {
 
 	omp_set_num_threads(t);
 
-	if (!exp) {
 #pragma omp parallel for
-		for (unsigned int i = 0; i < nr_threads; i++) {
-			for (unsigned long j = 0; j < nr_elements; j++) {
-				T d = A[j];
-				histo[i * bins + ((d * bins) >> DEPTH)] += 1;
-			}
-		}
-	} else {
-#pragma omp parallel for
-		for (unsigned long j = 0; j < nr_elements; j++) {
-			T d = A[j];
+	for (unsigned long j = 0; j < nr_elements; j++) {
+		T d = A[j];
 #pragma omp atomic update
-			histo[(d * bins) >> DEPTH] += 1;
-		}
+		histo[(d * bins) >> DEPTH] += 1;
 	}
 }
 
@@ -154,7 +114,6 @@ void usage()
 	    "\n    -w <W>    # of untimed warmup iterations (default=1)"
 	    "\n    -e <E>    # of timed repetition iterations (default=3)"
 	    "\n    -t <T>    # of threads (default=8)"
-	    "\n    -x <X>    Weak (0) or strong (1) scaling (default=0)"
 	    "\n"
 	    "\nBenchmark-specific options:"
 	    "\n    -i <I>    input size (default=1536*1024 elements)"
@@ -171,16 +130,11 @@ struct Params input_params(int argc, char** argv)
 	p.n_warmup = 1;
 	p.n_reps = 3;
 	p.n_threads = 4;
-	p.exp = 1;
 	p.file_name = "../../input/image_VanHateren.iml";
 #if NUMA
 	p.bitmask_in = NULL;
 	p.bitmask_out = NULL;
 	p.numa_node_cpu = -1;
-#endif
-#if NUMA_MEMCPY
-	p.numa_node_cpu_memcpy = -1;
-	p.bitmask_cpu = NULL;
 #endif
 
 	int opt;
@@ -205,9 +159,6 @@ struct Params input_params(int argc, char** argv)
 		case 'f':
 			p.file_name = optarg;
 			break;
-		case 'x':
-			p.exp = atoi(optarg);
-			break;
 		case 't':
 			p.n_threads = atoi(optarg);
 			break;
@@ -221,14 +172,6 @@ struct Params input_params(int argc, char** argv)
 		case 'C':
 			p.numa_node_cpu = atoi(optarg);
 			break;
-#if NUMA_MEMCPY
-		case 'D':
-			p.bitmask_cpu = numa_parse_nodestring(optarg);
-			break;
-		case 'M':
-			p.numa_node_cpu_memcpy = atoi(optarg);
-			break;
-#endif // NUMA_MEMCPY
 #endif // NUMA
 		default:
 			fprintf(stderr, "\nUnrecognized option!\n");
@@ -250,10 +193,7 @@ int main(int argc, char** argv)
 	struct Params p = input_params(argc, argv);
 
 	const unsigned long input_size = p.input_size; // Size of input image
-	if (!p.exp)
-		assert(input_size % p.n_threads == 0 && "Input size!");
-	else
-		assert(input_size % p.n_threads == 0 && "Input size!");
+	assert(input_size % p.n_threads == 0 && "Input size!");
 
 	// Input/output allocation
 #if NUMA
@@ -275,19 +215,11 @@ int main(int argc, char** argv)
 		numa_free_nodemask(p.bitmask_out);
 	}
 #endif
-	if (!p.exp) {
 #if NUMA
-		histo_host = numa_alloc(p.n_threads * p.bins * sizeof(unsigned int));
+	histo_host = numa_alloc(p.bins * sizeof(unsigned int));
 #else
-		histo_host = malloc(p.n_threads * p.bins * sizeof(unsigned int));
+	histo_host = malloc(p.bins * sizeof(unsigned int));
 #endif
-	} else {
-#if NUMA
-		histo_host = numa_alloc(p.bins * sizeof(unsigned int));
-#else
-		histo_host = malloc(p.bins * sizeof(unsigned int));
-#endif
-	}
 
 #if DFATOOL_TIMING
 	Timer timer;
@@ -296,17 +228,10 @@ int main(int argc, char** argv)
 	for (int i = 0; i < p.n_warmup + p.n_reps; i++) {
 
 #if NUMA
-#if NUMA_MEMCPY
-		if (p.bitmask_cpu) {
-			numa_set_membind(p.bitmask_cpu);
-			numa_free_nodemask(p.bitmask_cpu);
-		}
-#else
 		struct bitmask* bitmask_all = numa_allocate_nodemask();
 		numa_bitmask_setall(bitmask_all);
 		numa_set_membind(bitmask_all);
 		numa_free_nodemask(bitmask_all);
-#endif // NUMA_MEMCPY
 #endif // NUMA
 
 #if NUMA
@@ -337,74 +262,18 @@ int main(int argc, char** argv)
 		}
 #endif
 
-#if NUMA_MEMCPY
-		numa_node_in_is_local = ((numa_node_cpu == numa_node_in)
-		                            || (numa_node_cpu + 8 == numa_node_in))
-		    * 1;
-#endif
-
-#if NUMA_MEMCPY
-		numa_node_cpu_memcpy = p.numa_node_cpu_memcpy;
-		start(&timer, 1, 0);
-		if (!numa_node_in_is_local) {
-			A_local = (T*)numa_alloc(input_size * sizeof(T));
-		}
-		stop(&timer, 1);
-		if (!numa_node_in_is_local) {
-			if (p.numa_node_cpu_memcpy != -1) {
-				if (numa_run_on_node(p.numa_node_cpu_memcpy) == -1) {
-					perror("numa_run_on_node");
-					numa_node_cpu_memcpy = -1;
-				}
-			}
-		}
-		start(&timer, 2, 0);
-		if (!numa_node_in_is_local) {
-			memcpy(A_local, A, input_size * sizeof(T));
-		} else {
-			A_local = A;
-		}
-		stop(&timer, 2);
-		if (p.numa_node_cpu != -1) {
-			if (numa_run_on_node(p.numa_node_cpu) == -1) {
-				perror("numa_run_on_node");
-				numa_node_cpu = -1;
-			}
-		}
-		mp_pages[0] = A_local;
-		if (move_pages(0, 1, mp_pages, NULL, mp_status, 0) == -1) {
-			perror("move_pages(A_local)");
-		} else if (mp_status[0] < 0) {
-			printf("move_pages error: %d", mp_status[0]);
-		} else {
-			numa_node_local = mp_status[0];
-		}
-#else
 		A_local = A;
-#endif
 
-		if (!p.exp)
-			memset(histo_host, 0,
-			    p.n_threads * p.bins * sizeof(unsigned int));
-		else
-			memset(histo_host, 0, p.bins * sizeof(unsigned int));
+		memset(histo_host, 0, p.bins * sizeof(unsigned int));
 
 		perf_start();
 		start(&timer, 0, 0);
 
-		histogram_host(histo_host, A_local, p.bins, input_size, p.exp,
+		histogram_host(histo_host, A_local, p.bins, input_size,
 		    p.n_threads, p.n_threads);
 
 		stop(&timer, 0);
 		perf_stop();
-
-#if NUMA_MEMCPY
-		start(&timer, 3, 0);
-		if (!numa_node_in_is_local) {
-			numa_free(A_local, input_size * sizeof(T));
-		}
-		stop(&timer, 3);
-#endif
 
 		unsigned int nr_threads = 0;
 #pragma omp parallel
@@ -419,7 +288,7 @@ int main(int argc, char** argv)
 #endif
 			       " |",
 			    nr_threads, XSTR(T), input_size,
-			    p.exp ? p.bins : p.bins * p.n_threads
+			    p.bins
 #if NUMA
 			    ,
 			    numa_node_in, numa_node_out, numa_node_cpu,
@@ -429,28 +298,13 @@ int main(int argc, char** argv)
 			);
 			perf_print();
 #elif DFATOOL_TIMING
-#if NUMA_MEMCPY
-			printf("[::] HST-S-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%lu n_bins=%d"
-			       " numa_node_in=%d numa_node_local=%d numa_node_out=%d numa_node_cpu=%d numa_node_cpu_memcpy=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
-			       " | throughput_MBps=%f",
-			    nr_threads, XSTR(T), input_size,
-			    p.exp ? p.bins : p.bins * p.n_threads, numa_node_in,
-			    numa_node_local, numa_node_out, numa_node_cpu,
-			    numa_node_cpu_memcpy, numa_distance(numa_node_in, numa_node_cpu),
-			    numa_distance(numa_node_cpu, numa_node_out),
-			    input_size * sizeof(T) / timer.time[0]);
-			printf(" throughput_MOpps=%f", input_size / timer.time[0]);
-			printf(" latency_kernel_us=%f latency_alloc_us=%f latency_memcpy_us=%f latency_free_us=%f latency_total_us=%f\n",
-			    timer.time[0], timer.time[1], timer.time[2], timer.time[3],
-			    timer.time[0] + timer.time[1] + timer.time[2] + timer.time[3]);
-#else // !NUMA_MEMCPY
 			printf("[::] HST-S-CPU | n_threads=%d e_type=%s n_elements=%lu n_bins=%d"
 #if NUMA
 			       " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
 			       " | throughput_MBps=%f",
 			    nr_threads, XSTR(T), input_size,
-			    p.exp ? p.bins : p.bins * p.n_threads,
+			    p.bins,
 #if NUMA
 			    numa_node_in, numa_node_out, numa_node_cpu,
 			    numa_distance(numa_node_in, numa_node_cpu),
@@ -459,19 +313,13 @@ int main(int argc, char** argv)
 			    input_size * sizeof(T) / timer.time[0]);
 			printf(" throughput_MOpps=%f latency_us=%f\n",
 			    input_size / timer.time[0], timer.time[0]);
-#endif // NUMA_MEMCPY
 #endif // DFATOOL_TIMING
 		}
 	}
 
 #if NUMA
 	numa_free(A, input_size * sizeof(T));
-	if (!p.exp) {
-		numa_free(histo_host,
-		    p.n_threads * p.bins * sizeof(unsigned int));
-	} else {
-		numa_free(histo_host, p.bins * sizeof(unsigned int));
-	}
+	numa_free(histo_host, p.bins * sizeof(unsigned int));
 #else
 	free(A);
 	free(histo_host);
