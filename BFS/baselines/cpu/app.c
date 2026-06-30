@@ -43,6 +43,8 @@ int main(int argc, char** argv)
 	// Process parameters
 	struct Params p = input_params(argc, argv);
 
+	omp_set_num_threads(p.n_threads);
+
 #if NUMA
 	if (p.bitmask_in) {
 		numa_set_membind(p.bitmask_in);

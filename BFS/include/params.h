@@ -26,6 +26,7 @@ typedef struct Params {
 	unsigned int depth;
 	int n_warmup;
 	int n_reps;
+	int n_threads;
 	unsigned int verbosity;
 #if NUMA
 	struct bitmask* bitmask_in;
@@ -41,12 +42,13 @@ static struct Params input_params(int argc, char** argv)
 	p.depth = 0;
 	p.n_warmup = 1;
 	p.n_reps = 3;
+	p.n_threads = 4;
 #if NUMA
 	p.bitmask_in = NULL;
 	p.numa_node_cpu = -1;
 #endif
 	int opt;
-	while ((opt = getopt(argc, argv, "d:f:v:w:e:hA:C:")) >= 0) {
+	while ((opt = getopt(argc, argv, "d:f:t:v:w:e:hA:C:")) >= 0) {
 		switch (opt) {
 		case 'd':
 			p.depth = atoi(optarg);
@@ -62,6 +64,9 @@ static struct Params input_params(int argc, char** argv)
 			break;
 		case 'e':
 			p.n_reps = atoi(optarg);
+			break;
+		case 't':
+			p.n_threads = atoi(optarg);
 			break;
 #if NUMA
 		case 'A':
