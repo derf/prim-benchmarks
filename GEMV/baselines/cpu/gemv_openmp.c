@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include <omp.h>
+
 #ifndef T
 #define T double
 #endif
@@ -54,6 +56,8 @@ int main(int argc, char* argv[])
 
 	const size_t rows = p.m_size;
 	const size_t cols = p.n_size;
+
+	omp_set_num_threads(p.n_threads);
 
 	T **A, *b, *x;
 

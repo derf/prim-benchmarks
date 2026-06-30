@@ -7,6 +7,7 @@ typedef struct Params {
 	unsigned int n_size;
 	unsigned int n_warmup;
 	unsigned int n_reps;
+	unsigned int n_threads;
 #if NUMA
 	struct bitmask* bitmask_in;
 	struct bitmask* bitmask_out;
@@ -37,6 +38,7 @@ struct Params input_params(int argc, char** argv)
 	p.n_size = 8192;
 	p.n_warmup = 1;
 	p.n_reps = 3;
+	p.n_threads = 4;
 #if NUMA
 	p.bitmask_in = NULL;
 	p.bitmask_out = NULL;
@@ -44,7 +46,7 @@ struct Params input_params(int argc, char** argv)
 #endif
 
 	int opt;
-	while ((opt = getopt(argc, argv, "hm:n:w:e:A:B:C:")) >= 0) {
+	while ((opt = getopt(argc, argv, "hm:n:w:e:t:A:B:C:")) >= 0) {
 		switch (opt) {
 		case 'h':
 			usage();
@@ -61,6 +63,9 @@ struct Params input_params(int argc, char** argv)
 			break;
 		case 'e':
 			p.n_reps = atoi(optarg);
+			break;
+		case 't':
+			p.n_threads = atoi(optarg);
 			break;
 #if NUMA
 		case 'A':

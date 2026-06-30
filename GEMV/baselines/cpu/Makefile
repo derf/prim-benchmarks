@@ -27,9 +27,6 @@ ifeq (${perf_lib}, 1)
 	LDFLAGS += ${HOME}/var/source/perf-api/build/lib/perf/libperf.a -lcap
 endif
 
-.PHONY: all
-all: gemv
-
 gemv: gemv_openmp.c
 	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -o gemv -fopenmp -DDFATOOL_TIMING=${dfatool_timing} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DWITH_PERF_LIB=${perf_lib} -DNOP_SYNC=${nop_sync} -DT=${TYPE} -DTYPE_${TYPE} gemv_openmp.c ${LDFLAGS}
 
