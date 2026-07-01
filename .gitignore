@@ -2,6 +2,8 @@ bin
 
 *.o
 
+repo.acp
+
 log-paper-strong-full.txt
 log-paper-strong-rank.txt
 log-paper-weak.txt
