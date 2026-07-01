@@ -7,6 +7,7 @@ mkdir -p log/$(hostname)
 fn=log/$(hostname)/milos-hbm-cxl
 
 # 2048 * 2048 * 16 * 8 * 8B == 4 GiB
+# Runtime on milos: 16h
 parallel -j1 --eta --joblog ${fn}.joblog --header : \
 	./trns -p 2048 -o 2048 -m 16 -n 8 -t {nr_threads} -A {ram_in} -C {cpu} -w 1 -e 5 \
 	::: nr_threads 1 2 4 8 12 16 \

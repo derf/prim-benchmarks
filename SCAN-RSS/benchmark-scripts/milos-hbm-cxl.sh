@@ -7,7 +7,8 @@ mkdir -p log/$(hostname)
 fn=log/$(hostname)/milos-hbm-cxl
 
 # uint64 → 2 GiB input + 2 GiB output
-# % nr_threads must be power of two
+# nr_threads must be power of two
+# Runtime on milos: 2.5h
 parallel -j1 --eta --joblog ${fn}.joblog --header : \
 	./scan -w 1 -e 5 -i $(( 2 ** 28 )) -t {nr_threads} -A {numa_data_in} -B {numa_data_out} -C {numa_compute} \
 		::: nr_threads 1 2 4 8 16 \

@@ -8,6 +8,7 @@ fn=log/$(hostname)/milos-hbm-cxl
 
 # 2^29 * 8B == 4 GiB
 
+# Runtime on milos: 1.5h
 parallel -j1 --eta --joblog ${fn}.joblog --header : \
 	./count -t {nr_threads} -i $(( 2 ** 29 )) -A {numa_data_in} -C $numa_compute} -w 1 -e 10 \
 		::: nr_threads 1 2 4 8 12 16 \

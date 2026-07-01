@@ -12,6 +12,7 @@ input_size=$((2**28))
 # 2^22 queries * 8 B == 32 MiB
 num_queries=$((2**22))
 
+# Runtime on milos: 8.5h
 parallel -j1 --eta --joblog ${fn}.joblog --header : \
 	./bs_omp -t {nr_threads} -w 1 -e 5 -A {ram} -C {cpu} -i ${input_size} -q ${num_queries} \
 		::: nr_threads 1 2 4 8 12 16 \
