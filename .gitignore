@@ -50,3 +50,4 @@ TS/baselines/cpu/inputs/randomlist10M.txt
 UNI/baselines/cpu/uni
 
 VA/baselines/cpu/va
+VA/baselines/gpu/va
