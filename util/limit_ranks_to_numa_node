@@ -1,0 +1,15 @@
+#!/bin/sh
+
+if [ "$1" = 0 ]; then
+	chmod 660 /dev/dpu_rank?
+	chmod 660 /dev/dpu_rank1?
+	chmod 600 /dev/dpu_rank2?
+	chmod 600 /dev/dpu_rank3?
+elif [ "$1" = 1 ]; then
+	chmod 600 /dev/dpu_rank?
+	chmod 600 /dev/dpu_rank1?
+	chmod 660 /dev/dpu_rank2?
+	chmod 660 /dev/dpu_rank3?
+else
+	chmod 660 /dev/dpu_rank*
+fi
