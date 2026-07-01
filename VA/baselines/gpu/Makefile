@@ -5,7 +5,7 @@ verbose ?= 0
 
 NR_THREADS ?= 256
 
-NVCC ?= /usr/local/cuda/bin/nvcc
+NVCC ?= /usr/local/cuda-13.1/bin/nvcc
 CXX = g++
 
 COMMON_FLAGS := -I/usr/local/cuda/include -O2 -lm -DNR_THREADS=${NR_THREADS}
