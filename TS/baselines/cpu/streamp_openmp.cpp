@@ -90,7 +90,7 @@ typedef struct Params {
 struct Params input_params(int argc, char** argv)
 {
 	struct Params p;
-	p.input_file = (char*)"inputs/randomlist33M.txt";
+	p.input_file = (char*)"inputs/randomlist10M.txt";
 	p.window_size = 256;
 	p.n_warmup = 1;
 	p.n_reps = 3;
