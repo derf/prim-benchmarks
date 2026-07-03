@@ -31,6 +31,7 @@ Timer timer;
 #else
 #define numa_bind_alloc(size, bitmask) malloc(size)
 #define numa_free(data, size) free(data)
+#define printf_numa_in_cpu_out(...)
 #endif
 
 #define XSTR(x) STR(x)
@@ -98,7 +99,8 @@ void usage()
 struct Params input_params(int argc, char** argv)
 {
 	struct Params p;
-	p.input_size = 16 << 20;
+	// 1 GiB per array @ int64_t
+	p.input_size = 1 << 27;
 	p.n_warmup = 1;
 	p.n_reps = 3;
 	p.n_threads = 4;
@@ -157,7 +159,7 @@ int main(int argc, char** argv)
 
 	omp_set_num_threads(p.n_threads);
 
-	printf("Allocating arrays for A -> C: %.3f GiB per array\n",
+	printf("Allocating 2 arrays for A → C: %.3f GiB per array\n",
 	    (double)p.input_size * sizeof(T) / (1 << 30));
 
 	A = (T*)numa_bind_alloc(p.input_size * sizeof(T), p.bitmask_in);
@@ -193,23 +195,13 @@ int main(int argc, char** argv)
 #if WITH_PERF_LIB
 			printf("[::] UNI-CPU | n_threads=%d e_type=%s n_elements=%lu",
 			    nr_threads, XSTR(T), p.input_size);
-#if NUMA
-			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
-			    numa_node_in, numa_node_out, numa_node_cpu,
-			    numa_distance(numa_node_in, numa_node_cpu),
-			    numa_distance(numa_node_cpu, numa_node_out));
-#endif
+			printf_numa_in_cpu_out();
 			printf(" |");
 			perf_print();
 #elif DFATOOL_TIMING
 			printf("[::] UNI-CPU | n_threads=%d e_type=%s n_elements=%lu",
 			    nr_threads, XSTR(T), p.input_size);
-#if NUMA
-			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
-			    numa_node_in, numa_node_out, numa_node_cpu,
-			    numa_distance(numa_node_in, numa_node_cpu),
-			    numa_distance(numa_node_cpu, numa_node_out));
-#endif
+			printf_numa_in_cpu_out();
 			printf(" | throughput_MBps=%f throughput_MOpps=%f latency_us=%f\n",
 			    p.input_size * sizeof(T) / timer.time[0],
 			    p.input_size / timer.time[0],
