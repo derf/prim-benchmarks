@@ -70,6 +70,7 @@ extern "C" {
 #else
 #define numa_bind_alloc(size, bitmask) malloc(size)
 #define numa_free(data, size) free(data)
+#define printf_numa_in_cpu(...)
 #endif
 
 // Params ---------------------------------------------------------------------
@@ -92,9 +93,9 @@ struct Params {
 		n_threads = 4;
 		n_warmup = 1;
 		n_reps = 3;
-		M_ = 128;
+		M_ = 1024;
 		m = 16;
-		N_ = 128;
+		N_ = 2048;
 		n = 8;
 #if NUMA
 		bitmask_in = NULL;
@@ -196,6 +197,9 @@ int main(int argc, char** argv)
 	numa_node_cpu = numa_cpu_bind(p.numa_node_cpu);
 #endif
 
+	printf("Allocating input/output matrix: 2× %.3f GiB\n",
+	    (double)in_size * sizeof(T) / (1 << 30));
+
 	T* h_in_backup = (T*)malloc(in_size * sizeof(T));
 	ALLOC_ERR(h_in_backup);
 
@@ -235,14 +239,13 @@ int main(int argc, char** argv)
 		timer.stop("Step 1");
 
 #if WITH_PERF_LIB
-		printf("[::] TRNS-CPU-kernel1 | n_threads=%d e_type=%s n_elements=%lu",
-		    p.n_threads, XSTR(T), in_size);
-#if NUMA
-		printf(" numa_node_inout=%d numa_node_cpu=%d numa_distance_inout_cpu=%d",
-		    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu));
-#endif
-		printf(" |");
-		perf_print();
+		if (rep >= p.n_warmup) {
+			printf("[::] TRNS-CPU-kernel1 | n_threads=%d e_type=%s n_elements=%lu",
+			    p.n_threads, XSTR(T), in_size);
+			printf_numa_in_cpu();
+			printf(" |");
+			perf_print();
+		}
 #endif
 
 #if ASPECTC
@@ -263,14 +266,13 @@ int main(int argc, char** argv)
 		timer.stop("Step 2");
 
 #if WITH_PERF_LIB
-		printf("[::] TRNS-CPU-kernel2 | n_threads=%d e_type=%s n_elements=%lu",
-		    p.n_threads, XSTR(T), in_size);
-#if NUMA
-		printf(" numa_node_inout=%d numa_node_cpu=%d numa_distance_inout_cpu=%d",
-		    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu));
-#endif
-		printf(" |");
-		perf_print();
+		if (rep >= p.n_warmup) {
+			printf("[::] TRNS-CPU-kernel2 | n_threads=%d e_type=%s n_elements=%lu",
+			    p.n_threads, XSTR(T), in_size);
+			printf_numa_in_cpu();
+			printf(" |");
+			perf_print();
+		}
 #endif
 
 #if ASPECTC
@@ -302,27 +304,18 @@ int main(int argc, char** argv)
 		}
 		perf_stop();
 		timer.stop("Step 3");
-		// end timer
 
-#if WITH_PERF_LIB
-		printf("[::] TRNS-CPU-kernel3 | n_threads=%d e_type=%s n_elements=%lu",
-		    p.n_threads, XSTR(T), in_size);
-#if NUMA
-		printf(" numa_node_inout=%d numa_node_cpu=%d numa_distance_inout_cpu=%d",
-		    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu));
-#endif
-		printf(" |");
-		perf_print();
-#endif
-
-#if DFATOOL_TIMING
 		if (rep >= p.n_warmup) {
+#if WITH_PERF_LIB
+			printf("[::] TRNS-CPU-kernel3 | n_threads=%d e_type=%s n_elements=%lu",
+			    p.n_threads, XSTR(T), in_size);
+			printf_numa_in_cpu();
+			printf(" |");
+			perf_print();
+#elif DFATOOL_TIMING
 			printf("[::] TRNS-CPU | n_threads=%d e_type=%s n_elements=%lu",
 			    p.n_threads, XSTR(T), in_size);
-#if NUMA
-			printf(" numa_node_inout=%d numa_node_cpu=%d numa_distance_inout_cpu=%d",
-			    numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu));
-#endif
+			printf_numa_in_cpu();
 			printf(" | throughput_MBps=%f",
 			    in_size * sizeof(T) / (timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3")));
 			printf(" throughput_MOpps=%f",
@@ -330,22 +323,14 @@ int main(int argc, char** argv)
 			printf(" latency_step1_us=%f latency_step2_us=%f latency_step3_us=%f latency_us=%f\n",
 			    timer.get("Step 1"), timer.get("Step 2"), timer.get("Step 3"),
 			    timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3"));
-		}
 #endif
+		}
 	}
 
-	// Free memory
-#if NUMA
 	numa_free(h_in_out, in_size * sizeof(T));
 	numa_free(h_finished, sizeof(std::atomic_int) * finished_size);
 	numa_free(h_head, N_ * sizeof(std::atomic_int));
 	numa_free(h_in_backup, in_size * sizeof(T));
-#else
-	free(h_in_out);
-	free(h_finished);
-	free(h_head);
-	free(h_in_backup);
-#endif
 
 	return 0;
 }
