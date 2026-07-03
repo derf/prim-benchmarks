@@ -2,6 +2,7 @@
 
 #include <numa.h>
 #include <numaif.h>
+#include <stdio.h>
 
 void* mp_pages[1];
 int mp_status[1];
@@ -50,4 +51,17 @@ int numa_get_node_of_page(void* data, const char* identifier)
 		return mp_status[0];
 	}
 	return -1;
+}
+
+void printf_numa_in_cpu()
+{
+	printf(" numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d", numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu));
+}
+
+void printf_numa_in_cpu_out()
+{
+	printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
+	    numa_node_in, numa_node_out, numa_node_cpu,
+	    numa_distance(numa_node_in, numa_node_cpu),
+	    numa_distance(numa_node_cpu, numa_node_out));
 }

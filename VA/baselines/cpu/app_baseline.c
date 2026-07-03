@@ -31,6 +31,7 @@ Timer timer;
 #else
 #define numa_bind_alloc(size, bitmask) malloc(size)
 #define numa_free(data, size) free(data)
+#define printf_numa_in_cpu_out(...)
 #endif
 
 #define XSTR(x) STR(x)
@@ -146,12 +147,12 @@ int main(int argc, char** argv)
 
 	const unsigned long input_size = p.input_size;
 
-	printf("Allocating arrays for A + B = C: %.3f GiB per array\n",
-			(double)input_size * sizeof(T) / (1<<30));
+	printf("Allocating 3 arrays for A + B = C: %.3f GiB each\n",
+	    (double)input_size * sizeof(T) / (1 << 30));
 
-	A = (T*) numa_bind_alloc(input_size * sizeof(T), p.bitmask_in);
-	B = (T*) numa_bind_alloc(input_size * sizeof(T), p.bitmask_in);
-	C = (T*) numa_bind_alloc(input_size * sizeof(T), p.bitmask_out);
+	A = (T*)numa_bind_alloc(input_size * sizeof(T), p.bitmask_in);
+	B = (T*)numa_bind_alloc(input_size * sizeof(T), p.bitmask_in);
+	C = (T*)numa_bind_alloc(input_size * sizeof(T), p.bitmask_out);
 
 	omp_set_num_threads(p.n_threads);
 
@@ -182,8 +183,8 @@ int main(int argc, char** argv)
 		perf_stop();
 
 #if NUMA
-			numa_node_in = numa_get_node_of_page(A, "A");
-			numa_node_out = numa_get_node_of_page(C, "C");
+		numa_node_in = numa_get_node_of_page(A, "A");
+		numa_node_out = numa_get_node_of_page(C, "C");
 #endif
 
 		unsigned int nr_threads = 0;
@@ -195,30 +196,17 @@ int main(int argc, char** argv)
 #if WITH_PERF_LIB
 			printf("[::] VA-CPU | n_threads=%d e_type=%s n_elements=%ld",
 			    nr_threads, XSTR(T), input_size);
-#if NUMA
-			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
-			    numa_node_in, numa_node_out, numa_node_cpu,
-			    numa_distance(numa_node_in, numa_node_cpu),
-			    numa_distance(numa_node_cpu, numa_node_out)
-				);
-#endif
+			printf_numa_in_cpu_out();
 			printf(" |");
 			perf_print();
 #elif DFATOOL_TIMING
 			printf("[::] VA-CPU | n_threads=%d e_type=%s n_elements=%ld",
-			    nr_threads, XSTR(T), input_size
-				);
-#if NUMA
-			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
-			    numa_node_in, numa_node_out, numa_node_cpu,
-			    numa_distance(numa_node_in, numa_node_cpu),
-			    numa_distance(numa_node_cpu, numa_node_out)
-				);
-#endif
+			    nr_threads, XSTR(T), input_size);
+			printf_numa_in_cpu_out();
 			printf(" | throughput_MBps=%f throughput_MOpps=%f latency_us=%f\n",
 			    input_size * 3 * sizeof(T) / timer.time[0],
 			    input_size / timer.time[0],
-				timer.time[0]);
+			    timer.time[0]);
 #endif // DFATOOL_TIMING
 		}
 	}
