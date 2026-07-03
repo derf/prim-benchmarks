@@ -86,7 +86,8 @@ void usage()
 struct Params input_params(int argc, char** argv)
 {
 	struct Params p;
-	p.input_size = 16777216;
+	// 2 GiB per array with int32_t
+	p.input_size = 1 << 29;
 	p.n_warmup = 1;
 	p.n_reps = 3;
 	p.n_threads = 4;
