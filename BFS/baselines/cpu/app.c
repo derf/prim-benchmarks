@@ -202,14 +202,14 @@ int main(int argc, char** argv)
 
 		if (isOK && (rep >= p.n_warmup)) {
 #if WITH_PERF_LIB
-			printf("[::] BFS CPU | n_threads=%d e_type=%s n_elements=%d", nr_threads, "uint32_t", csrGraph.numNodes);
+			printf("[::] BFS-CPU | n_threads=%d e_type=%s n_elements=%d", nr_threads, "uint32_t", csrGraph.numNodes);
 #if NUMA
 			printf(" numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d", numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu));
 #endif
 			printf(" |");
 			perf_print();
 #elif DFATOOL_TIMING
-			printf("[::] BFS CPU | n_threads=%d e_type=%s n_elements=%d",
+			printf("[::] BFS-CPU | n_threads=%d e_type=%s n_elements=%d",
 			    nr_threads, "uint32_t", csrGraph.numNodes);
 #if NUMA
 			printf(" numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d",
