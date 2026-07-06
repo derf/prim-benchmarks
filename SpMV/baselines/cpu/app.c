@@ -109,7 +109,7 @@ int main(int argc, char** argv)
 			    numa_distance(numa_node_in, numa_node_cpu),
 			    numa_distance(numa_node_cpu, numa_node_out));
 #endif
-			printf(" throughput_MBps=%f throughput_MOpps=%f latency_us=%f\n",
+			printf(" | throughput_MBps=%f throughput_MOpps=%f latency_us=%f\n",
 			    csrMatrix.numNonzeros * sizeof(float) / (getElapsedTime(timer) * 1e6),
 			    csrMatrix.numNonzeros / (getElapsedTime(timer) * 1e6),
 			    getElapsedTime(timer) * 1e6);
