@@ -217,7 +217,7 @@ int main(int argc, char** argv)
 
 		if (rep >= p.n_warmup) {
 #if WITH_PERF_LIB
-			printf("[::] SEL-CPU | n_threads=%d e_type=%s n_elements=%llu",
+			printf("[::] SELb-CPU | n_threads=%d e_type=%s n_elements=%llu",
 			    nr_threads, XSTR(T), n_elements);
 #if NUMA
 			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
@@ -226,7 +226,7 @@ int main(int argc, char** argv)
 			printf(" |");
 			perf_print();
 #elif DFATOOL_TIMING
-			printf("[::] SEL-CPU | n_threads=%d e_type=%s n_elements=%llu",
+			printf("[::] SELb-CPU | n_threads=%d e_type=%s n_elements=%llu",
 			    nr_threads, XSTR(T), n_elements);
 #if NUMA
 			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
