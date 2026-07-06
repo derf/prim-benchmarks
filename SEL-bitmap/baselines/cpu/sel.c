@@ -232,7 +232,7 @@ int main(int argc, char** argv)
 			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
 			    numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out));
 #endif
-			printf(" | latency_select_us=%f throughput_MOpps=%f throughput_MBps=%f\n",
+			printf(" | latency_us=%f throughput_MOpps=%f throughput_MBps=%f\n",
 			    timer.time[0], n_elements / timer.time[0],
 			    n_elements * sizeof(T) / timer.time[0]);
 #endif

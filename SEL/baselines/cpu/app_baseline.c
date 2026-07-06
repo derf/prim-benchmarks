@@ -216,7 +216,7 @@ int main(int argc, char** argv)
 #endif
 			printf(" | throughput_MBps=%f",
 			    file_size * 2 * sizeof(T) / timer.time[0]);
-			printf(" throughput_MOpps=%f latency_kernel_us=%f\n",
+			printf(" throughput_MOpps=%f latency_us=%f\n",
 			    file_size / timer.time[0], timer.time[0]);
 #endif
 		}
