@@ -89,7 +89,7 @@ int main(int argc, char** argv)
 
 		if (i >= p.n_warmup) {
 #if WITH_PERF_LIB
-			printf("[::] SpMV CPU | n_threads=%u e_type=float n_elements=%u",
+			printf("[::] SpMV-CPU | n_threads=%u e_type=float n_elements=%u",
 			    nr_threads, csrMatrix.numNonzeros);
 #if NUMA
 			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
@@ -101,7 +101,7 @@ int main(int argc, char** argv)
 			perf_print();
 #elif DFATOOL_TIMING
 			// coomatrix / csrmatrix use uint32_t indexes and float values
-			printf("[::] SpMV CPU | n_threads=%u e_type=float n_elements=%u",
+			printf("[::] SpMV-CPU | n_threads=%u e_type=float n_elements=%u",
 			    nr_threads, csrMatrix.numNonzeros);
 #if NUMA
 			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d",
