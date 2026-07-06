@@ -550,7 +550,7 @@ int main(int argc, char* argv[])
 			printf(" throughput_alloc_MBps=%f throughput_alloc_MOpps=%f latency_alloc_s=%f",
 			    timeSeriesLength * sizeof(DTYPE) / (time_alloc.count() * 1e6), timeSeriesLength / (time_alloc.count() * 1e6), time_alloc.count());
 			printf(" throughput_streamp_MBps=%f throughput_streamp_MOpps=%f latency_streamp_s=%f", timeSeriesLength * sizeof(DTYPE) / (time_kernel.count() * 1e6), timeSeriesLength / (time_kernel.count() * 1e6), time_kernel.count());
-			printf(" throughput_MBps=%f throughput_MOpps=%f latency_s=%f\n", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6), time_elapsed.count());
+			printf(" throughput_MBps=%f throughput_MOpps=%f latency_total_s=%f\n", timeSeriesLength * sizeof(DTYPE) / (time_elapsed.count() * 1e6), timeSeriesLength / (time_elapsed.count() * 1e6), time_elapsed.count());
 		}
 #endif
 
