@@ -6,7 +6,6 @@
 
 void* mp_pages[1];
 int mp_status[1];
-int mp_nodes[1];
 int numa_node_in = -1;
 int numa_node_out = -1;
 int numa_node_cpu = -1;
