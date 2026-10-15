@@ -31,6 +31,6 @@ void print_vec(T* b, size_t rows)
 	}
 }
 
-void gemv(T** A, T* x, size_t rows, size_t cols, T** b);
-void make_hilbert_mat(size_t rows, size_t cols, T*** A);
+void gemv(T** A, T* x, size_t rows, size_t cols, T* b);
+void make_hilbert_mat(size_t rows, size_t cols, T** A);
 T sum_vec(T* vec, size_t rows);
