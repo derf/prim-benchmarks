@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	make_hilbert_mat(rows, cols, &A);
+	make_hilbert_mat(rows, cols, A);
 
 #if NUMA
 #if NUMA_MEMCPY
@@ -302,15 +302,15 @@ void gemv(T **A, T *x, size_t rows, size_t cols, T **b)
 		}
 }
 
-void make_hilbert_mat(size_t rows, size_t cols, T ***A)
+void make_hilbert_mat(size_t rows, size_t cols, T **A)
 {
 #pragma omp parallel for
 	for (size_t i = 0; i < rows; i++) {
 		for (size_t j = 0; j < cols; j++) {
 #if TYPE_double || TYPE_float
-			(*A)[i][j] = 1.0 / ((T) i + (T) j + 1.0);
+			A[i][j] = 1.0 / ((T) i + (T) j + 1.0);
 #else
-			(*A)[i][j] = (T) (((i + j) % 10));
+			A[i][j] = (T) (((i + j) % 10));
 #endif
 		}
 	}
