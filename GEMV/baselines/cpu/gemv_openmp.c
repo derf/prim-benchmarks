@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "../../support/timer.h"
+#include "../../include/timer.h"
 
 #ifndef T
 #define T double
