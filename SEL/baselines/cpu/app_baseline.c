@@ -45,6 +45,7 @@ volatile unsigned long long total_count;
 typedef struct Params {
 	char* dpu_type;
 	unsigned long long input_size;
+	unsigned long long selectivity;
 	int n_warmup;
 	int n_reps;
 	int n_threads;
@@ -61,28 +62,29 @@ static T* A;
 static T* C;
 static unsigned long long pos;
 
-bool pred(const T x)
+bool pred(const T x, const unsigned long long selectivity)
 {
-	return (x % 2) == 0;
+	if (selectivity == 0) {
+		return 0;
+	} else {
+		return (x % selectivity) == 0;
+	}
 }
 
-void create_test_file(unsigned int nr_elements)
+void create_test_file(unsigned long long nr_elements)
 {
-	// srand(0);
-
 	A = (T*)numa_bind_alloc(nr_elements * sizeof(T), p.bitmask_in);
 	C = (T*)numa_bind_alloc(nr_elements * sizeof(T), p.bitmask_out);
 
-	for (unsigned int i = 0; i < nr_elements; i++) {
-		// A[i] = (unsigned int) (rand());
-		A[i] = i + 1;
+	for (unsigned long long i = 0; i < nr_elements; i++) {
+		A[i] = i & 0xff;
 	}
 }
 
 /**
  * @brief compute output in the host
  */
-static unsigned long long select_host(unsigned long long size, int t)
+static unsigned long long select_host(const unsigned long long size, const unsigned long long selectivity, int t)
 {
 	pos = 0;
 	C[pos] = A[pos];
@@ -90,7 +92,7 @@ static unsigned long long select_host(unsigned long long size, int t)
 	omp_set_num_threads(t);
 #pragma omp parallel for
 	for (unsigned long long my = 1; my < size; my++) {
-		if (!pred(A[my])) {
+		if (pred(A[my], selectivity)) {
 			int p;
 #pragma omp atomic update
 			pos++;
@@ -114,13 +116,15 @@ void usage()
 	    "\n    -e <E>    # of timed repetition iterations (default=3)"
 	    "\n"
 	    "\nBenchmark-specific options:"
-	    "\n    -i <I>    input size (default=8M elements)"
+	    "\n    -i <I>    input size (default=2²⁴ elements)"
+	    "\n    -s <S>    selectivity: select every S-th element (power of two: default=2; max=128; 0 → select none)"
 	    "\n");
 }
 
 void input_params(int argc, char** argv)
 {
-	p.input_size = 16 << 20;
+	p.input_size = 1 << 24;
+	p.selectivity = 2;
 	p.n_warmup = 1;
 	p.n_reps = 3;
 	p.n_threads = 4;
@@ -131,7 +135,7 @@ void input_params(int argc, char** argv)
 #endif
 
 	int opt;
-	while ((opt = getopt(argc, argv, "hi:w:e:t:A:B:C:")) >= 0) {
+	while ((opt = getopt(argc, argv, "hi:s:w:e:t:A:B:C:")) >= 0) {
 		switch (opt) {
 		case 'h':
 			usage();
@@ -139,6 +143,9 @@ void input_params(int argc, char** argv)
 			break;
 		case 'i':
 			p.input_size = atoll(optarg);
+			break;
+		case 's':
+			p.selectivity = atoll(optarg);
 			break;
 		case 'w':
 			p.n_warmup = atoi(optarg);
@@ -185,7 +192,7 @@ int main(int argc, char** argv)
 	for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 		perf_start();
 		start(&timer, 0, 0);
-		total_count = select_host(file_size, p.n_threads);
+		total_count = select_host(file_size, p.selectivity, p.n_threads);
 		stop(&timer, 0);
 		perf_stop();
 
