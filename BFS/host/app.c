@@ -363,7 +363,7 @@ int main(int argc, char** argv)
 	}
 	stopTimer(&timer, 6);
 
-	startTimer(&timer, 7);
+	startTimer(&timer, 7, 0);
 	DPU_ASSERT(dpu_free(dpu_set));
 	stopTimer(&timer, 7);
 
