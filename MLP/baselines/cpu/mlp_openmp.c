@@ -200,6 +200,27 @@ int main(int argc, char** argv)
 	for (int i = 0; i < p.n_warmup + p.n_reps; i++) {
 		init_B(B, n_size);
 
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[>>] MLP | n_threads=%d e_type=%s n_elements=%lu",
+					p.n_threads, XSTR(T), n_size * m_size);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			if (p.bitmask_out) {
+				printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+			} else {
+				printf(" numa_mask_out=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
+
 		perf_start();
 		start(&timer, 0, 0);
 		mlp_host(C, A, B, n_size, m_size);
@@ -216,6 +237,17 @@ int main(int argc, char** argv)
 		numa_node_out = numa_get_node_of_page(B, "B");
 #endif
 
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[::] mlp_host @ %s:%d | n_threads=%d n_elements=%lu",
+					__FILE__, __LINE__, nr_threads, n_size * m_size);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_cpu=%d numa_node_out=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d", numa_node_in, numa_node_cpu, numa_node_out, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out));
+#endif
+			printf(" | latency_us=%f\n",
+				timer.time[0]);
+		}
+#else
 		if (i >= p.n_warmup) {
 #if WITH_PERF_LIB
 			printf("[::] MLP-CPU | n_threads=%d e_type=%s n_elements=%lu",
@@ -245,6 +277,28 @@ int main(int argc, char** argv)
 			printf(" latency_us=%f\n", timer.time[0]);
 #endif // DFATOOL_TIMING
 		}
+#endif
+
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[<<] MLP | n_threads=%d e_type=%s n_elements=%lu",
+					p.n_threads, XSTR(T), n_size * m_size);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			if (p.bitmask_out) {
+				printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+			} else {
+				printf(" numa_mask_out=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
 	}
 
 #if NOP_SYNC

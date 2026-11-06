@@ -1,3 +1,5 @@
+aspectc ?= 0
+aspectc_timing ?= 0
 dfatool_timing ?= 1
 debug ?= 0
 native ?= 1
@@ -28,7 +30,7 @@ ifeq (${perf_lib}, 1)
 endif
 
 gemv: gemv_openmp.c
-	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -o gemv -fopenmp -DDFATOOL_TIMING=${dfatool_timing} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DWITH_PERF_LIB=${perf_lib} -DNOP_SYNC=${nop_sync} -DT=${TYPE} -DTYPE_${TYPE} gemv_openmp.c ${LDFLAGS}
+	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -o gemv -fopenmp -DASPECTC=${aspectc} -DDFATOOL_TIMING=${dfatool_timing} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DWITH_PERF_LIB=${perf_lib} -DNOP_SYNC=${nop_sync} -DT=${TYPE} -DTYPE_${TYPE} gemv_openmp.c ${LDFLAGS}
 
 .PHONY: run
 

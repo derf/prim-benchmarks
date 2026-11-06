@@ -175,6 +175,27 @@ int main(int argc, char** argv)
 
 	for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
+#if ASPECTC
+		if (rep >= p.n_warmup) {
+			printf("[>>] VA | n_threads=%d e_type=%s n_elements=%lu",
+					p.n_threads, XSTR(T), input_size);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			if (p.bitmask_out) {
+				printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+			} else {
+				printf(" numa_mask_out=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
+
 		perf_start();
 		start(&timer, 0, 0);
 
@@ -193,6 +214,19 @@ int main(int argc, char** argv)
 #pragma omp atomic
 		nr_threads++;
 
+#if ASPECTC
+		if (rep >= p.n_warmup) {
+			printf("[::] vector_addition_host @ %s:%d | n_threads=%d n_elements=%lu",
+					__FILE__, __LINE__,
+					nr_threads, input_size
+			);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_cpu=%d numa_node_out=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d", numa_node_in, numa_node_cpu, numa_node_out, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out));
+#endif
+			printf(" | latency_us=%f\n",
+				timer.time[0] * 1e6);
+		}
+#else
 		if (rep >= p.n_warmup) {
 #if WITH_PERF_LIB
 			printf("[::] VA-CPU | n_threads=%d e_type=%s n_elements=%ld",
@@ -210,6 +244,28 @@ int main(int argc, char** argv)
 			    timer.time[0]);
 #endif // DFATOOL_TIMING
 		}
+#endif
+
+#if ASPECTC
+		if (rep >= p.n_warmup) {
+			printf("[<<] VA | n_threads=%d e_type=%s n_elements=%lu",
+					p.n_threads, XSTR(T), input_size);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			if (p.bitmask_out) {
+				printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+			} else {
+				printf(" numa_mask_out=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
 	}
 
 #if NOP_SYNC

@@ -66,7 +66,6 @@ int main(int argc, char* argv[])
 #if NUMA
 	if (p.bitmask_out != NULL) {
 		numa_set_membind(p.bitmask_out);
-		numa_free_nodemask(p.bitmask_out);
 	}
 	b = (T*)numa_alloc(sizeof(T) * rows);
 #else
@@ -84,12 +83,6 @@ int main(int argc, char* argv[])
 #endif
 
 	allocate_dense(rows, cols, &A);
-
-#if NUMA
-	if (p.bitmask_in != NULL) {
-		numa_free_nodemask(p.bitmask_in);
-	}
-#endif
 
 	make_hilbert_mat(rows, cols, A);
 
@@ -146,6 +139,27 @@ int main(int argc, char* argv[])
 #endif
 
 	for (unsigned int i = 0; i < p.n_warmup + p.n_reps; i++) {
+
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[>>] GEMV | n_threads=%d e_type=%s n_elements=%lu",
+					p.n_threads, "uint64_t", rows * cols);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			if (p.bitmask_out) {
+				printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+			} else {
+				printf(" numa_mask_out=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
 
 #pragma omp parallel
 		{
@@ -251,6 +265,19 @@ int main(int argc, char* argv[])
 		}
 #endif
 
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[::] gemv @ %s:%d | n_threads=%d n_elements=%lu",
+					__FILE__, __LINE__,
+					nr_threads, rows * cols
+			);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d", numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out));
+#endif
+			printf(" | latency_us=%f\n",
+				timer.time[0]);
+		}
+#else
 		if (i >= p.n_warmup) {
 #if NUMA_MEMCPY
 			printf("[::] GEMV-CPU-MEMCPY | n_threads=%d e_type=%s n_elements=%ld"
@@ -300,6 +327,29 @@ int main(int argc, char* argv[])
 #endif // DFATOOL_TIMING
 #endif // !NUMA_MEMCPY
 		}
+#endif
+
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[<<] GEMV | n_threads=%d e_type=%s n_elements=%lu",
+					p.n_threads, "uint64_t", rows * cols);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			if (p.bitmask_out) {
+				printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+			} else {
+				printf(" numa_mask_out=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
+
 	}
 
 #if 0

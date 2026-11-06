@@ -1,3 +1,5 @@
+aspectc ?= 0
+aspectc_timing ?= 0
 dfatool_timing ?= 1
 debug ?= 0
 native ?= 1
@@ -10,7 +12,7 @@ CFLAGS =
 LDFLAGS =
 
 ifeq (${debug}, 1)
-	CFLAGS += -g
+	CFLAGS += -ggdb
 endif
 
 ifeq (${native}, 1)
@@ -27,13 +29,11 @@ ifeq (${perf_lib}, 1)
 endif
 
 bs_omp: bs_omp.c
-	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DDFATOOL_TIMING=${dfatool_timing} -DWITH_PERF_LIB=${perf_lib} bs_omp.c -o bs_omp -fopenmp ${LDFLAGS}
-
-# bs_omp performs a single iteration and must be run in a loop for proper benchmarks
+	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DASPECTC=${aspectc} -DDFATOOL_TIMING=${dfatool_timing} -DWITH_PERF_LIB=${perf_lib} bs_omp.c -o bs_omp -fopenmp ${LDFLAGS}
 
 .PHONY: run
 run: bs_omp
-	./bs_omp 262144 16777216
+	./bs_omp
 
 .PHONY: clean
 clean:

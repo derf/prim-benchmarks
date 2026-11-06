@@ -1,3 +1,4 @@
+aspectc ?= 0
 dfatool_timing ?= 1
 debug ?= 0
 native ?= 1
@@ -29,7 +30,7 @@ endif
 all: hist
 
 hist: app_baseline.c
-	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -DDFATOOL_TIMING=${dfatool_timing} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_PERF_LIB=${perf_lib} -o hist -fopenmp app_baseline.c ${LDFLAGS}
+	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} -DASPECTC=${aspectc} -DDFATOOL_TIMING=${dfatool_timing} -DNUMA=${numa} -DNUMA_MEMCPY=${numa_memcpy} -DNOP_SYNC=${nop_sync} -DWITH_PERF_LIB=${perf_lib} -o hist -fopenmp app_baseline.c ${LDFLAGS}
 
 run: hist
 	./hist -i 1006632960 -t 4

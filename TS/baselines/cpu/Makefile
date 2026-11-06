@@ -1,3 +1,4 @@
+aspectc ?= 0
 dfatool_timing ?= 1
 debug ?= 0
 native ?= 1
@@ -8,7 +9,7 @@ perf_lib ?= 0
 
 DTYPE ?= double
 
-CFLAGS = -DDFATOOL_TIMING=${dfatool_timing} -DNOP_SYNC=${nop_sync} -DNUMA=${numa} -DDTYPE=${DTYPE} -DWITH_PERF_EXT=${perf_ext} -DWITH_PERF_LIB=${perf_lib}
+CFLAGS = -DASPECTC=${aspectc} -DDFATOOL_TIMING=${dfatool_timing} -DNOP_SYNC=${nop_sync} -DNUMA=${numa} -DDTYPE=${DTYPE} -DWITH_PERF_EXT=${perf_ext} -DWITH_PERF_LIB=${perf_lib}
 LDFLAGS =
 
 ifeq (${debug}, 1)

@@ -226,6 +226,23 @@ int main(int argc, char** argv)
 	// Loop over main kernel
 	for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
+#if ASPECTC
+		if (rep >= p.n_warmup) {
+			printf("[>>] TRNS | n_threads=%d e_type=%s n_cols=%d n_rows=%d n_tile_cols=%d n_tile_rows=%d",
+					p.n_threads, XSTR(T), N_, M_, n, m);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
+
+
 		// Reset
 		memset((void*)h_finished, 0, sizeof(std::atomic_int) * finished_size);
 		for (int i = 0; i < N_; i++)
@@ -249,10 +266,12 @@ int main(int argc, char** argv)
 #endif
 
 #if ASPECTC
-		printf("[::] run_cpu_threads_100 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d | latency_us=%f\n",
-		    __FILE__, __LINE__,
-		    M_ * m, N_, n, p.n_threads,
-		    timer.get("Step 1"));
+		if (rep >= p.n_warmup) {
+			printf("[::] run_cpu_threads_100 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d | latency_us=%f\n",
+				__FILE__, __LINE__,
+				M_ * m, N_, n, p.n_threads,
+				timer.get("Step 1"));
+		}
 #endif
 
 		for (int i = 0; i < N_; i++)
@@ -276,10 +295,12 @@ int main(int argc, char** argv)
 #endif
 
 #if ASPECTC
-		printf("[::] run_cpu_threads_010 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d | latency_us=%f\n",
-		    __FILE__, __LINE__,
-		    m, n, M_ * N_, p.n_threads,
-		    timer.get("Step 2"));
+		if (rep >= p.n_warmup) {
+			printf("[::] run_cpu_threads_010 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d | latency_us=%f\n",
+				__FILE__, __LINE__,
+				m, n, M_ * N_, p.n_threads,
+				timer.get("Step 2"));
+		}
 #endif
 
 		memset((void*)h_finished, 0, sizeof(std::atomic_int) * finished_size);
@@ -296,15 +317,32 @@ int main(int argc, char** argv)
 			main_thread_3.join();
 #if ASPECTC
 			timer.stop("Step 3");
-			printf("[::] run_cpu_threads_100 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d | latency_us=%f\n",
-			    __FILE__, __LINE__,
-			    M_ * m, N_, n, p.n_threads,
-			    timer.get("Step 3"));
+			if (rep >= p.n_warmup) {
+				printf("[::] run_cpu_threads_100 @ %s:%d | arg1=%d arg2=%d arg3=%d n_threads=%d | latency_us=%f\n",
+					__FILE__, __LINE__,
+					M_, n, m, p.n_threads,
+					timer.get("Step 3"));
+			}
 #endif
 		}
 		perf_stop();
 		timer.stop("Step 3");
 
+#if ASPECTC
+		if (rep >= p.n_warmup) {
+			printf("[<<] TRNS | n_threads=%d e_type=%s n_cols=%d n_rows=%d n_tile_cols=%d n_tile_rows=%d",
+					p.n_threads, XSTR(T), N_, M_, n, m);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#else
 		if (rep >= p.n_warmup) {
 #if WITH_PERF_LIB
 			printf("[::] TRNS-CPU-kernel3 | n_threads=%d e_type=%s n_elements=%lu",
@@ -325,6 +363,7 @@ int main(int argc, char** argv)
 			    timer.get("Step 1") + timer.get("Step 2") + timer.get("Step 3"));
 #endif
 		}
+#endif
 	}
 
 	numa_free(h_in_out, in_size * sizeof(T));

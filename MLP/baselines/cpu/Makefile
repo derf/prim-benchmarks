@@ -1,3 +1,4 @@
+aspectc ?= 0
 dfatool_timing ?= 1
 debug ?= 0
 native ?= 1
@@ -9,7 +10,7 @@ CFLAGS =
 LDFLAGS =
 
 ifeq (${debug}, 1)
-	CFLAGS += -g
+	CFLAGS += -ggdb
 endif
 
 ifeq (${native}, 1)
@@ -28,7 +29,7 @@ endif
 all: mlp_openmp
 
 mlp_openmp: mlp_openmp.c
-	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} mlp_openmp.c -o mlp_openmp -DNUMA=${numa} -DNOP_SYNC=${nop_sync} -DDFATOOL_TIMING=${dfatool_timing} -DWITH_PERF_LIB=${perf_lib} -fopenmp -std=c99 ${LDFLAGS}
+	gcc -Wall -Wextra -pedantic -O3 ${CFLAGS} mlp_openmp.c -o mlp_openmp -DNUMA=${numa} -DNOP_SYNC=${nop_sync} -DASPECTC=${aspectc} -DDFATOOL_TIMING=${dfatool_timing} -DWITH_PERF_LIB=${perf_lib} -fopenmp -std=c99 ${LDFLAGS}
 
 run: mlp_openmp
 	./mlp_openmp

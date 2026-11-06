@@ -61,6 +61,29 @@ int main(int argc, char** argv)
 	float* outVector = numa_bind_alloc(csrMatrix.numRows * sizeof(float), p.bitmask_out);
 
 	for (int i = 0; i < p.n_warmup + p.n_reps; i++) {
+
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[>>] SpMV | n_threads=%d e_type=float n_elements=%u",
+					p.n_threads, csrMatrix.numNonzeros);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			if (p.bitmask_out) {
+				printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+			} else {
+				printf(" numa_mask_out=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
+
+
 		perf_start();
 		startTimer(&timer);
 #pragma omp parallel for
@@ -87,6 +110,19 @@ int main(int argc, char** argv)
 		numa_node_out = numa_get_node_of_page(outVector, "outVector");
 #endif
 
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[::] kernel @ %s:%d | n_threads=%d n_elements=%u",
+					__FILE__, __LINE__,
+					nr_threads, csrMatrix.numNonzeros
+			);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_cpu=%d numa_node_out=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d", numa_node_in, numa_node_cpu, numa_node_out, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out));
+#endif
+			printf(" | latency_us=%f\n",
+				getElapsedTime(timer) * 1e6);
+		}
+#else
 		if (i >= p.n_warmup) {
 #if WITH_PERF_LIB
 			printf("[::] SpMV-CPU | n_threads=%u e_type=float n_elements=%u",
@@ -115,6 +151,28 @@ int main(int argc, char** argv)
 			    getElapsedTime(timer) * 1e6);
 #endif
 		}
+#endif
+
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[<<] SpMV | n_threads=%d e_type=float n_elements=%u",
+					p.n_threads, csrMatrix.numNonzeros);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			if (p.bitmask_out) {
+				printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+			} else {
+				printf(" numa_mask_out=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
 	}
 
 	// Deallocate data structures

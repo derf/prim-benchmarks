@@ -9,13 +9,8 @@
 #include <time.h>
 #include <unistd.h>
 
-#if DFATOOL_TIMING
 #include "../../include/timer.h"
 Timer timer;
-#else
-#define start(...)
-#define stop(...)
-#endif
 
 #if WITH_PERF_LIB
 #include "../../../include/perf-lib.h"
@@ -171,6 +166,24 @@ int main(int argc, char** argv)
 #endif
 
 	for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
+
+#if ASPECTC
+		if (rep >= p.n_warmup) {
+			printf("[>>] BS | n_threads=%d e_type=%s n_elements=%lu n_queries=%lu",
+					p.n_threads, "uint64_t", p.input_size, p.n_queries);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
+
+
 		perf_start();
 		start(&timer, 0, 0);
 		result_host = binarySearch(input, p.input_size - 1, queries, p.n_queries);
@@ -183,12 +196,25 @@ int main(int argc, char** argv)
 		}
 #endif
 
-		int status = (result_host);
+		int status = result_host;
 		unsigned int nr_threads = 0;
 #pragma omp parallel
 #pragma omp atomic
 		nr_threads++;
 
+#if ASPECTC
+		if (rep >= p.n_warmup) {
+			printf("[::] binarySearch @ %s:%d | n_threads=%d n_elements=%lu n_queries=%lu",
+					__FILE__, __LINE__,
+					nr_threads, p.input_size, p.n_queries
+			);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d", numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu));
+#endif
+			printf(" | latency_us=%f\n",
+				timer.time[0]);
+		}
+#else
 		if (status) {
 			if (rep >= p.n_warmup) {
 #if WITH_PERF_LIB
@@ -216,6 +242,24 @@ int main(int argc, char** argv)
 			printf("[ERROR]\n");
 			return 1;
 		}
+#endif
+
+#if ASPECTC
+		if (rep >= p.n_warmup) {
+			printf("[<<] BS | n_threads=%d e_type=%s n_elements=%lu n_queries=%lu",
+					p.n_threads, "uint64_t", p.input_size, p.n_queries);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
+
 	}
 
 	numa_free(input, p.input_size * sizeof(DTYPE));

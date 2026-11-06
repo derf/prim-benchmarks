@@ -199,7 +199,6 @@ int main(int argc, char** argv)
 #if NUMA
 	if (p.bitmask_in) {
 		numa_set_membind(p.bitmask_in);
-		numa_free_nodemask(p.bitmask_in);
 	}
 	A = numa_alloc(input_size * sizeof(T));
 #else
@@ -212,7 +211,6 @@ int main(int argc, char** argv)
 #if NUMA
 	if (p.bitmask_out) {
 		numa_set_membind(p.bitmask_out);
-		numa_free_nodemask(p.bitmask_out);
 	}
 #endif
 #if NUMA
@@ -226,6 +224,27 @@ int main(int argc, char** argv)
 #endif
 
 	for (int i = 0; i < p.n_warmup + p.n_reps; i++) {
+
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[>>] HST | n_threads=%d e_type=%s n_elements=%lu n_bins=%d",
+					p.n_threads, XSTR(T), input_size, p.bins);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			if (p.bitmask_out) {
+				printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+			} else {
+				printf(" numa_mask_out=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
 
 #if NUMA
 		struct bitmask* bitmask_all = numa_allocate_nodemask();
@@ -280,9 +299,20 @@ int main(int argc, char** argv)
 #pragma omp atomic
 		nr_threads++;
 
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[::] histogram_host @ %s:%d | n_threads=%d n_elements=%lu n_bins=%d",
+				__FILE__, __LINE__, nr_threads, input_size, p.bins);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d", numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out));
+#endif
+			printf(" | latency_us=%f\n",
+				timer.time[0]);
+		}
+#else
 		if (i >= p.n_warmup) {
 #if WITH_PERF_LIB
-			printf("[::] HST-S-CPU | n_threads=%d e_type=%s n_elements=%lu n_bins=%d"
+			printf("[::] HST-CPU | n_threads=%d e_type=%s n_elements=%lu n_bins=%d"
 #if NUMA
 			       " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
@@ -298,7 +328,7 @@ int main(int argc, char** argv)
 			);
 			perf_print();
 #elif DFATOOL_TIMING
-			printf("[::] HST-S-CPU | n_threads=%d e_type=%s n_elements=%lu n_bins=%d"
+			printf("[::] HST-CPU | n_threads=%d e_type=%s n_elements=%lu n_bins=%d"
 #if NUMA
 			       " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
@@ -315,6 +345,28 @@ int main(int argc, char** argv)
 			    input_size / timer.time[0], timer.time[0]);
 #endif // DFATOOL_TIMING
 		}
+#endif
+
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[<<] HST | n_threads=%d e_type=%s n_elements=%lu n_bins=%d",
+					p.n_threads, XSTR(T), input_size, p.bins);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			if (p.bitmask_out) {
+				printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+			} else {
+				printf(" numa_mask_out=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
 	}
 
 #if NUMA

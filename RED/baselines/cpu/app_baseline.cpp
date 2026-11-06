@@ -98,7 +98,6 @@ typedef struct Params {
 	int n_threads;
 #if NUMA
 	struct bitmask* bitmask_in;
-	struct bitmask* bitmask_out;
 	int numa_node_cpu;
 #endif
 } Params;
@@ -128,12 +127,11 @@ struct Params input_params(int argc, char** argv)
 	p.n_threads = 4;
 #if NUMA
 	p.bitmask_in = NULL;
-	p.bitmask_out = NULL;
 	p.numa_node_cpu = -1;
 #endif
 
 	int opt;
-	while ((opt = getopt(argc, argv, "hi:w:e:t:A:B:C:")) >= 0) {
+	while ((opt = getopt(argc, argv, "hi:w:e:t:A:C:")) >= 0) {
 		switch (opt) {
 		case 'h':
 			usage();
@@ -154,9 +152,6 @@ struct Params input_params(int argc, char** argv)
 #if NUMA
 		case 'A':
 			p.bitmask_in = numa_parse_nodestring(optarg);
-			break;
-		case 'B':
-			p.bitmask_out = numa_parse_nodestring(optarg);
 			break;
 		case 'C':
 			p.numa_node_cpu = atoi(optarg);
@@ -188,7 +183,6 @@ int main(int argc, char** argv)
 #if NUMA
 	if (p.bitmask_in) {
 		numa_set_membind(p.bitmask_in);
-		numa_free_nodemask(p.bitmask_in);
 	}
 	A = (T*)numa_alloc(p.input_size * sizeof(T));
 #else
@@ -220,6 +214,22 @@ int main(int argc, char** argv)
 	// Loop over main kernel
 	for (int rep = 0; rep < p.n_warmup + p.n_reps; rep++) {
 
+#if ASPECTC
+		if (rep >= p.n_warmup) {
+			printf("[>>] RED | n_threads=%d e_type=%s n_elements=%lu",
+					p.n_threads, XSTR(T), p.input_size);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
+
 		thrust::omp::vector<T> d_input(p.input_size);
 		memcpy(thrust::raw_pointer_cast(&d_input[0]), A, p.input_size * sizeof(T));
 
@@ -236,6 +246,19 @@ int main(int argc, char** argv)
 		stop(&timer, 0);
 		perf_stop();
 
+#if ASPECTC
+		if (rep >= p.n_warmup) {
+			printf("[::] thrust::reduce @ %s:%d | n_threads=%d vec_size=%ld",
+					__FILE__, __LINE__,
+					nr_threads, d_input.size()
+			);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_cpu=%d numa_distance_in_cpu=%d", numa_node_in, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu));
+#endif
+			printf(" | latency_us=%f\n",
+				timer.time[0]);
+		}
+#else
 		if (rep >= p.n_warmup) {
 #if WITH_PERF_LIB
 			printf("[::] RED-CPU | n_threads=%d e_type=%s n_elements=%lu",
@@ -262,6 +285,23 @@ int main(int argc, char** argv)
 			    timer.time[0]);
 #endif // DFATOOL_TIMING
 		}
+#endif
+
+#if ASPECTC
+		if (rep >= p.n_warmup) {
+			printf("[<<] RED | n_threads=%d e_type=%s n_elements=%lu",
+					p.n_threads, XSTR(T), p.input_size);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
 	}
 
 	// Deallocation

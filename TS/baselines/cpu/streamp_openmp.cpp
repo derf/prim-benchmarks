@@ -441,6 +441,28 @@ int main(int argc, char* argv[])
 
 	for (int i = 0; (i < p.n_warmup + p.n_reps) && !interrupt; i++) {
 
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[>>] TS | n_threads=%d e_type=%s n_elements=%u",
+			    numThreads, XSTR(DTYPE), timeSeriesLength);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			if (p.bitmask_out) {
+				printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+			} else {
+				printf(" numa_mask_out=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
+
+
 		tstart = std::chrono::high_resolution_clock::now();
 		tprogstart = tstart;
 		perf_start();
@@ -453,6 +475,20 @@ int main(int argc, char* argv[])
 
 #if NUMA
 		numa_node_out = numa_get_node_of_page(AMean, "AMean");
+#endif
+
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[::] preprocess @ %s:%d | n_threads=%d n_elements=%u",
+					__FILE__, __LINE__,
+					numThreads, timeSeriesLength
+			);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_cpu=%d numa_node_out=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d", numa_node_in, numa_node_cpu, numa_node_out, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out));
+#endif
+			printf(" | latency_us=%f\n",
+				time_preprocess.count() * 1e6);
+		}
 #endif
 
 #if WITH_PERF_LIB
@@ -484,6 +520,20 @@ int main(int argc, char* argv[])
 		perf_stop();
 		tend = std::chrono::high_resolution_clock::now();
 		time_alloc = tend - tstart;
+
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[::] alloc @ %s:%d | n_threads=%d n_elements=%u",
+					__FILE__, __LINE__,
+					numThreads, timeSeriesLength
+			);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_cpu=%d numa_node_out=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d", numa_node_in, numa_node_cpu, numa_node_out, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out));
+#endif
+			printf(" | latency_us=%f\n",
+				time_alloc.count() * 1e6);
+		}
+#endif
 
 #if WITH_PERF_LIB
 		if (i >= p.n_warmup) {
@@ -534,7 +584,19 @@ int main(int argc, char* argv[])
 		}
 #endif
 
-#if DFATOOL_TIMING
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[::] streamp @ %s:%d | n_threads=%d n_elements=%u",
+					__FILE__, __LINE__,
+					numThreads, timeSeriesLength
+			);
+#if NUMA
+			printf(" numa_node_in=%d numa_node_cpu=%d numa_node_out=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d", numa_node_in, numa_node_cpu, numa_node_out, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out));
+#endif
+			printf(" | latency_us=%f\n",
+				time_kernel.count() * 1e6);
+		}
+#elif DFATOOL_TIMING
 		if (i >= p.n_warmup) {
 			std::chrono::duration<double> time_elapsed = tend - tprogstart;
 			printf("[::] TS-CPU | n_threads=%d e_type=%s n_elements=%d",
@@ -556,5 +618,26 @@ int main(int argc, char* argv[])
 
 		delete profile;
 		delete profileIndex;
+
+#if ASPECTC
+		if (i >= p.n_warmup) {
+			printf("[<<] TS | n_threads=%d e_type=%s n_elements=%u",
+			    numThreads, XSTR(DTYPE), timeSeriesLength);
+#if NUMA
+			if (p.bitmask_in) {
+				printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+			} else {
+				printf(" numa_mask_in=-1");
+			}
+			if (p.bitmask_out) {
+				printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+			} else {
+				printf(" numa_mask_out=-1");
+			}
+			printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+			printf("\n");
+		}
+#endif
 	}
 }

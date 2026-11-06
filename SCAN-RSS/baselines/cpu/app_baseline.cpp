@@ -58,7 +58,7 @@ extern "C" {
 #include "../../../include/numa.h"
 #else
 #define numa_bind_alloc(size, bitmask) malloc(size)
-#define numa_free(data, size) free(size)
+#define numa_free(data, size) free(data)
 #endif
 
 #define XSTR(x) STR(x)
@@ -166,11 +166,6 @@ int main(int argc, char **argv) {
 
 	C = (T*) numa_bind_alloc(p.input_size * sizeof(T), p.bitmask_out);
 
-#if NUMA
-	numa_free_nodemask(p.bitmask_in);
-	numa_free_nodemask(p.bitmask_out);
-#endif
-
     // Create an input file with arbitrary data.
     read_input(A, p.input_size);
 
@@ -186,6 +181,27 @@ int main(int argc, char **argv) {
 
         memcpy(thrust::raw_pointer_cast(&h_output[0]), A, p.input_size * sizeof(T));
 
+#if ASPECTC
+        if (rep >= p.n_warmup) {
+            printf("[>>] SCAN-RSS | n_threads=%d e_type=%s n_elements=%lu",
+                    p.n_threads, "uint64_t", p.input_size);
+#if NUMA
+            if (p.bitmask_in) {
+                printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+            } else {
+                printf(" numa_mask_in=-1");
+            }
+            if (p.bitmask_out) {
+                printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+            } else {
+                printf(" numa_mask_out=-1");
+            }
+            printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+            printf("\n");
+        }
+#endif
+
         omp_set_num_threads(p.n_threads);
 
         unsigned int nr_threads = 0;
@@ -193,45 +209,81 @@ int main(int argc, char **argv) {
 #pragma omp atomic
         nr_threads++;
 
-		perf_start();
-		start(&timer, 0, 0);
+        perf_start();
+        start(&timer, 0, 0);
         thrust::exclusive_scan(thrust::omp::par, h_output.begin(),h_output.end(),h_output.begin());
-		stop(&timer, 0);
-		perf_stop();
+        stop(&timer, 0);
+        perf_stop();
 
-            if(rep >= p.n_warmup) {
 #if NUMA
-				numa_node_in = numa_get_node_of_page(A, "A");
-				numa_node_out = numa_get_node_of_page(C, "C");
+        numa_node_in = numa_get_node_of_page(A, "A");
+        numa_node_out = numa_get_node_of_page(C, "C");
 #endif
+
+#if ASPECTC
+        if (rep >= p.n_warmup) {
+            printf("[::] thrust::exclusive_scan @ %s:%d | n_threads=%d vec_size=%ld",
+                    __FILE__, __LINE__,
+                    nr_threads, h_output.size()
+            );
+#if NUMA
+            printf(" numa_node_in=%d numa_node_cpu=%d numa_node_out=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d", numa_node_in, numa_node_cpu, numa_node_out, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out));
+#endif
+            printf(" | latency_us=%f\n",
+                timer.time[0]);
+        }
+#else
+        if(rep >= p.n_warmup) {
 #if WITH_PERF_LIB
-                printf("[::] SCAN-RSS-CPU | n_threads=%d e_type=%s n_elements=%lu"
+            printf("[::] SCAN-RSS-CPU | n_threads=%d e_type=%s n_elements=%lu"
 #if NUMA
-                    " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+                " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
-					" |",
-                    nr_threads, XSTR(T), p.input_size
+                " |",
+                nr_threads, XSTR(T), p.input_size
 #if NUMA
-					,
-                    numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out)
+                ,
+                numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out)
 #endif
-					);
-				perf_print();
+                );
+            perf_print();
 #elif DFATOOL_TIMING
-                printf("[::] SCAN-RSS-CPU | n_threads=%d e_type=%s n_elements=%lu"
+            printf("[::] SCAN-RSS-CPU | n_threads=%d e_type=%s n_elements=%lu"
 #if NUMA
-                    " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
+                " numa_node_in=%d numa_node_out=%d numa_node_cpu=%d numa_distance_in_cpu=%d numa_distance_cpu_out=%d"
 #endif
-                    " | throughput_MBps=%f",
-                    nr_threads, XSTR(T), p.input_size,
+                " | throughput_MBps=%f",
+                nr_threads, XSTR(T), p.input_size,
 #if NUMA
-                    numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
+                numa_node_in, numa_node_out, numa_node_cpu, numa_distance(numa_node_in, numa_node_cpu), numa_distance(numa_node_cpu, numa_node_out),
 #endif
-                    p.input_size * sizeof(T) / timer.time[0]);
-                printf(" throughput_MOpps=%f latency_us=%f\n",
-                    p.input_size / timer.time[0], timer.time[0]);
+                p.input_size * sizeof(T) / timer.time[0]);
+            printf(" throughput_MOpps=%f latency_us=%f\n",
+                p.input_size / timer.time[0], timer.time[0]);
 #endif // DFATOOL_TIMING
         }
+#endif
+
+#if ASPECTC
+        if (rep >= p.n_warmup) {
+            printf("[<<] SCAN-RSS | n_threads=%d e_type=%s n_elements=%lu",
+                    p.n_threads, "uint64_t", p.input_size);
+#if NUMA
+            if (p.bitmask_in) {
+                printf(" numa_mask_in=%ld", *(p.bitmask_in->maskp));
+            } else {
+                printf(" numa_mask_in=-1");
+            }
+            if (p.bitmask_out) {
+                printf(" numa_mask_out=%ld", *(p.bitmask_out->maskp));
+            } else {
+                printf(" numa_mask_out=-1");
+            }
+            printf(" numa_node_cpu=%d", p.numa_node_cpu);
+#endif
+            printf("\n");
+        }
+#endif
 
     }
 

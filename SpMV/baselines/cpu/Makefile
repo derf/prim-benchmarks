@@ -1,10 +1,11 @@
+aspectc ?= 0
 dfatool_timing ?= 1
 native ?= 1
 numa ?= 0
 perf_ext ?= 0
 perf_lib ?= 0
 
-CFLAGS = -DDFATOOL_TIMING=${dfatool_timing} -DNUMA=${numa} -DWITH_PERF_EXT=${perf_ext} -DWITH_PERF_LIB=${perf_lib}
+CFLAGS = -DASPECTC=${aspectc} -DDFATOOL_TIMING=${dfatool_timing} -DNUMA=${numa} -DWITH_PERF_EXT=${perf_ext} -DWITH_PERF_LIB=${perf_lib}
 LDFLAGS =
 
 ifeq (${native}, 1)

@@ -1,3 +1,4 @@
+aspectc ?= 0
 dfatool_timing ?= 1
 debug ?= 0
 native ?= 1
@@ -10,7 +11,7 @@ CFLAGS =
 LDFLAGS =
 
 ifeq (${debug}, 1)
-	CFLAGS += -g
+	CFLAGS += -ggdb
 endif
 
 ifeq (${native}, 1)
@@ -29,7 +30,7 @@ endif
 TYPE ?= UINT64
 
 scan: app_baseline.cpp
-	g++ -Wall -Wextra -pedantic -O3 ${CFLAGS} app_baseline.cpp -fopenmp -DTHRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_CPP -DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_OMP -lgomp -I/usr/local/cuda-8.0/include -lm -o scan -DDFATOOL_TIMING=${dfatool_timing} -DNUMA=${numa} -DNOP_SYNC=${nop_sync} -DWITH_PERF_LIB=${perf_lib} -D${TYPE} ${LDFLAGS}
+	g++ -Wall -Wextra -pedantic -O3 ${CFLAGS} app_baseline.cpp -fopenmp -DTHRUST_HOST_SYSTEM=THRUST_HOST_SYSTEM_CPP -DTHRUST_DEVICE_SYSTEM=THRUST_DEVICE_SYSTEM_OMP -lgomp -I/usr/local/cuda-8.0/include -lm -o scan -DASPECTC=${aspectc} -DDFATOOL_TIMING=${dfatool_timing} -DNUMA=${numa} -DNOP_SYNC=${nop_sync} -DWITH_PERF_LIB=${perf_lib} -D${TYPE} ${LDFLAGS}
 
 run: scan
 	./scan -i 1258291200 -t 4
